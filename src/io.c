@@ -3265,6 +3265,10 @@ void Print_Settings(option *io)
   if (io->datatype == AA && io->mod->whichmodel == CUSTOMAA)
     PhyML_Printf(" (%s)", io->mod->aa_rate_mat_file->s);
 
+  if (io->sms == YES)
+    PhyML_Printf("\n        . Model selection:\t\t\t\t SMS (%s)",
+                 io->sms_criterion == SMS_AIC ? "AIC" : "BIC");
+
   if (io->datatype == NT)
   {
     if ((io->mod->whichmodel == K80) || (io->mod->whichmodel == HKY85) ||

@@ -37,6 +37,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | `functional/oracle.py` | Independent reference implementation of the likelihood (Felsenstein pruning, GTR family, discrete Gamma, +I, ambiguity codes, custom amino-acid matrices) and of marginal ancestral states |
 | `functional/newick.py` | Newick parser, splits, Robinson-Foulds and transfer-bootstrap reference code |
 | `data/` | Small alignments and trees; regenerate with `make -C test data` (`tools/make_data.py`, deterministic) |
+| `data/aa_matrices/` | PAML files of protein matrices tested by SMS: Q.pfam, Q.bird, Q.insect, Q.mammal, Q.plant, Q.yeast and MtZoa (from SMS 2.1.1, identical to IQ-TREE's), AB (identical to the paper's supplementary file) and FLU; not generated |
 
 ## What is tested
 
@@ -45,7 +46,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Random numbers, distributions, discrete Gamma, aLRT conversion | `test_stats.c` | |
 | Newick reading and writing, bipartitions, RF, transfer distance, BioNJ | `test_trees.c` | |
 | State encoding, strings, matrix inverse | `test_misc.c` | |
-| Likelihood vs. the reference implementation (JC69, K80, F81, HKY85, GTR, +G mean and median, +I, +I+G, ambiguities, custom AA matrix, per-site values, SIMD vs scalar) | | `test_likelihood_oracle.py` |
+| Likelihood vs. the reference implementation (JC69, K80, F81, HKY85, GTR, +G mean and median, +I, +I+G, ambiguities, custom AA matrix, the protein matrices added for SMS, per-site values, SIMD vs scalar) | | `test_likelihood_oracle.py` |
 | Models and optimisation (nesting, parameter recovery on simulated data, `-o` levels, fixed values, FreeRate, invariance to taxon and site order) | | `test_models.py` |
 | Tree search (true topology recovered, optimality, starting trees, random starts, constraints) | | `test_search.py` |
 | Supports (aLRT, chi2, SH, aBayes, bootstrap counts, TBE vs reference, Bayesian bootstrap, reproducibility) | | `test_supports.py` |
@@ -55,6 +56,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Memory errors under ASan/UBSan | | `test_memory_safety.py` |
 | `-DNDEBUG` build | | `test_build_variants.py` |
 | Multithreading: identical results with 1, 2 and 4 threads (search, supports, bootstrap, ancestral states, site likelihoods), `--threads` validation | | `test_threads.py` |
+| SMS model selection (`--sms`): fits table (K, AIC, BIC, order), heuristic path, nested models, selected model used by the analysis, `--sms_only`, `--sms_criterion`, `-c`, `-o tl`, `-u`, several data sets, refused options, same fits for any number of threads | | `test_sms.py` |
 | MPI bootstrap | | `test_mpi.py` |
 
 ## Known bugs
@@ -73,8 +75,8 @@ lines.
 Known bugs covered at the time of writing:
 
 - Crashes: `-d generic` aborts whenever parameters are optimised
-  (`eigen.c:53`); the covarion model (`--cov`) segfaults; custom DNA models (`-m 012345`, `-m r1,...,r6`) and `-o n` without
-  `-m` (`cl.c:968`, `cl.c:1882`); user or constraint trees without branch
+  (`eigen.c:53`); the covarion model (`--cov`) segfaults; custom DNA models (`-m 012345`, `-m r1,...,r6`)
+  (`cl.c:968`); user or constraint trees without branch
   lengths (`io.c:327`); internal polytomies (`io.c:247`); unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.

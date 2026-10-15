@@ -189,6 +189,7 @@ init.c init.h\
 xml.c xml.h\
 mixt.c mixt.h\
 tbe.c tbe.h \
+sms.c sms.h \
 sse.c sse.h\
 avx.c avx.h\
 m4.c m4.h\
@@ -219,6 +220,7 @@ cl.c  cl.h\
 spr.c spr.h\
 draw.c  draw.h\
 tbe.c tbe.h \
+sms.c sms.h \
 stats.c stats.h\
 rates.c rates.h\
 mcmc.c mcmc.h\
@@ -462,6 +464,7 @@ xml.c xml.h\
 sse.c sse.h\
 avx.c avx.h\
 tbe.c tbe.h \
+sms.c sms.h \
 ancestral.c ancestral.h \
 mixt.c mixt.h \
 evolve.c evolve.h\

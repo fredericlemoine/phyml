@@ -23,9 +23,11 @@ int Read_Command_Line(option *io, int argc, char **argv)
   int       i;
   int       writemode;
   short int opt_m;
+  short int opt_model; // a model option other than -m (see --sms)
 
   writemode = WRITE;
   opt_m     = 0;
+  opt_model = 0;
 
   if (argc == 1)
     Exit("\n. No argument was passed to the program. Please check the "
@@ -135,6 +137,9 @@ int Read_Command_Line(option *io, int argc, char **argv)
       {"n_otu", required_argument, NULL, 86},
       {"bayesian_bootstrap",  no_argument,NULL,87},
       {"threads", required_argument, NULL, 88},
+      {"sms", no_argument, NULL, 89},
+      {"sms_criterion", required_argument, NULL, 90},
+      {"sms_only", no_argument, NULL, 91},
       {0, 0, 0, 0}};
 
   io->datatype = UNDEFINED;
@@ -185,6 +190,27 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
     switch (c)
     {
+    case 91:
+    {
+      io->sms      = YES;
+      io->sms_only = YES;
+      break;
+    }
+    case 90:
+    {
+      if (!strcmp(optarg, "aic") || !strcmp(optarg, "AIC"))
+        io->sms_criterion = SMS_AIC;
+      else if (!strcmp(optarg, "bic") || !strcmp(optarg, "BIC"))
+        io->sms_criterion = SMS_BIC;
+      else
+        Exit("\n. The SMS criterion must be 'aic' or 'bic'.\n\n");
+      break;
+    }
+    case 89:
+    {
+      io->sms = YES;
+      break;
+    }
     case 88:
     {
       char *end;
@@ -498,6 +524,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 61:
     {
+      opt_model = 1;
       io->mod->ras->free_mixt_rates       = YES;
       io->mod->s_opt->opt_free_mixt_rates = YES;
       break;
@@ -575,6 +602,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 52:
     {
+      opt_model = 1;
       char *s;
       s = (char *)mCalloc(T_MAX_FILE, sizeof(char));
       strcpy(s, optarg);
@@ -916,7 +944,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
             (io->mod->whichmodel == VT) || (io->mod->whichmodel == MTMAM) ||
             (io->mod->whichmodel == MTART) || (io->mod->whichmodel == HIVW) ||
             (io->mod->whichmodel == HIVB) || (io->mod->whichmodel == AB) ||
-            (io->mod->whichmodel == CUSTOMAA))
+            (io->mod->whichmodel == FLU) || (io->mod->whichmodel == CUSTOMAA) ||
+            (io->mod->whichmodel >= QPFAM && io->mod->whichmodel <= MTZOA))
         {
           io->mod->whichmodel = HKY85;
           strcpy(io->mod->modelname->s, "HKY85\0");
@@ -1162,6 +1191,48 @@ int Read_Command_Line(option *io, int argc, char **argv)
           io->mod->ns         = 20;
           io->mod->whichmodel = FLU;
         }
+        else if (strcmp(s, "Q.PFAM") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QPFAM;
+        }
+        else if (strcmp(s, "Q.BIRD") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QBIRD;
+        }
+        else if (strcmp(s, "Q.INSECT") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QINSECT;
+        }
+        else if (strcmp(s, "Q.MAMMAL") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QMAMMAL;
+        }
+        else if (strcmp(s, "Q.PLANT") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QPLANT;
+        }
+        else if (strcmp(s, "Q.YEAST") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = QYEAST;
+        }
+        else if (strcmp(s, "MTZOA") == 0)
+        {
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = MTZOA;
+        }
         else
         {
           PhyML_Printf("\n. The model name is incorrect. Please see the "
@@ -1188,6 +1259,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     case 'a':
     case 14:
     {
+      opt_model = 1;
       if ((strcmp(optarg, "e") == 0) || (strcmp(optarg, "E") == 0) ||
           (strcmp(optarg, "estimated") == 0) ||
           (strcmp(optarg, "ESTIMATED") == 0))
@@ -1285,6 +1357,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 'f':
     {
+      opt_model = 1;
       // Won't work if ns is not set beforehand, i.e., if -d comes after -f
       // in the command line
       io->mod->e_frq = (t_efrq *)Make_Efrq(io->mod->ns);
@@ -1622,6 +1695,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     case 'v':
     case 13:
     {
+      opt_model = 1;
       if ((strcmp(optarg, "e") == 0) || (strcmp(optarg, "E") == 0) ||
           (strcmp(optarg, "estimated") == 0) ||
           (strcmp(optarg, "ESTIMATED") == 0))
@@ -1765,6 +1839,19 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
   if (io->datatype == UNDEFINED) io->datatype = NT;
 
+  if (io->sms == YES)
+  {
+    if (opt_m || opt_model)
+      Exit("\n. '--sms' selects the substitution model: it cannot be combined with "
+           "-m, -f, -v, -a, -t, --freerates or --aa_rate_file.\n\n");
+    if (io->datatype != NT && io->datatype != AA)
+      Exit("\n. '--sms' only selects models for DNA (-d nt) or amino acids "
+           "(-d aa).\n\n");
+    if (io->mod->ras->n_catg < 2)
+      Exit("\n. '--sms' needs at least two rate categories (-c).\n\n");
+    io->sms_n_catg = io->mod->ras->n_catg;
+  }
+
   if ((io->datatype == NT) && (io->mod->whichmodel > 10))
   {
     char choix;
@@ -1779,7 +1866,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
     char choix;
     PhyML_Printf("\n. Err.: model incompatible with the data type. Please use "
                  "LG, Dayhoff, JTT, MtREV, WAG, DCMut, RtREV, CpREV, VT, "
-                 "Blosum62, MtMam, MtArt, HIVw, HIVb or AB.\n");
+                 "Blosum62, MtMam, MtArt, HIVw, HIVb, AB, FLU, Q.pfam, Q.bird, "
+                 "Q.insect, Q.mammal, Q.plant, Q.yeast or MtZoa.\n");
     PhyML_Printf("\n. Type any key to exit.\n");
     if (!scanf("%c", &choix)) Exit("\n");
     Exit("\n");
@@ -1893,7 +1981,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
     io->mod->kappa->optimize       = NO;
     io->mod->lambda->optimize      = NO;
     io->mod->ras->pinvar->optimize = NO;
-    io->mod->r_mat->optimize       = NO;
+    // Without -m, r_mat is made later (Make_Model_Complete), not optimised
+    if (io->mod->r_mat) io->mod->r_mat->optimize = NO;
 
     io->mod->ras->alpha->optimize  = NO;
     io->mod->kappa->optimize       = NO;
@@ -1927,7 +2016,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
-  if (io->fp_in_align != NULL)
+  if (io->fp_in_align != NULL && io->sms_only == NO)
   {
     io->fp_out_tree  = Openfile(io->out_tree_file, writemode);
     io->fp_out_stats = Openfile(io->out_stats_file, writemode);

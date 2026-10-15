@@ -170,7 +170,16 @@ void Usage(void)
 	 LINE,FLAT,
 	 LINE,FLAT,
 	 LINE,FLAT);
-  PhyML_Printf("\t\t %sHIVw%s |  %sHIVb%s | %scustom%s\n",
+  PhyML_Printf("\t\t %sHIVw%s |  %sHIVb%s | %sFLU%s | %sQ.pfam%s | %sQ.bird%s | %sQ.insect%s | %sQ.mammal%s\n",
+	 LINE,FLAT,
+	 LINE,FLAT,
+	 LINE,FLAT,
+	 LINE,FLAT,
+	 LINE,FLAT,
+	 LINE,FLAT,
+	 LINE,FLAT);
+  PhyML_Printf("\t\t %sQ.plant%s | %sQ.yeast%s | %sMtZoa%s | %scustom%s\n",
+	 LINE,FLAT,
 	 LINE,FLAT,
 	 LINE,FLAT,
 	 LINE,FLAT);
@@ -181,6 +190,28 @@ void Usage(void)
   PhyML_Printf("\t\t%sfilename%s is the name of the file that provides the amino acid substitution rate matrix in PAML format.\n",LINE,FLAT);
   PhyML_Printf("\t\tIt is compulsory to use this option when analysing amino acid sequences with the `custom' model.\n");
   PhyML_Printf("\n");
+
+  #ifdef PHYML
+  PhyML_Printf("%s\n\t--sms%s\n",BOLD,FLAT);
+  PhyML_Printf("\t\tSelect the substitution model with SMS (Smart Model Selection, Lefort et al.\n");
+  PhyML_Printf("\t\t2017) before the analysis, which then uses the selected model. SMS fits the\n");
+  PhyML_Printf("\t\tcandidate models on a fixed tree, chosen in four steps: a BioNJ tree (or the\n");
+  PhyML_Printf("\t\t-u tree) with GTR+G+I (DNA) or LG (proteins), the rate decoration (+G, +I, +R),\n");
+  PhyML_Printf("\t\tthe matrix, and the final decoration. DNA: GTR, TN93, HKY85, K80; proteins:\n");
+  PhyML_Printf("\t\tthe 23 built-in matrices, with or without +F. The fits are written to\n");
+  PhyML_Printf("\t\t*_phyml_sms.csv. The model options (-m, -f, -v, -a, -t, --freerates,\n");
+  PhyML_Printf("\t\t--aa_rate_file) cannot be combined with it; -c sets the number of rate\n");
+  PhyML_Printf("\t\tcategories of +G and +R (default 4).\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--sms_criterion %saic%s|%sbic%s\n",BOLD,LINE,FLAT,LINE,FLAT);
+  PhyML_Printf("\t\tCriterion used by --sms to compare models (default: bic).\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--sms_only%s\n",BOLD,FLAT);
+  PhyML_Printf("\t\tRun the SMS model selection (see --sms) and stop, without inferring a tree.\n");
+  PhyML_Printf("\n");
+  #endif
 
 
   #ifndef PHYTIME

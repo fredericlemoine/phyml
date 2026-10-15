@@ -155,7 +155,6 @@ class OptionErrors(PhymlTestCase):
         res = self.run_phyml("--help")
         self.assertNotIn("NNI (default, fast)", re.sub(r"\x1b\[[0-9;]*m", "", res.output))
 
-    @known_bug("cl.c:1882 dereferences io->mod->r_mat (NULL until -m is parsed)")
     def test_no_optimisation_with_default_model(self):
         res = self.run_phyml("-i", ALN, "-o", "n", "-b", "0")
         self.assertSuccess(res)

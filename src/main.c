@@ -20,6 +20,7 @@
 #include "optimiz.h"
 #include "pars.h"
 #include "simu.h"
+#include "sms.h"
 #include "spr.h"
 #include "utilities.h"
 
@@ -109,20 +110,31 @@ int main(int argc, char **argv)
   {
     best_lnL = UNLIKELY;
     Get_Seq(io);
+
+    cdata = NULL;
+    if (io->data)
+    {
+      if (io->n_data_sets > 1)
+        PhyML_Printf("\n. Data set [#%d]\n", num_data_set + 1);
+      cdata = Compact_Data(io->data, io);
+      Free_Seq(io->data, cdata->n_otu);
+
+      // Sets io->mod to the selected model
+      if (io->sms == YES) SMS_Select_Model(cdata, io);
+    }
+
     Make_Model_Complete(io->mod);
     Set_Model_Name(io->mod);
     Print_Settings(io);
     mod                    = io->mod;
     orig_random_input_tree = io->mod->s_opt->random_input_tree;
 
-    if (io->data)
+    if (cdata && io->sms_only == YES)
     {
-      if (io->n_data_sets > 1)
-        PhyML_Printf("\n. Data set [#%d]\n", num_data_set + 1);
-      cdata = Compact_Data(io->data, io);
-
-      Free_Seq(io->data, cdata->n_otu);
-
+      Free_Calign(cdata);
+    }
+    else if (cdata)
+    {
       for (num_tree = (io->n_trees == 1) ? (0) : (num_data_set);
            num_tree < io->n_trees; num_tree++)
       {
@@ -146,6 +158,7 @@ int main(int argc, char **argv)
                            io->mod->s_opt->n_rand_starts);
 
           Init_Model(cdata, mod, io);
+          SMS_Set_Parameters(mod, io->sms_fit);
           Set_Model_Parameters(mod);
 
 #ifdef M4
@@ -404,6 +417,8 @@ int main(int argc, char **argv)
       Exit("\n");
     }
     Free_Model_Complete(mod);
+    SMS_Free_Fits(io->sms_fit);
+    io->sms_fit = NULL;
   }
 
   if (most_likely_tree) Free(most_likely_tree);

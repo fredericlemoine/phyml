@@ -10144,6 +10144,41 @@ void Set_Model_Name(t_mod *mod)
     strcpy(mod->modelname->s, "FLU");
     break;
   }
+  case QPFAM:
+  {
+    strcpy(mod->modelname->s, "Q.pfam");
+    break;
+  }
+  case QBIRD:
+  {
+    strcpy(mod->modelname->s, "Q.bird");
+    break;
+  }
+  case QINSECT:
+  {
+    strcpy(mod->modelname->s, "Q.insect");
+    break;
+  }
+  case QMAMMAL:
+  {
+    strcpy(mod->modelname->s, "Q.mammal");
+    break;
+  }
+  case QPLANT:
+  {
+    strcpy(mod->modelname->s, "Q.plant");
+    break;
+  }
+  case QYEAST:
+  {
+    strcpy(mod->modelname->s, "Q.yeast");
+    break;
+  }
+  case MTZOA:
+  {
+    strcpy(mod->modelname->s, "MtZoa");
+    break;
+  }
   case OTHER:
   {
     strcpy(mod->modelname->s, "Other");

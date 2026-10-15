@@ -1,6 +1,6 @@
 # PhyML: Software Report and Code Assessment
 
-2026-10-14 · Frederic Lemoine (section 3 updated with test-suite results; multithreading added 2026-10-15)
+2026-10-14 · Frederic Lemoine (section 3 updated with test-suite results; multithreading and SMS model selection added 2026-10-15)
 
 ## 1. Introduction
 
@@ -36,9 +36,10 @@ PhyML combines a classical pruning-based likelihood engine with a staged, pertur
 ### 2.2 Models
 
 - **DNA**: JC69, K80, F81, F84, HKY85, TN93, GTR, any custom 6-letter rate grouping (`-m 012345`) and user-given GTR rates; the last two crash in the current version (section 3.1). `-t` sets kappa, the transition/transversion rate ratio.
-- **Protein**: LG, WAG, JTT, Dayhoff, DCMut, CpREV, MtREV, MtMam, MtArt, RtREV, VT, Blosum62, HIVb, HIVw, AB, FLU, plus user matrices and the LG4M and LG4X mixtures.
+- **Protein**: LG, WAG, JTT, Dayhoff, DCMut, CpREV, MtREV, MtMam, MtArt, RtREV, VT, Blosum62, HIVb, HIVw, AB, FLU, plus user matrices and the LG4M and LG4X mixtures. Q.pfam, Q.bird, Q.insect, Q.mammal, Q.plant, Q.yeast (QMaker) and MtZoa were added with SMS (below); their likelihoods match the reference implementation computed from the PAML files.
 - **Rate heterogeneity**: discrete Gamma (+G), invariant sites (+I), FreeRate (+R), the covarion-like M4 model (`m4.c`), and mixtures or partitions described in XML (`mixt.c`, `xml.c`).
-- No codon models, no automatic model selection (that is delegated to the separate SMS tool), no profile mixtures such as C60 or PMSF.
+- **Model selection (new)**: `--sms` runs SMS (Smart Model Selection, Lefort et al. 2017) inside PhyML before the analysis, which then uses the selected model; `--sms_criterion aic|bic` and `--sms_only` complete it (`sms.c`). SMS was a set of bash scripts calling the PhyML binary once per candidate, plus R and `bc`. The heuristic is unchanged: fixed BioNJ (or `-u`) tree with GTR+G+I or LG, then the best rate decoration, the best matrix (GTR > TN93 > HKY85 > K80 for DNA; the 23 protein matrices ordered by chi-square distance of their frequencies, with and without +F), and the final decoration. On four test alignments (DNA; small and large protein; protein with a p-inv fixed at Step 3) it gives the same fits as the SMS 2.1.1 scripts run with the same PhyML, within 1e-5 in log-likelihood, and the same selected model. One known difference remains: p-inv is passed at full precision rather than rounded to 3 decimals (up to 7e-3 lnL). The built-in FLU matrix now has the full precision of SMS's file (it was rounded to 6 decimals, a 3e-4 lnL difference). Fits are written to `*_phyml_sms.csv`.
+- No codon models, no profile mixtures such as C60 or PMSF.
 
 ### 2.3 Parameter optimisation (`optimiz.c`)
 
@@ -87,7 +88,7 @@ Independent benchmarks on empirical phylogenomic data (Zhou et al., Mol. Biol. E
 
 ## 3. Critical assessment of the code
 
-The numerical core is sound: on fixed trees, PhyML's likelihoods match an independent reference implementation to 1e-8 for every model tested. The code around it carries real defects, though: 28 of the 34 problems listed below were reproduced by running PhyML, 11 of them crashes, aborts or memory errors. On top of these come unchecked buffers, no automated tests until now, and a monolithic structure that makes each fix risky. The first version of this report came from reading the source at commit 42bb4b5. The findings were then checked with the test suite in `test/` (section 3.4), run on macOS arm64, Linux aarch64 and Linux x86-64, with sanitizer, `-DNDEBUG` and MPI builds.
+The numerical core is sound: on fixed trees, PhyML's likelihoods match an independent reference implementation to 1e-8 for every model tested. The code around it carries real defects, though: 29 of the 35 problems listed below were reproduced by running PhyML, 11 of them crashes, aborts or memory errors. Two are now fixed: `-o n` without `-m`, and the AB matrix. On top of these come unchecked buffers, no automated tests until now, and a monolithic structure that makes each fix risky. The first version of this report came from reading the source at commit 42bb4b5. The findings were then checked with the test suite in `test/` (section 3.4), run on macOS arm64, Linux aarch64 and Linux x86-64, with sanitizer, `-DNDEBUG` and MPI builds.
 
 ### 3.1 Bugs and correctness risks
 
@@ -97,7 +98,7 @@ The numerical core is sound: on fixed trees, PhyML's likelihoods match an indepe
 | --- | --- | --- | --- | --- |
 | High | `mpi_boot.c` (~line 330), `io.c:6818` | `phyml-mpi` reduces only `bip_score` across ranks. TBE's `tdist_score` stays local to rank 0 but is divided by the total replicate count. | `phyml-mpi --tbe` reports supports biased towards 1: on a test branch it printed 1.0 where its own replicate trees give 0.9. | test (`test_mpi.py`) |
 | High | `cl.c:956-968`, `cl.c:980` | Custom DNA models (`-m 012345`, `-m 000000`, ...) and user GTR rates (`-m 1.5,3,0.7,1.2,4,1`) write to `io->mod->r_mat` before it is allocated. | Segmentation fault for every custom nucleotide model, although `--help` documents them. | test (`test_likelihood_oracle.py`) |
-| High | `cl.c:1882` | With `-o n` and no `-m`, the option handler writes `io->mod->r_mat->optimize` while `r_mat` is still NULL. | `phyml -i aln -o n` crashes; it works only when `-m` is given. | test (`test_cli.py`) |
+| High | `cl.c:1882` | With `-o n` and no `-m`, the option handler writes `io->mod->r_mat->optimize` while `r_mat` is still NULL. | `phyml -i aln -o n` crashes (also `-o tl`, `-o l`); it works only when `-m` is given. | Fixed 2026-10-15 (needed by `--sms`, which forbids `-m`); test (`test_cli.py`) |
 | High | `io.c:327` (`Read_Node_Name`) | Copies a tip name until `:` or `[`; a tip without a branch length has neither. | Heap overflow and crash on any user tree without branch lengths, and therefore on every `--constraint_file` (constraint trees have no lengths). | test, ASan (`test_inputs.py`, `test_search.py`, `test_memory_safety.py`) |
 | High | `io.c:247-256` (`R_rtree`) | After `Clean_Multifurcation`, frees the subtree string, allocates an empty buffer and parses it again without copying the resolved subtrees into it. | Any user tree with an internal polytomy crashes. | test (`test_inputs.py`, `test_trees.c`) |
 | High | `eigen.c:53`, generic data type | With `-d generic`, the eigen-decomposition of the rate matrix produces NaN as soon as parameters are optimised. | Every generic-data analysis except `-o n` aborts with "Assertion failed", for 2, 3 or 5 states alike. | test (`test_models.py`) |
@@ -105,6 +106,7 @@ The numerical core is sound: on fixed trees, PhyML's likelihoods match an indepe
 | High | `main.c:355` | Every rank runs its own full ML search (random Gamma perturbations, seed + rank), then `MPI_Bcast` uses each rank's own `strlen` as count. | Mismatched counts are undefined in MPI; a receiver whose tree string is shorter than rank 0's can be overrun. All ranks also redo the whole ML search for nothing. | code |
 | High | `stats.c:88` | `Rand_Int` returns `rand() % n`. On the Windows build `RAND_MAX` is 32,767. | Windows bootstrap replicates on alignments longer than 32,768 sites never sample the remaining sites; modulo bias elsewhere. | code (a unit test passes on Unix, where `RAND_MAX` is 2^31-1) |
 | High | `io.c:1675-1725` | `Read_One_Line_Seq` writes `state[len++]` with no bound, and stores `fgetc` in a `char` before comparing with `EOF`. | Heap overflow when a line holds more characters than the header declares (ASan: `io.c:1721`). Where `char` is unsigned (Linux aarch64) EOF is never seen. | ASan (`test_memory_safety.py`) |
+| Medium | `init.c` (`Init_Qmat_AB`) | The built-in AB matrix swaps the Thr-Arg and Thr-Asn exchangeabilities (1.135 and 2.147) of the `AB_model` file published with the paper (Mirsky et al. 2015, supplementary material 1). | `-m AB` gave wrong likelihoods (0.3 to 0.8 lnL units on the test alignments). | Fixed 2026-10-15; test (`test_likelihood_oracle.py`, against the published file) |
 | Medium | Constraint search (`spr.c`, `main.c:180-205`) | With a constraint naming all taxa (the only form that does not crash), the search moves away from it. | `((t1,t3),...)` as constraint, output tree groups t1 with t2: the constraint is silently ignored. | test (`test_search.py`) |
 | Medium | `io.c:1504` | `assert(Read_One_Line_Seq(...))` puts the read inside an assert. | A `-DNDEBUG` build hangs forever on sequential files; today short or truncated files abort with an assert instead of a message. | test (`test_build_variants.py`, `test_inputs.py`) |
 | Medium | `io.c:1487`, `io.c:1548` | Format `%1000s` reads into a 1,000-byte name buffer. | One-byte overflow for 1,000-character taxon names (ASan flags it on every run); `Check_Sequence_Name` overflows too (`io.c:1501`). | ASan (`test_memory_safety.py`) |
@@ -155,7 +157,7 @@ The history shows the cost of fixes without tests: 361 of about 2,100 commits me
 
 ### 3.4 Build, packaging and testing
 
-- **Tests: now a first suite, not yet in CI.** The repository had no tests, and GitHub Actions builds on three platforms without running an analysis. `test/` now holds 56 C unit tests and 173 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 38 known-bug tests (36 in `make check`, 2 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. The README still shows a Travis badge (travis-ci.org closed in 2021).
+- **Tests: now a first suite, not yet in CI.** The repository had no tests, and GitHub Actions builds on three platforms without running an analysis. `test/` now holds 56 C unit tests and 193 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 37 known-bug tests (35 in `make check`, 2 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. The README still shows a Travis badge (travis-ci.org closed in 2021).
 - **Generated files in git.** `config.h`, `config.log`, `config.status`, the generated `Makefile`s and LaTeX `.aux`/`.log` files are tracked; each commit carries about 1,000 lines of build noise, which hides real changes in review.
 - **Configure quirks.** `AC_DEFINE([DEBUG],[1])` is unconditional; the compiler-specific `-mcpu=native` choice is overwritten a few lines later; one binary per configure run, chosen by ten mutually exclusive flags. The unconditional `-march=native` also hides that the x86-64 SSE code needs SSE3 (section 3.1).
 - **Sanitizer cost.** Under GCC 13's AddressSanitizer, PhyML runs about 40 times slower unless `detect_stack_use_after_return=0` is set; the test suite sets it.
@@ -170,7 +172,7 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Add a fuzzing target for the PHYLIP, NEXUS, Newick and XML parsers; most of the crashes in section 3.1 are in these readers.
     - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git and drop the Travis badge.
 2. **Fix the high-severity bugs (days).**
-    - Crashes in documented features: allocate `r_mat` before option parsing (custom DNA models, `-o n`); make `Read_Node_Name` stop at `,` and `)`; fill the buffer that `R_rtree` re-parses after resolving a polytomy; then check that constraints are kept during SPR moves.
+    - Crashes in documented features: allocate `r_mat` before option parsing (custom DNA models; the `-o n` case is fixed); make `Read_Node_Name` stop at `,` and `)`; fill the buffer that `R_rtree` re-parses after resolving a polytomy; then check that constraints are kept during SPR moves.
     - MPI: reduce `tdist_score` as well as `bip_score`; run the ML search on rank 0 only and broadcast the length before the string; keep the user's replicate count and give the remainder to the first ranks.
     - Replace `rand()` with a seeded 64-bit generator (PCG or xoshiro), one stream per MPI rank, unbiased bounded integers and a `Uni()` on the open interval (0, 1).
     - Rewrite the sequence readers with bounds checks, `int` for `fgetc`, real error messages, and no side effects inside `assert`.
@@ -188,7 +190,7 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Delete dead modules and commented-out code (git keeps history), break up the 1,000+ line functions, and turn on `-Wextra -Werror` for new code.
     - Replace autotools mode flags with CMake or Meson targets that build all binaries in one pass.
 5. **Scientific features to stay competitive.**
-    - Built-in model selection (integrating SMS) and codon models.
+    - Model selection (started): SMS is built in (`--sms`). Next: run the independent SMS fits on threads, offer AICc and the FreeRate category count, and add codon models.
     - Profile mixture models (C20 to C60, PMSF) and partition-wise models from a simple NEXUS partition file, not only XML.
     - Checkpoint and restart for long searches and bootstraps (`checkpoint.c` is a start), and a ultrafast-style bootstrap or parametric alternative to make TBE affordable on large trees.
 

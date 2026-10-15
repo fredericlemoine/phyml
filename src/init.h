@@ -58,6 +58,15 @@ void TIMES_Init_Time_Struct(t_time *times, t_time *existing_time, int n_otu);
 void Init_Rmat(t_rmat *rmat);
 void Init_MGF_Bl(t_tree *tree);
 int Init_Qmat_FLU(phydbl *daa, phydbl *pi);
+int Init_Qmat_Lower_Triangle(phydbl *daa, phydbl *pi, const phydbl *rr,
+                             const phydbl *f);
+int Init_Qmat_Q_Pfam(phydbl *daa, phydbl *pi);
+int Init_Qmat_Q_Bird(phydbl *daa, phydbl *pi);
+int Init_Qmat_Q_Insect(phydbl *daa, phydbl *pi);
+int Init_Qmat_Q_Mammal(phydbl *daa, phydbl *pi);
+int Init_Qmat_Q_Plant(phydbl *daa, phydbl *pi);
+int Init_Qmat_Q_Yeast(phydbl *daa, phydbl *pi);
+int Init_Qmat_MtZoa(phydbl *daa, phydbl *pi);
 void Set_Defaults_Ras(t_ras *ras);
 void GEO_Init_Coord(t_geo_coord *t, int n_dim);
 void PHYREX_Init_Disk_Event(t_dsk *t, int n_dim, t_phyrex_mod *mod);

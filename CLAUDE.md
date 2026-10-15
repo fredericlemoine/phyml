@@ -62,6 +62,7 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 | `optimiz.c` | Branch-length and parameter optimisation |
 | `spr.c`, `pars.c`, `bionj.c` | Tree search, parsimony, BioNJ |
 | `alrt.c`, `tbe.c`, `mpi_boot.c` | Branch supports (aLRT, aBayes, SH), TBE, MPI bootstrap |
+| `sms.c` | SMS model selection (`--sms`), run from `main()` before the analysis |
 | `utilities.c/.h` | Core structs (`t_tree`, `t_node`, `t_edge`, `t_mod`, `option`), bootstrap, bipartitions, everything else |
 | `mixt.c` | Mixture and partition models (XML) |
 | `times.c`, `rates.c`, `mcmc.c`, `phyrex.c`, ... | PhyTime and PhyREX |
@@ -87,5 +88,17 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   and `tree->curr_site`. Sums over sites are done afterwards in site order,
   so results do not depend on the number of threads. Mixture models (`mixt.c`)
   still run serially.
+- SMS (`sms.c`) fits each candidate model in-process on a fixed tree, like
+  a `phyml -o lr -u tree --r_seed N` run of the SMS 2.1.1 scripts: it swaps
+  `io->mod` for the candidate (some routines read `io->mod`), reseeds `rand()`
+  before each fit, and writes the Step 1 tree as `main()` writes its tree
+  file, so the fits match the scripts. Then it sets `io->mod` to the selected
+  model; `SMS_Set_Parameters` starts the analysis from the SMS estimates.
+  `-m`, `-f`, `-v`, `-a`, `-t`, `--freerates` and `--aa_rate_file` are refused
+  with `--sms`.
+- New built-in protein matrices go in `init.c` (`Init_Qmat_*`, or a PAML
+  lower triangle via `Init_Qmat_Lower_Triangle`), `Init_Model`,
+  `Set_Model_Name`, the `-m` parser and the `-d nt` reset list in `cl.c`, and
+  `help.c`. Add the PAML file to `test/data/aa_matrices/` for the oracle test.
 - Match the surrounding style: `Capitalised_Function_Names`, `phydbl` for
   floating point, 2-space indentation.

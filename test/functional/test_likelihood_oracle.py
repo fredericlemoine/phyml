@@ -144,6 +144,22 @@ class FixedParameterLikelihood(PhymlTestCase):
         self.check(["-d", "aa", "-m", "custom", "--aa_rate_file", "custom_aa.dat",
                     "-f", "m", "-c", "4", "-a", "0.8"], expected, aln=AA_ALN, tree=AA_TREE)
 
+    def test_built_in_matrices_from_sms(self):
+        """Q.* (QMaker), MtZoa, AB and FLU, tested by SMS, against their PAML files.
+        AB.mt is the AB_model file of the paper's supplementary material."""
+        names, seqs = oracle.read_phylip(data(AA_ALN))
+        tree = Newick.read(data(AA_TREE))
+        for model in ("Q.pfam", "Q.bird", "Q.insect", "Q.mammal", "Q.plant", "Q.yeast",
+                      "MtZoa", "AB", "FLU"):
+            with self.subTest(model=model):
+                exch, freqs = oracle.read_paml_matrix(data("aa_matrices/%s.mt" % model))
+                freqs = [f / sum(freqs) for f in freqs]  # MtZoa's do not sum to 1
+                expected = oracle.log_likelihood(tree, names, seqs,
+                                                 oracle.custom_aa_q(exch, freqs),
+                                                 freqs, oracle.AA)
+                self.check(["-d", "aa", "-m", model, "-f", "m", "-c", "1"], expected,
+                           aln=AA_ALN, tree=AA_TREE)
+
     # --- custom DNA models (currently crash, see test_known_bugs too) -----
     @known_bug("cl.c:956/968 writes to io->mod->r_mat before it is allocated")
     def test_custom_model_string(self):

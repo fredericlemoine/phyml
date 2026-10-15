@@ -411,6 +411,16 @@ static inline int isinf_ld(long double x) { return isnan(x - x); }
 #define CUSTOMAA 25
 #define LG 26
 #define AB 27
+#define QPFAM 31
+#define QBIRD 32
+#define QINSECT 33
+#define QMAMMAL 34
+#define QPLANT 35
+#define QYEAST 36
+#define MTZOA 37
+
+#define SMS_AIC 0
+#define SMS_BIC 1
 // Amino acid ordering:
 // Ala Arg Asn Asp Cys Gln Glu Gly His Ile Leu Lys Met Phe Pro Ser Thr Trp Tyr
 // Val
@@ -1551,6 +1561,12 @@ typedef struct __Option
   short int print_support_val;
 
   int n_threads; /* Threads used by the likelihood engine (OpenMP) */
+
+  short int sms;              /* Select the model with SMS before the analysis */
+  short int sms_only;         /* Stop after the SMS model selection */
+  short int sms_criterion;    /* SMS_AIC or SMS_BIC */
+  int       sms_n_catg;       /* rate categories of +G and +R for SMS (-c) */
+  struct __Sms_Fit *sms_fit;  /* Model selected by SMS, with its estimates */
 
   short int do_tbe;
   short int do_boot;

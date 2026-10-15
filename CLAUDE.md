@@ -14,6 +14,10 @@ sh ./autogen.sh && ./configure --enable-phyml && make   # binary: src/phyml
 - One binary per configure run, chosen by a macro: `--enable-phyml`,
   `--enable-phytime`, `--enable-phyrex`, `--enable-phyml-mpi` (uses `mpicc`
   and `mpi_boot.c`), and others. Sources are listed in `src/Makefile.am`.
+- OpenMP (`--threads`) is enabled by `AC_OPENMP` when the compiler supports
+  it (`--disable-openmp` turns it off). Apple clang needs Homebrew `libomp`:
+  `CPPFLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include"
+  LIBS="-L$(brew --prefix libomp)/lib -lomp"`.
 - `configure` always adds `-march=native`. On x86-64, `src/sse.c` does not
   compile without SSE3, so builds by hand need `-march=native` or `-msse3`.
 - `config.h`, `config.log`, `config.status`, the generated `Makefile`s and
@@ -29,14 +33,16 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 ```
 
 - `test/Makefile` builds its own binaries from `src/` into `test/build/`
-  (normal, scalar `-DDISABLE_NATIVE`, ASan+UBSan, `-DNDEBUG`), without
-  autotools. Python tests use only the standard library.
+  (normal, scalar `-DDISABLE_NATIVE`, ASan+UBSan, `-DNDEBUG`, OpenMP),
+  without autotools. Python tests use only the standard library.
 - `test/functional/oracle.py` is an independent likelihood implementation.
   Fixed-parameter likelihoods (`-o n`) must match it to 1e-8, so changes to
   models or the likelihood engine are checked there.
 - Searches and bootstraps use `rand()`, which differs between C libraries.
   Tests check properties (true topology recovered, optimality, ranges), not
-  exact values; keep new tests that way.
+  exact values; keep new tests that way. Comparing two runs of one binary
+  exactly is fine, but pass `--r_seed`: the default seed comes from the clock.
+- `test_threads.py` requires outputs to be identical for any `--threads`.
 - Known bugs are tests marked `known_bug(...)` (Python) or `KNOWN_BUG(...)`
   (C), reported as expected failures. When you fix one, its test reports an
   unexpected pass and the run fails: remove the marker in the same change.
@@ -72,5 +78,14 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 - `-t` is kappa (rate ratio), not the ts/tv ratio the help text describes.
 - Bootstrap replicates share `s_opt`, `io` and likelihood buffers with the
   main tree; writing to them during a replicate changes the main analysis.
+- Multithreading is OpenMP over site patterns in the likelihood loops
+  (`Lk`, `dLk`, `*Update_Partial_Lk*`, `*Update_Eigen_Lr`), sized by
+  `Lk_Site_Threads()` (`io->n_threads`, at least 128 patterns per thread). In
+  those loops, write only the current site's entries and use per-thread
+  scratch: the `*_Site` variants (`Lk_Core_Site`, `Pull_Scaling_Factors_Site`)
+  take scratch vectors instead of `tree->site_lk_cat`, `b->sum_scale_*_cat`
+  and `tree->curr_site`. Sums over sites are done afterwards in site order,
+  so results do not depend on the number of threads. Mixture models (`mixt.c`)
+  still run serially.
 - Match the surrounding style: `Capitalised_Function_Names`, `phydbl` for
   floating point, 2-space indentation.

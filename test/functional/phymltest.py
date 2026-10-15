@@ -7,6 +7,7 @@ the test Makefile are picked up the same way:
   PHYML_GENERIC  binary built with -DDISABLE_NATIVE (scalar likelihood code)
   PHYML_ASAN     binary built with -fsanitize=address,undefined
   PHYML_NDEBUG   binary built with -DNDEBUG (assertions compiled out)
+  PHYML_OMP      binary built with OpenMP (--threads)
 """
 
 import os
@@ -34,6 +35,7 @@ PHYML = binary()
 PHYML_GENERIC = binary("PHYML_GENERIC", "phyml-generic")
 PHYML_ASAN = binary("PHYML_ASAN", "phyml-asan")
 PHYML_NDEBUG = binary("PHYML_NDEBUG", "phyml-ndebug")
+PHYML_OMP = binary("PHYML_OMP", "phyml-omp")
 
 
 def data(name):

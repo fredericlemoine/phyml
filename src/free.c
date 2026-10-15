@@ -391,6 +391,7 @@ void Free_Tree_Lk(t_tree *tree)
   Free(tree->big_lk_array);
   Free(tree->c_lnL_sorted);
   Free(tree->cur_site_lk);
+  Free(tree->site_dlnl);
   Free(tree->old_site_lk);
   Free(tree->site_lk_cat);
   Free(tree->fact_sum_scale);

@@ -113,7 +113,8 @@ void   Core_Default_Update_Partial_Lk(
       const t_node *n_v1, const t_node *n_v2, phydbl *plk0, const phydbl *plk1,
       const phydbl *plk2, const phydbl *Pij1, const phydbl *Pij2, int *sum_scale0,
       const int *sum_scale1, const int *sum_scale2, const int ns, const int ncatg,
-      const int npatterns, const int apply_scaling, const phydbl *wght);
+      const int npatterns, const int apply_scaling, const phydbl *wght,
+      const int n_threads);
 
 /* phydbl Lk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, int ns); */
 /* void Lk_dLk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, unsigned
@@ -123,6 +124,24 @@ phydbl Lk_Core_One_Class_No_Eigen_Lr(phydbl *p_lk_left, phydbl *p_lk_rght,
                                      int ambiguity_check, int state);
 
 void Pull_Scaling_Factors(int site, t_edge *b, t_tree *tree);
+void Pull_Scaling_Factors_Site(int site, t_edge *b, t_tree *tree,
+                               phydbl *site_lk_cat, int *sum_scale_left_cat,
+                               int *sum_scale_rght_cat);
+int  Lk_Site_Threads(const t_tree *tree, unsigned int n_patterns);
+phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
+                    phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij_rr,
+                    phydbl *tPij_rr, t_edge *b, t_tree *tree,
+                    phydbl *site_lk_cat_buf, int *sum_scale_left_cat,
+                    int *sum_scale_rght_cat, int *numerical_warning);
+phydbl Lk_Core_Eigen_Lr_Site(unsigned int site, phydbl *expl, phydbl *dot_prod,
+                             t_edge *b, t_tree *tree, phydbl *site_lk_cat_buf,
+                             int *sum_scale_left_cat, int *sum_scale_rght_cat,
+                             int *numerical_warning);
+void Lk_dLk_Core_Eigen_Lr_Site(unsigned int site, phydbl *expl,
+                               phydbl *dot_prod, t_edge *b, phydbl *lk,
+                               phydbl *dlk, t_tree *tree,
+                               phydbl *site_lk_cat_buf, int *sum_scale_left_cat,
+                               int *sum_scale_rght_cat, int *numerical_warning);
 void Set_All_Partial_Lk(t_node **n_v1, t_node **n_v2, phydbl **p_lk,
                         int **sum_scale, int **p_lk_loc, phydbl **Pij1,
                         phydbl **tPij1, phydbl **p_lk_v1, int **sum_scale_v1,

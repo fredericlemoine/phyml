@@ -632,6 +632,7 @@ void Set_Defaults_Input(option *io)
   io->do_boot                  = NO;
   io->do_alrt                  = YES;
   io->do_tbe                   = NO;
+  io->n_threads                = 1;
   io->print_node_num           = NO;
   io->print_support_val        = NO;
   io->n_boot_replicates        = 0;

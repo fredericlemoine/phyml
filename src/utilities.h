@@ -158,6 +158,9 @@ static inline int isinf_ld(long double x) { return isnan(x - x); }
 #define BYTE_ALIGN 1
 #endif
 
+/* Largest number of states handled by the SSE/AVX likelihood kernels */
+#define LK_SIMD_MAX_NS 20
+
 #ifndef M_1_SQRT_2PI
 #define M_1_SQRT_2PI 0.398942280401432677939946059934 /* 1/sqrt(2*pi) */
 #endif
@@ -940,6 +943,7 @@ typedef struct __Tree
   phydbl *c_lnL_sorted;      /*! used to compute c_lnL by adding sorted terms to
                                 minimize CPU errors */
   phydbl *cur_site_lk;       /*! vector of loglikelihoods at individual sites */
+  phydbl *site_dlnl;         /*! dLk scratch: d(lnL)/dl and lnL at each site */
   phydbl *old_site_lk;       /*! vector of likelihoods at individual sites */
   phydbl  annealing_temp;    /*! annealing temperature in simulated annealing
                                 optimization algo */
@@ -1545,6 +1549,8 @@ typedef struct __Option
   short int print_mat_and_exit;
   short int print_node_num; /*! print node numbers if print_node_num=1 */
   short int print_support_val;
+
+  int n_threads; /* Threads used by the likelihood engine (OpenMP) */
 
   short int do_tbe;
   short int do_boot;

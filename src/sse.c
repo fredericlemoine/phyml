@@ -23,7 +23,6 @@ the GNU public licence. See http://www.opensource.org for details.
 
 void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
 {
-  unsigned int site,catg;
   unsigned int i,j;
   
   unsigned const int npattern = tree->data->n_pattern;
@@ -34,17 +33,14 @@ void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
   unsigned const int ncatgns = ncatg*ns;
 
   const phydbl *p_lk_left,*p_lk_rght,*pi;
-  phydbl *dot_prod,*p_lk_left_pi;
+  phydbl *dot_prod;
   phydbl *l_ev,*r_ev;
 
-  __m128d *_l_ev,*_r_ev,*_prod_left,*_prod_rght;
+  __m128d *_l_ev,*_r_ev;
   
-  p_lk_left_pi = tree->p_lk_left_pi;
   l_ev         = tree->l_ev;
   _l_ev        = tree->_l_ev;
   _r_ev        = tree->_r_ev;
-  _prod_left   = tree->_prod_left;
-  _prod_rght   = tree->_prod_rght;
   
   assert(sz == 2);
   assert(tree->update_eigen_lr == YES);
@@ -72,39 +68,49 @@ void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
   p_lk_rght = b->rght->tax ? b->p_lk_tip_r : b->p_lk_rght;
   pi = tree->mod->e_frq->pi->v;
   dot_prod = tree->dot_prod;
-  
-  for(site=0;site<npattern;++site)
-    {
-      if(tree->data->wght[site] > SMALL)
-        {
-          for(catg=0;catg<ncatg;++catg)
-            {
-              for(i=0;i<ns;++i) p_lk_left_pi[i] = p_lk_left[i] * pi[i];
-              
-              SSE_Matrix_Vect_Prod(_r_ev,p_lk_left_pi,ns,_prod_left);
-              SSE_Matrix_Vect_Prod(_l_ev,p_lk_rght,ns,_prod_rght);
-              
-              for(i=0;i<nblocks;++i) _mm_store_pd(dot_prod + i*sz,_mm_mul_pd(_prod_left[i],_prod_rght[i]));
-              
-              dot_prod += ns;
-              if(b->left->tax == NO) p_lk_left += ns;
-              if(b->rght->tax == NO) p_lk_rght += ns;
-            }
-          
-          if(b->left->tax == YES) p_lk_left += ns;
-          if(b->rght->tax == YES) p_lk_rght += ns;
-        }
-      else
-        {
-          if(b->left->tax == YES) p_lk_left += ns;
-          else p_lk_left += ncatgns;
 
-          if(b->rght->tax == YES) p_lk_rght += ns;          
-          else p_lk_rght += ncatgns;          
+  assert(nblocks <= LK_SIMD_MAX_NS);
 
-          dot_prod += ncatgns;          
-        }
-    }
+  {
+    const unsigned int stride_left = (b->left->tax == YES) ? ns : ncatgns;
+    const unsigned int stride_rght = (b->rght->tax == YES) ? ns : ncatgns;
+    const unsigned int step_left   = (b->left->tax == YES) ? 0 : ns;
+    const unsigned int step_rght   = (b->rght->tax == YES) ? 0 : ns;
+    const int nt = Lk_Site_Threads(tree,npattern);
+    int s;
+
+    /* Each thread uses its own scratch vectors (_prod_left, _prod_rght,
+       p_lk_left_pi) and writes only the dot products of its sites. */
+#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
+    for(s=0;s<(int)npattern;++s)
+      {
+        __m128d _prod_left[LK_SIMD_MAX_NS],_prod_rght[LK_SIMD_MAX_NS];
+        phydbl p_lk_left_pi[LK_SIMD_MAX_NS];
+        const phydbl *s_lk_left,*s_lk_rght;
+        phydbl *s_dot_prod;
+        unsigned int c,k;
+
+        if(tree->data->wght[s] <= SMALL) continue;
+
+        s_lk_left  = p_lk_left + (size_t)s*stride_left;
+        s_lk_rght  = p_lk_rght + (size_t)s*stride_rght;
+        s_dot_prod = dot_prod + (size_t)s*ncatgns;
+
+        for(c=0;c<ncatg;++c)
+          {
+            for(k=0;k<ns;++k) p_lk_left_pi[k] = s_lk_left[k] * pi[k];
+
+            SSE_Matrix_Vect_Prod(_r_ev,p_lk_left_pi,ns,_prod_left);
+            SSE_Matrix_Vect_Prod(_l_ev,s_lk_rght,ns,_prod_rght);
+
+            for(k=0;k<nblocks;++k) _mm_store_pd(s_dot_prod + k*sz,_mm_mul_pd(_prod_left[k],_prod_rght[k]));
+
+            s_dot_prod += ns;
+            s_lk_left  += step_left;
+            s_lk_rght  += step_rght;
+          }
+      }
+  }
 }
 
 //////////////////////////////////////////////////////////////
@@ -268,12 +274,7 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
   phydbl *Pij1,*Pij2;
   phydbl *tPij1,*tPij2;
   int *sum_scale, *sum_scale_v1, *sum_scale_v2;
-  int sum_scale_v1_val, sum_scale_v2_val;
   unsigned int i,j,k;
-  unsigned int catg,site;
-  short int state_v1,state_v2;
-  short int ambiguity_check_v1,ambiguity_check_v2;
-  phydbl largest_p_lk;
   int *p_lk_loc;
   
   const unsigned int npattern = tree->data->n_pattern;
@@ -286,23 +287,17 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
   const unsigned int sz = (int)BYTE_ALIGN / 8;
   const unsigned nblocks = ns/sz;
 
-  __m128d *_tPij1,*_tPij2,*_pmat1plk1,*_pmat2plk2,*_plk0;
+  __m128d *_tPij1,*_tPij2;
   
   _tPij1     = tree->_tPij1;
   _tPij2     = tree->_tPij2;
-  _pmat1plk1 = tree->_pmat1plk1;
-  _pmat2plk2 = tree->_pmat2plk2;
-  _plk0      = tree->_plk0;
 
-  sum_scale_v1_val            = 0;
-  sum_scale_v2_val            = 0;
   n_v1 = n_v2                 = NULL;
   plk0 = plk1 = plk2          = NULL;
   Pij1 = Pij2                 = NULL;
   tPij1 = tPij2               = NULL;
   sum_scale_v1 = sum_scale_v2 = NULL;
   p_lk_loc                    = NULL;
-  state_v1 = state_v2         = -1;
 
   
   Set_All_Partial_Lk(&n_v1,&n_v2,
@@ -337,132 +332,110 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
       assert(FALSE);
     }
     
-  /* For every site in the alignment */
-  for(site=0;site<npattern;++site)
-    {
-      if(tree->data->wght[site] > SMALL)
-        {
-          state_v1 = state_v2 = -1;
-          ambiguity_check_v1 = ambiguity_check_v2 = YES;
-          
-          if(n_v1 && n_v1->tax)
-            {
-              ambiguity_check_v1 = n_v1->c_seq->is_ambigu[site];
-              if(ambiguity_check_v1 == NO) state_v1 = n_v1->c_seq->d_state[site];
-            }
-          
-          if(n_v2 && n_v2->tax)
-            {
-              ambiguity_check_v2 = n_v2->c_seq->is_ambigu[site];
-              if(ambiguity_check_v2 == NO) state_v2 = n_v2->c_seq->d_state[site];
-            }
-          
-          
-          for(catg=0;catg<ncatg;++catg)
-            {                                                          
-              if(ambiguity_check_v1 == NO && ambiguity_check_v2 == NO)
-                {
-                  SSE_Partial_Lk_Exex(_tPij1,state_v1,
-                                      _tPij2,state_v2,
-                                      ns,_plk0);
-                }
-              else if(ambiguity_check_v1 == YES && ambiguity_check_v2 == NO)
-                {
-                  SSE_Partial_Lk_Exin(_tPij2,state_v2,
-                                      _tPij1,plk1,_pmat1plk1,
-                                      ns,_plk0);
-                }
-              else if(ambiguity_check_v1 == NO && ambiguity_check_v2 == YES)
-                {
-                  SSE_Partial_Lk_Exin(_tPij1,state_v1,
-                                      _tPij2,plk2,_pmat2plk2,
-                                      ns,_plk0);
-                }
-              else
-                {
-                  SSE_Partial_Lk_Inin(_tPij1,plk1,_pmat1plk1,
-                                      _tPij2,plk2,_pmat2plk2,
-                                      ns,_plk0);
-                }
-              
-              for(k=0;k<nblocks;++k) _mm_store_pd(plk0+sz*k,_plk0[k]);
-              
-              _tPij1 += nsns / sz;
-              _tPij2 += nsns / sz;
-              plk0 += ns;
-              plk1 += (n_v1->tax) ? 0 : ns;
-              plk2 += (n_v2->tax) ? 0 : ns;
-            }
-          
-          _tPij1 -= ncatg * nsns / sz;
-          _tPij2 -= ncatg * nsns / sz;
+  assert(nblocks <= LK_SIMD_MAX_NS);
 
-          plk1 += (n_v1->tax) ? ns : 0;
-          plk2 += (n_v2->tax) ? ns : 0;
-          
-          if(tree->scaling_method == SCALE_FAST)
-            {
-              sum_scale_v1_val = (sum_scale_v1)?(sum_scale_v1[site]):(0);
-              sum_scale_v2_val = (sum_scale_v2)?(sum_scale_v2[site]):(0);
-              sum_scale[site] = sum_scale_v1_val + sum_scale_v2_val;
-              
-              if(sum_scale[site] >= 1024)
-                {
-                  /* plk0 -= ncatgns; */
-                  /* plk1 -= (n_v1->tax) ? ns : ncatgns; */
-                  /* plk2 -= (n_v2->tax) ? ns : ncatgns; */
-                  /* PhyML_Fprintf(stderr,"\n. PARTIAL site: %d plk0: %p [%g %g %g %g] plk1: %p [%g %g %g %g] plk2: %p [%g %g %g %g]", */
-                  /*               site, */
-                  /*               plk0, */
-                  /*               plk0[0], */
-                  /*               plk0[1], */
-                  /*               plk0[2], */
-                  /*               plk0[3], */
-                  /*               plk1, */
-                  /*               plk1[0], */
-                  /*               plk1[1], */
-                  /*               plk1[2], */
-                  /*               plk1[3], */
-                  /*               plk2, */
-                  /*               plk2[0], */
-                  /*               plk2[1], */
-                  /*               plk2[2], */
-                  /*               plk2[3] */
-                  /*               ); */
-                  /* PhyML_Fprintf(stderr,"\n. PARTIAL site: %d d: %d n_v1: %d n_v2: %d",site,d->num,n_v1->num,n_v2->num); */
-                  /* PhyML_Fprintf(stderr,"\n. PARTIAL site: %d sum n: %d sum n_v1: %d sum n_v2: %d",site,sum_scale[site],sum_scale_v1_val,sum_scale_v2_val); */
-                  
-                  /* plk0 += ncatgns; */
-                  /* plk1 += (n_v1->tax) ? ns : ncatgns; */
-                  /* plk2 += (n_v2->tax) ? ns : ncatgns; */
-                  /* Exit("\n"); */
-                }
-              
-              plk0 -= ncatgns;
-              
-              largest_p_lk = -BIG;
-              for(i=0;i<ncatgns;++i)
-                if(plk0[i] > largest_p_lk)
-                  largest_p_lk = plk0[i];
-              
-              if(largest_p_lk < INV_TWO_TO_THE_LARGE &&
-                 tree->mod->augmented == NO &&
-                 tree->apply_lk_scaling == YES)
-                {
-                  for(i=0;i<ncatgns;++i) plk0[i] *= TWO_TO_THE_LARGE;
-                  sum_scale[site] += LARGE;
-                }
-              
-              plk0 += ncatgns;
-            }
-        }
-      else
-        {
-          plk0 += ncatgns;
-          plk1 += (n_v1->tax) ? ns : ncatgns;
-          plk2 += (n_v2->tax) ? ns : ncatgns;        
-        }
-    }
+  {
+    const unsigned int stride1 = (n_v1->tax) ? ns : ncatgns;
+    const unsigned int stride2 = (n_v2->tax) ? ns : ncatgns;
+    const int nt = Lk_Site_Threads(tree,npattern);
+    int s;
+
+    /* For every site in the alignment. Each thread uses its own scratch
+       vectors and writes only the partial likelihoods of its sites. */
+#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
+    for(s=0;s<(int)npattern;++s)
+      {
+        __m128d _pmat1plk1[LK_SIMD_MAX_NS],_pmat2plk2[LK_SIMD_MAX_NS],_plk0[LK_SIMD_MAX_NS];
+        const __m128d *s_tPij1,*s_tPij2;
+        const phydbl *s_plk1,*s_plk2;
+        phydbl *s_plk0,*site_plk0;
+        int s_state_v1,s_state_v2;
+        int s_ambiguity_check_v1,s_ambiguity_check_v2;
+        int s_sum_scale_v1_val,s_sum_scale_v2_val;
+        phydbl s_largest_p_lk;
+        unsigned int c,k;
+
+        if(tree->data->wght[s] <= SMALL) continue;
+
+        s_state_v1 = s_state_v2 = -1;
+        s_ambiguity_check_v1 = s_ambiguity_check_v2 = YES;
+
+        if(n_v1 && n_v1->tax)
+          {
+            s_ambiguity_check_v1 = n_v1->c_seq->is_ambigu[s];
+            if(s_ambiguity_check_v1 == NO) s_state_v1 = n_v1->c_seq->d_state[s];
+          }
+
+        if(n_v2 && n_v2->tax)
+          {
+            s_ambiguity_check_v2 = n_v2->c_seq->is_ambigu[s];
+            if(s_ambiguity_check_v2 == NO) s_state_v2 = n_v2->c_seq->d_state[s];
+          }
+
+        s_tPij1   = _tPij1;
+        s_tPij2   = _tPij2;
+        site_plk0 = plk0 + (size_t)s*ncatgns;
+        s_plk0    = site_plk0;
+        s_plk1    = plk1 + (size_t)s*stride1;
+        s_plk2    = plk2 + (size_t)s*stride2;
+
+        for(c=0;c<ncatg;++c)
+          {
+            if(s_ambiguity_check_v1 == NO && s_ambiguity_check_v2 == NO)
+              {
+                SSE_Partial_Lk_Exex(s_tPij1,s_state_v1,
+                                    s_tPij2,s_state_v2,
+                                    ns,_plk0);
+              }
+            else if(s_ambiguity_check_v1 == YES && s_ambiguity_check_v2 == NO)
+              {
+                SSE_Partial_Lk_Exin(s_tPij2,s_state_v2,
+                                    s_tPij1,s_plk1,_pmat1plk1,
+                                    ns,_plk0);
+              }
+            else if(s_ambiguity_check_v1 == NO && s_ambiguity_check_v2 == YES)
+              {
+                SSE_Partial_Lk_Exin(s_tPij1,s_state_v1,
+                                    s_tPij2,s_plk2,_pmat2plk2,
+                                    ns,_plk0);
+              }
+            else
+              {
+                SSE_Partial_Lk_Inin(s_tPij1,s_plk1,_pmat1plk1,
+                                    s_tPij2,s_plk2,_pmat2plk2,
+                                    ns,_plk0);
+              }
+
+            for(k=0;k<nblocks;++k) _mm_store_pd(s_plk0+sz*k,_plk0[k]);
+
+            s_tPij1 += nsns / sz;
+            s_tPij2 += nsns / sz;
+            s_plk0  += ns;
+            s_plk1  += (n_v1->tax) ? 0 : ns;
+            s_plk2  += (n_v2->tax) ? 0 : ns;
+          }
+
+        if(tree->scaling_method == SCALE_FAST)
+          {
+            s_sum_scale_v1_val = (sum_scale_v1)?(sum_scale_v1[s]):(0);
+            s_sum_scale_v2_val = (sum_scale_v2)?(sum_scale_v2[s]):(0);
+            sum_scale[s] = s_sum_scale_v1_val + s_sum_scale_v2_val;
+
+            s_largest_p_lk = -BIG;
+            for(k=0;k<ncatgns;++k)
+              if(site_plk0[k] > s_largest_p_lk)
+                s_largest_p_lk = site_plk0[k];
+
+            if(s_largest_p_lk < INV_TWO_TO_THE_LARGE &&
+               tree->mod->augmented == NO &&
+               tree->apply_lk_scaling == YES)
+              {
+                for(k=0;k<ncatgns;++k) site_plk0[k] *= TWO_TO_THE_LARGE;
+                sum_scale[s] += LARGE;
+              }
+          }
+      }
+  }
 }
 
 //////////////////////////////////////////////////////////////

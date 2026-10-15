@@ -2897,6 +2897,9 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
   PhyML_Fprintf(fp_out, "\n. Run ID:\t\t\t\t%s",
                 (io->append_run_ID) ? (io->run_id_string) : ("none"));
   PhyML_Fprintf(fp_out, "\n. Random seed:\t\t\t\t%d", io->r_seed);
+#ifdef _OPENMP
+  PhyML_Fprintf(fp_out, "\n. Threads:\t\t\t\t%d", io->n_threads);
+#endif
   PhyML_Fprintf(fp_out, "\n. Subtree patterns aliasing:\t\t%s",
                 io->do_alias_subpatt ? "yes" : "no");
   PhyML_Fprintf(fp_out, "\n. Version:\t\t\t\t%s", VERSION);
@@ -3404,6 +3407,9 @@ void Print_Settings(option *io)
   PhyML_Printf("\n        . Run ID:\t\t\t\t\t %s",
                (io->append_run_ID) ? (io->run_id_string) : ("none"));
   PhyML_Printf("\n        . Random seed:\t\t\t\t\t %d", io->r_seed);
+#ifdef _OPENMP
+  PhyML_Printf("\n        . Threads:\t\t\t\t\t %d", io->n_threads);
+#endif
   PhyML_Printf("\n        . Subtree patterns aliasing:\t\t\t %s",
                io->do_alias_subpatt ? "yes" : "no");
   PhyML_Printf("\n        . Version:\t\t\t\t\t %s", VERSION);

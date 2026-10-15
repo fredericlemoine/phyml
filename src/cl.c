@@ -134,6 +134,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       {"seq_len", required_argument, NULL, 85},
       {"n_otu", required_argument, NULL, 86},
       {"bayesian_bootstrap",  no_argument,NULL,87},
+      {"threads", required_argument, NULL, 88},
       {0, 0, 0, 0}};
 
   io->datatype = UNDEFINED;
@@ -184,6 +185,19 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
     switch (c)
     {
+    case 88:
+    {
+      char *end;
+      long n_threads = strtol(optarg, &end, 10);
+      if (end == optarg || *end != '\0' || n_threads < 1 || n_threads > 1024)
+        Exit("\n. The number of threads must be an integer between 1 and 1024.\n\n");
+#ifndef _OPENMP
+      if (n_threads > 1)
+        PhyML_Printf("\n. This binary was compiled without OpenMP: '--threads' is ignored.\n");
+#endif
+      io->n_threads = (int)n_threads;
+      break;
+    }
     case 87 :
     {
       io->do_tbe = NO;

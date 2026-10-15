@@ -1505,6 +1505,7 @@ void Share_Lk_Struct(t_tree *t_full, t_tree *t_empt)
   t_empt->c_lnL_sorted         = t_full->c_lnL_sorted;
   t_empt->unscaled_site_lk_cat = t_full->unscaled_site_lk_cat;
   t_empt->cur_site_lk          = t_full->cur_site_lk;
+  t_empt->site_dlnl            = t_full->site_dlnl;
   t_empt->old_site_lk          = t_full->old_site_lk;
   t_empt->log_lks_aLRT         = t_full->log_lks_aLRT;
   t_empt->site_lk_cat          = t_full->site_lk_cat;

@@ -7,7 +7,7 @@ import unittest
 
 import oracle
 from newick import Newick, rf_distance
-from phymltest import PhymlTestCase, data, stage_files
+from phymltest import PhymlTestCase, data, known_bug, stage_files
 
 SIM = "sim_hky_12.phy"          # HKY85, kappa 4, freqs .3/.2/.2/.3, Gamma alpha 0.8
 TRUE = "sim_hky_12.true.nwk"
@@ -261,6 +261,25 @@ class Invariance(PhymlTestCase):
         self.assertSuccess(a)
         self.assertSuccess(b)
         self.assertLnlClose(a.final_lnl(), b.final_lnl(), 1e-6)
+
+
+
+class OtherModels(PhymlTestCase):
+    """Data types and models outside the usual DNA/protein ones. Both use the
+    generic likelihood code (Update_Partial_Lk_Generic)."""
+
+    @known_bug("-d generic aborts on any analysis that optimises parameters: "
+               "eigen.c:53 assert(isnan(A[i]) == NO)")
+    def test_generic_data_type(self):
+        self.stage("threads_binary.phy")
+        res = self.run_phyml("-i", "threads_binary.phy", "-d", "generic", "-c", "1", "-b", "0")
+        self.assertSuccess(res)
+
+    @known_bug("--cov (covarion model) segfaults after optimising lambda")
+    def test_covarion_model(self):
+        self.stage(SIM, TRUE)
+        res = self.run_phyml("-i", SIM, "-u", TRUE, "--cov", "-m", "HKY85", "-o", "lr", "-b", "0")
+        self.assertSuccess(res)
 
 
 if __name__ == "__main__":

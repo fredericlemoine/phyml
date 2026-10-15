@@ -231,7 +231,59 @@ def main():
     write(os.path.join(DATA, "bad_tree.nwk"), "((t1:0.1,t2:0.1),(t3:0.1,t4:0.1);\n")
     write(os.path.join(DATA, "bad_tree_taxa.nwk"),
           "((t1:0.1,t2:0.1):0.1,t3:0.1,(t4:0.1,zz:0.1):0.1);\n")
+
+    # --- Larger alignments for the multithreading tests -----------------
+    # Threads only engage above 128 site patterns per thread. Own generator,
+    # so that adding these did not change the data sets above.
+    write_threads_data(random.Random(20261015))
     print("data written to", DATA)
+
+
+def random_tree(names, rng, lo=0.02, hi=0.15):
+    """Random unrooted tree (trifurcating at the top) as a Newick string."""
+    def build(sub):
+        if len(sub) == 1:
+            return sub[0]
+        k = rng.randint(1, len(sub) - 1)
+        return "(%s:%.3f,%s:%.3f)" % (build(sub[:k]), rng.uniform(lo, hi),
+                                      build(sub[k:]), rng.uniform(lo, hi))
+    names = list(names)
+    rng.shuffle(names)
+    a, b = len(names) // 3, 2 * len(names) // 3
+    return "(%s:%.3f,%s:%.3f,%s:%.3f);" % (build(names[:a]), rng.uniform(lo, hi),
+                                           build(names[a:b]), rng.uniform(lo, hi),
+                                           build(names[b:]), rng.uniform(lo, hi))
+
+
+def write_threads_data(rng):
+    t = Newick.parse(random_tree(["s%d" % i for i in range(1, 25)], rng))
+    write(os.path.join(DATA, "threads_dna.true.nwk"), t.to_string() + "\n")
+    freqs = [0.3, 0.2, 0.25, 0.25]
+    q = gtr_q([1.2, 3.5, 0.8, 1.1, 4.2, 1.0], freqs)
+    n, seqs = simulate(t, 3000, DNA, q, freqs, rng, alpha=0.6)
+    # A few ambiguous characters and gaps, to exercise every kernel branch.
+    seqs = [list(x) for x in seqs]
+    for k in range(300):
+        seqs[rng.randrange(len(seqs))][rng.randrange(3000)] = "NRY-?"[k % 5]
+    write_phylip(os.path.join(DATA, "threads_dna.phy"), n, ["".join(x) for x in seqs])
+
+    t = Newick.parse(random_tree(["p%d" % i for i in range(1, 13)], rng, 0.05, 0.3))
+    aaf = [1.0 / 20] * 20
+    q = custom_aa_q([[0.0 if i == j else 1.0 for j in range(20)] for i in range(20)], aaf)
+    n, seqs = simulate(t, 800, AA, q, aaf, rng, alpha=1.0)
+    write_phylip(os.path.join(DATA, "threads_aa.phy"), n, seqs)
+
+    # Binary characters: '-d generic' uses the generic (non-SIMD) kernels.
+    t = Newick.parse(random_tree(["b%d" % i for i in range(1, 17)], rng, 0.1, 0.4))
+    q = gtr_q_n(2)
+    n, seqs = simulate(t, 3000, "01", q, [0.5, 0.5], rng)
+    write_phylip(os.path.join(DATA, "threads_binary.phy"), n, seqs)
+
+
+def gtr_q_n(ns):
+    """Equal-rates (Mk) generator for ns states, normalised to rate 1."""
+    off = 1.0 / (ns - 1)
+    return [[-1.0 if i == j else off for j in range(ns)] for i in range(ns)]
 
 
 if __name__ == "__main__":

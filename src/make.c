@@ -39,6 +39,7 @@ void Make_Tree_For_Lk(t_tree *tree)
 
   tree->c_lnL_sorted = (phydbl *)mCalloc(tree->data->n_pattern, sizeof(phydbl));
   tree->cur_site_lk  = (phydbl *)mCalloc(tree->data->n_pattern, sizeof(phydbl));
+  tree->site_dlnl    = (phydbl *)mCalloc(2 * tree->data->n_pattern, sizeof(phydbl));
   tree->old_site_lk  = (phydbl *)mCalloc(tree->data->n_pattern, sizeof(phydbl));
   tree->site_lk_cat  = (phydbl *)mCalloc(
       MAX(tree->mod->ras->n_catg, tree->mod->n_mixt_classes), sizeof(phydbl));

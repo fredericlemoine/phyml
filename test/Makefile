@@ -11,11 +11,14 @@
 #   build/phyml-generic  -DDISABLE_NATIVE: scalar likelihood kernels only
 #   build/phyml-asan     AddressSanitizer + UBSan, used by memory-safety tests
 #   build/phyml-ndebug   -DNDEBUG, as a distribution build might be compiled
+#   build/phyml-omp      OpenMP (--threads), when the compiler supports it
 #
 # Variables: CC, OPTFLAGS (default -O2), ARCHFLAGS (default -march=native on
 # x86-64, empty elsewhere),
 # PYTHON (default python3), TESTS (unittest pattern, e.g. TESTS='test_cli*'),
-# SANITIZE=0 to skip the sanitizer build when the toolchain lacks ASan.
+# SANITIZE=0 to skip the sanitizer build when the toolchain lacks ASan,
+# OPENMP=0 to skip the OpenMP build (default: built when OPENMP_CFLAGS and
+# OPENMP_LIBS compile a test program; on macOS they point to Homebrew libomp).
 
 ROOT      := $(abspath ..)
 SRC       := $(ROOT)/src
@@ -33,6 +36,19 @@ endif
 TESTS     ?= test_*.py
 SANITIZE  ?= 1
 
+ifeq ($(shell uname -s),Darwin)
+LIBOMP        ?= $(shell brew --prefix libomp 2>/dev/null)
+OPENMP_CFLAGS ?= -Xpreprocessor -fopenmp -I$(LIBOMP)/include
+OPENMP_LIBS   ?= -L$(LIBOMP)/lib -lomp
+else
+OPENMP_CFLAGS ?= -fopenmp
+OPENMP_LIBS   ?= -fopenmp
+endif
+ifndef OPENMP
+OPENMP := $(shell printf '\043include <omp.h>\nint main(void){return omp_get_max_threads() < 1;}\n' | \
+            $(CC) $(OPENMP_CFLAGS) -x c - $(OPENMP_LIBS) -o /dev/null >/dev/null 2>&1 && echo 1 || echo 0)
+endif
+
 # Same sources as phyml_SOURCES in src/Makefile.am, minus main.c.
 LIB_SRCS := utilities optimiz lk bionj models free help simu eigen pars alrt \
             interface cl spr draw stats io make nexus init xml sse avx tbe   \
@@ -42,12 +58,13 @@ DEFS   := -DUNIX -DPHYML -DHAVE_CONFIG_H -I$(ROOT) -I$(SRC)
 BASE   := -std=gnu99 -w $(DEFS)
 LIBS   := -lm
 
-VARIANTS := default generic asan ndebug
+VARIANTS := default generic asan ndebug omp
 CFLAGS_default := $(OPTFLAGS) $(ARCHFLAGS) -g
 CFLAGS_generic := $(OPTFLAGS) -g -DDISABLE_NATIVE
 CFLAGS_asan    := -O1 -g $(ARCHFLAGS) -fno-omit-frame-pointer -fsanitize=address,undefined \
                   -fsanitize-recover=address,undefined
 CFLAGS_ndebug  := $(OPTFLAGS) $(ARCHFLAGS) -DNDEBUG
+CFLAGS_omp     := $(OPTFLAGS) $(ARCHFLAGS) -g $(OPENMP_CFLAGS)
 LDFLAGS_asan   := -fsanitize=address,undefined -fsanitize-recover=address,undefined
 
 UNIT_SRCS := $(wildcard unit/test_*.c)
@@ -59,6 +76,9 @@ UNIT_BIN  := $(BUILD)/unit_tests
 BINS := $(BUILD)/phyml $(BUILD)/phyml-generic $(BUILD)/phyml-ndebug
 ifeq ($(SANITIZE),1)
 BINS += $(BUILD)/phyml-asan
+endif
+ifeq ($(OPENMP),1)
+BINS += $(BUILD)/phyml-omp
 endif
 
 all: $(BINS) $(UNIT_BIN)
@@ -89,6 +109,9 @@ $(BUILD)/phyml-asan: $(BUILD)/obj-asan/main.o $(BUILD)/libphyml-asan.a
 $(BUILD)/phyml-ndebug: $(BUILD)/obj-ndebug/main.o $(BUILD)/libphyml-ndebug.a
 	$(CC) $(CFLAGS_ndebug) $^ $(LIBS) -o $@
 
+$(BUILD)/phyml-omp: $(BUILD)/obj-omp/main.o $(BUILD)/libphyml-omp.a
+	$(CC) $(CFLAGS_omp) $^ $(OPENMP_LIBS) $(LIBS) -o $@
+
 # ---- unit tests -----------------------------------------------------------
 $(UNIT_BIN): $(UNIT_SRCS) unit/tinytest.h unit/tinytest.c $(BUILD)/libphyml-default.a
 	$(CC) $(BASE) $(CFLAGS_default) -Iunit unit/tinytest.c $(UNIT_SRCS) \
@@ -98,6 +121,7 @@ $(UNIT_BIN): $(UNIT_SRCS) unit/tinytest.h unit/tinytest.c $(BUILD)/libphyml-defa
 TEST_ENV = PHYML=$(abspath $(BUILD)/phyml) \
            PHYML_GENERIC=$(abspath $(BUILD)/phyml-generic) \
            PHYML_NDEBUG=$(abspath $(BUILD)/phyml-ndebug) \
+           $(if $(filter 1,$(OPENMP)),PHYML_OMP=$(abspath $(BUILD)/phyml-omp)) \
            $(if $(filter 1,$(SANITIZE)),PHYML_ASAN=$(abspath $(BUILD)/phyml-asan) \
            ASAN_OPTIONS=detect_leaks=0:detect_stack_use_after_return=0)
 

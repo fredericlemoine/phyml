@@ -102,6 +102,14 @@ AS_IF([test "x$enable_gprof" = "xyes"],
       [CFLAGS="-g -pg -fno-inline -fprofile-arcs -ftest-coverage ${VECTOR_FLAG}"],
       [AS_IF([test "x$enable_debug" = "xno"],[CFLAGS="${DEFAULT_C_FLAG}"])])
 
+dnl OpenMP: multithreaded likelihood (--threads). Used when the compiler
+dnl supports it; --disable-openmp turns it off. With Apple clang, pass e.g.
+dnl CPPFLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include"
+dnl LIBS="-L$(brew --prefix libomp)/lib -lomp".
+AC_OPENMP
+CFLAGS="${CFLAGS} ${OPENMP_CFLAGS}"
+LDFLAGS="${LDFLAGS} ${OPENMP_CFLAGS}"
+
 AC_ARG_ENABLE([phyml-mpi],
               [AS_HELP_STRING([--enable-phyml-mpi],
                               [Compile with mpicc instead of gcc.])])

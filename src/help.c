@@ -284,6 +284,13 @@ void Usage(void)
   PhyML_Printf("\t\tMust be an integer.\n");
   PhyML_Printf("\n");
 
+  PhyML_Printf("%s\n\t--threads %snum%s\n",BOLD,LINE,FLAT);
+  PhyML_Printf("\t\tnum%s is the number of threads used to compute likelihoods (default: 1).\n",FLAT);
+  PhyML_Printf("\t\tThe work is split over site patterns, so it pays off for long alignments.\n");
+  PhyML_Printf("\t\tResults do not depend on the number of threads. Needs a build with\n");
+  PhyML_Printf("\t\tOpenMP, which configure enables when the compiler supports it.\n");
+  PhyML_Printf("\n");
+
   #ifndef PHYTIME
   PhyML_Printf("%s\n\t--print_site_lnl%s\n",BOLD,FLAT);
   PhyML_Printf("\t\t%sPrint the likelihood for each site in file *_phyml_lk.txt.\n",FLAT);

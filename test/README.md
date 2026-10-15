@@ -20,10 +20,12 @@ not depend on autotools or on a previous `./configure`:
 | `phyml-generic` | `-DDISABLE_NATIVE` | SIMD kernels vs scalar code |
 | `phyml-asan` | `-fsanitize=address,undefined -fsanitize-recover` | memory-safety tests |
 | `phyml-ndebug` | `-DNDEBUG` | behaviour without assertions |
+| `phyml-omp` | OpenMP (`-fopenmp`; Homebrew `libomp` on macOS), built when the compiler supports it | `--threads` |
 | `phyml-mpi` | `mpicc -DMPI` (only for `check-mpi`) | MPI bootstrap |
 
 Useful variables: `CC`, `OPTFLAGS`, `ARCHFLAGS`, `PYTHON`, `SANITIZE=0` (skip
-the sanitizer build), `MPICC`, `MPIRUN` (e.g. `MPIRUN="mpirun --oversubscribe"`).
+the sanitizer build), `OPENMP=0` (skip the OpenMP build), `OPENMP_CFLAGS` and
+`OPENMP_LIBS`, `MPICC`, `MPIRUN` (e.g. `MPIRUN="mpirun --oversubscribe"`).
 To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 
 ## Layout
@@ -52,6 +54,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Ancestral states vs reference, site weights, traces, stats file | | `test_outputs.py` |
 | Memory errors under ASan/UBSan | | `test_memory_safety.py` |
 | `-DNDEBUG` build | | `test_build_variants.py` |
+| Multithreading: identical results with 1, 2 and 4 threads (search, supports, bootstrap, ancestral states, site likelihoods), `--threads` validation | | `test_threads.py` |
 | MPI bootstrap | | `test_mpi.py` |
 
 ## Known bugs
@@ -69,7 +72,8 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Crashes: custom DNA models (`-m 012345`, `-m r1,...,r6`) and `-o n` without
+- Crashes: `-d generic` aborts whenever parameters are optimised
+  (`eigen.c:53`); the covarion model (`--cov`) segfaults; custom DNA models (`-m 012345`, `-m r1,...,r6`) and `-o n` without
   `-m` (`cl.c:968`, `cl.c:1882`); user or constraint trees without branch
   lengths (`io.c:327`); internal polytomies (`io.c:247`); unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
@@ -96,7 +100,9 @@ Known bugs covered at the time of writing:
 - Searches and bootstraps use `rand()`, whose sequence differs between C
   libraries, so search tests check properties (true topology, optimality,
   ranges, invariants) rather than exact numbers. Exact values are only
-  compared for fixed-parameter likelihoods.
+  compared for fixed-parameter likelihoods, and between runs of the same
+  binary (thread counts, reruns) with a fixed `--r_seed`: without it the seed
+  comes from the clock.
 - On x86-64, `src/sse.c` does not compile without `-msse3` or
   `-march=native`, because the SSE kernels are enabled by `__SSE2__` but use
   SSE3 intrinsics. The test Makefile uses `-march=native` there, like

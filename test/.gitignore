@@ -1,0 +1,4 @@
+build/
+check.log
+mpi.log
+__pycache__/

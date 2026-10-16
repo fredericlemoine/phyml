@@ -29,6 +29,7 @@ void   Recurr_Hessian(t_node *a, t_node *b, int plus_minus, phydbl *inc, phydbl 
 phydbl stdnormal_inv(phydbl p);
 phydbl Uni(void);
 int    Rand_Int(int min, int max);
+int    Rand_Int_From(int (*draw)(void), unsigned long long base, int min, int max);
 phydbl Ahrensdietergamma(phydbl alpha);
 phydbl Rgamma(phydbl shape, phydbl scale);
 phydbl Rexp(phydbl lambda);

@@ -85,20 +85,43 @@ phydbl Uni(void)
 
 /*********************************************************************/
 // Return a uniform draw u s.t., min <= u <= max
+/* Uniform integer in [min, max] from a generator draw() returning integers
+   in [0, base - 1] (rand() and RAND_MAX + 1). Draws are combined until they
+   cover the range (RAND_MAX is only 32,767 on Windows), and draws above the
+   largest multiple of the range are rejected, so there is no modulo bias.
+   With one draw and no rejection, this is draw() % range + min. */
+
+int Rand_Int_From(int (*draw)(void), unsigned long long base, int min, int max)
+{
+  unsigned long long range, span, limit, r, s;
+
+  assert(max >= min);
+  range = (unsigned long long)((long long)max - (long long)min + 1);
+
+  span = base;
+  while (span < range) span *= base;
+  limit = span - span % range;
+
+  do
+  {
+    r = 0;
+    s = 1;
+    while (s < range)
+    {
+      r = r * base + (unsigned long long)draw();
+      s *= base;
+    }
+    if (s == 1) r = (unsigned long long)draw(); // range == 1
+  } while (r >= limit);
+
+  return (int)(r % range) + min;
+}
+
+static int Rand_Draw(void) { return rand(); }
+
 int Rand_Int(int min, int max)
 {
-/*   phydbl u;   */
-/*   u = (phydbl)rand(); */
-/*   u /=  (RAND_MAX); */
-/*   u *= (max - min + 1); */
-/*   u += min; */
-/*   return (int)FLOOR(u); */
-
-  int u;
-  /* if(max < min) Generic_Exit(__FILE__,__LINE__,__FUNCTION__); */
-  u = rand();
-  return (u%(max+1-min)+min);
-
+  return Rand_Int_From(Rand_Draw, (unsigned long long)RAND_MAX + 1, min, max);
 }
 
 //////////////////////////////////////////////////////////////

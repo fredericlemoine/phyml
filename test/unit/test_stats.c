@@ -82,6 +82,40 @@ TEST(random, rand_int_reaches_large_values)
   CHECK(max > 32767);
 }
 
+/* A generator with RAND_MAX = 32767, as on Windows (MinGW). */
+static unsigned int lcg15_state = 1;
+static int lcg15(void)
+{
+  lcg15_state = lcg15_state * 1103515245u + 12345u;
+  return (int)((lcg15_state >> 16) & 0x7fff);
+}
+
+TEST(random, rand_int_covers_ranges_larger_than_rand_max)
+{
+  int max = 0, low = 0, high = 0;
+  lcg15_state = 1;
+  for (int i = 0; i < N_DRAWS; i++)
+  {
+    int k = Rand_Int_From(lcg15, 32768ULL, 0, 99999);
+    CHECK(k >= 0 && k <= 99999);
+    if (k > max) max = k;
+    if (k < 50000) low++; else high++;
+  }
+  CHECK(max > 32767);
+  CHECK(abs(low - high) < N_DRAWS / 20);  /* both halves of the range are drawn */
+}
+
+TEST(random, rand_int_matches_modulo_for_small_ranges)
+{
+  /* With RAND_MAX = 2^31 - 1, a rejection has probability ~n / 2^31: the
+     sequence is the one rand() % n gave, so results do not change. */
+  srand(12345);
+  int a[1000];
+  for (int i = 0; i < 1000; i++) a[i] = Rand_Int(3, 9);
+  srand(12345);
+  for (int i = 0; i < 1000; i++) CHECK_EQ_INT(a[i], rand() % 7 + 3);
+}
+
 TEST(random, permutate_returns_a_permutation)
 {
   for (int rep = 0; rep < 100; rep++)

@@ -3,6 +3,8 @@
 import os
 import unittest
 
+import oracle
+
 from phymltest import PhymlTestCase, data, known_bug
 
 TREE = "oracle6.nwk"
@@ -181,10 +183,27 @@ class UserTrees(PhymlTestCase):
         res = self.run_tree("(t1:0.1,t2:0.1,t3:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);", "tlr")
         self.assertSuccess(res)
 
-    @known_bug("io.c:327 Read_Node_Name overflows when tips have no branch length")
     def test_tree_without_branch_lengths(self):
         res = self.run_tree("((t1,t2),(t3,t4),((t5,t6),(t7,t8)));", "lr")
         self.assertSuccess(res)
+
+    def test_tip_names_that_are_prefixes(self):
+        """t1 must not be found inside t10 when the tree is read."""
+        names, seqs = oracle.read_phylip(data("sim_jc_8.phy"))
+        names = ["t10" if n == "t2" else n for n in names]
+        with open(os.path.join(self.tmp, "t10.phy"), "w") as fh:
+            fh.write("%d %d\n" % (len(names), len(seqs[0])))
+            fh.writelines("%-10s %s\n" % (n, s) for n, s in zip(names, seqs))
+        for text in ("((t10,t1),(t3,t4),((t5,t6),(t7,t8)));",
+                     "((t1:0.1,t10:0.2):0.1,(t3:0.1,t4:0.1):0.1,((t5:0.1,t6:0.1):0.1,"
+                     "(t7:0.1,t8:0.1):0.1):0.1);"):
+            with self.subTest(tree=text):
+                res = self.run_phyml("-i", "t10.phy", "-u", self.write_tree(text), "-m", "JC69",
+                                     "-c", "1", "-o", "n", "-b", "0", timeout=60)
+                self.assertSuccess(res)
+                tree = res.tree("t10.phy")
+                self.assertEqual(sorted(tree.leaf_names()), sorted(names))
+                self.assertTrue(tree.has_split(["t1", "t10"]), tree.to_string())
 
     @known_bug("io.c:247 R_rtree re-parses an empty buffer after resolving a polytomy")
     def test_internal_polytomy(self):

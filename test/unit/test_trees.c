@@ -113,10 +113,9 @@ TEST(newick, support_labels_are_accepted)
   CHECK_NEAR(Get_Tree_Size(t), 1.61, 1e-9);
 }
 
-/* Read_Node_Name (io.c:327) copies the name until ':' or '[', so a tip
-   without a branch length runs past the end of its buffer. */
-KNOWN_BUG(newick, tree_without_branch_lengths,
-          "io.c:327 Read_Node_Name overflows when a tip has no branch length")
+/* Read_Node_Name used to copy the name until ':' or '[', so a tip without a
+   branch length ran past the end of its buffer. */
+TEST(newick, tree_without_branch_lengths)
 {
   t_tree *t = parse("((A,B),C,(D,E));");
   CHECK_EQ_INT(t->n_otu, 5);

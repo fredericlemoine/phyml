@@ -75,12 +75,11 @@ lines.
 Known bugs covered at the time of writing:
 
 - Crashes: `-d generic` aborts whenever parameters are optimised
-  (`eigen.c:53`); the covarion model (`--cov`) segfaults; user or
-  constraint trees without branch
-  lengths (`io.c:327`); internal polytomies (`io.c:247`); unbalanced or
+  (`eigen.c:53`); the covarion model (`--cov`) segfaults; internal
+  polytomies (`io.c:247`); unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.
-- Memory errors found by ASan: `%1000s` taxon-name reads (`io.c:1499/1561`),
+- Memory errors found by ASan: `%1000s` taxon-name reads (`Read_Seq_Sequential`/`Read_Seq_Interleaved`),
   1000-character names, sequence lines longer than the header (`io.c:1721`),
   long input paths (`cl.c:1842`) and the "file name too long" message itself
   (`cl.c:1415`).

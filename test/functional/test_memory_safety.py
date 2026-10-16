@@ -6,7 +6,7 @@ of a run is collected. Each test then checks that no report points into
 PhyML's code.
 
 One defect shows up on every run: the taxon-name reads use fscanf("%1000s")
-on 1000-byte buffers (io.c:1499/1561), and ASan's scanf interceptor flags the
+on 1000-byte buffers (Read_Seq_Sequential/Interleaved in io.c), and ASan's scanf interceptor flags the
 possible 1001-byte write. It has its own known-bug test below and is ignored
 by the others so that they can catch new problems.
 """
@@ -17,7 +17,8 @@ import unittest
 
 from phymltest import PHYML_ASAN, PhymlTestCase, data, known_bug
 
-SCANF_NAME_READ = re.compile(r"Read_Seq_(Sequential|Interleaved) io\.c:(1499|1561)\b")
+# Matched by function, not line number, so that edits elsewhere in io.c do not break it
+SCANF_NAME_READ = re.compile(r"Read_Seq_(Sequential|Interleaved) io\.c:\d+\b")
 
 # detect_stack_use_after_return (on by default with GCC >= 13) makes PhyML
 # about 40 times slower under ASan; leaks are out of scope here.
@@ -94,7 +95,7 @@ class MemorySafety(PhymlTestCase):
                 self.assertEqual(res.returncode, 0, res.describe())
 
     # --- known defects ---------------------------------------------------
-    @known_bug("io.c:1499/1561 fscanf(\"%1000s\") into a 1000-byte name buffer")
+    @known_bug("io.c Read_Seq_* fscanf(\"%1000s\") into a 1000-byte name buffer")
     def test_taxon_name_read_is_bounded(self):
         self.stage("sim_jc_8.phy")
         res = self.run_asan("-i", "sim_jc_8.phy", "-m", "JC69", "-c", "1", "-b", "0")
@@ -139,7 +140,6 @@ class MemorySafety(PhymlTestCase):
         self.assertIn("too long", res.output)
         self.assertNoMemoryErrors(res)
 
-    @known_bug("io.c:327 Read_Node_Name reads past tips that have no branch length")
     def test_user_tree_without_branch_lengths(self):
         self.stage("sim_jc_8.phy")
         tree = self.write("t.nwk", "((t1,t2),(t3,t4),((t5,t6),(t7,t8)));\n")

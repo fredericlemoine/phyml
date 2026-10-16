@@ -313,6 +313,33 @@ void R_rtree(char *s_tree_a, char *s_tree_d, t_node *a, t_tree *tree,
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Position of subtree s_d in its ancestor s_a, just after a '(' or ','.
+   A tip must also be followed by the end of the subtree, so that t1 does
+   not match t10 (an internal subtree, in parentheses, cannot be confused
+   and may be followed by its support value). */
+
+static char *Find_Subtree_In_Ancestor(char *s_d, char *s_a)
+{
+  char  *p;
+  size_t len;
+  char   next;
+
+  len = strlen(s_d);
+  for (p = strstr(s_a, s_d); p != NULL; p = strstr(p + 1, s_d))
+  {
+    if (p == s_a || (p[-1] != '(' && p[-1] != ',')) continue;
+    if (len > 0 && s_d[len - 1] == ')') return p;
+    next = p[len];
+    if (next == '\0' || next == ':' || next == ',' || next == ')' ||
+        next == '[' || next == ';')
+      return p;
+  }
+  return NULL;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 void Read_Node_Name(char *s_d, char *s_a, t_node *d, t_tree *tree)
 {
   char *p;
@@ -322,9 +349,12 @@ void Read_Node_Name(char *s_d, char *s_a, t_node *d, t_tree *tree)
 
   d->name = (char *)mCalloc(strlen(s_d) + 1, sizeof(char));
 
-  p = strstr(s_a, s_d);
+  // The name is s_d up to its branch length (':') or comment ('['), if any.
+  // (It was searched in s_a, which matched t1 inside t10, and copied past
+  // the name when the tip had no branch length.)
+  p = s_d;
   i = 0;
-  while (p[i] != ':' && p[i] != '[')
+  while (p[i] != '\0' && p[i] != ':' && p[i] != '[')
   {
     d->name[i] = p[i];
     i++;
@@ -338,29 +368,13 @@ void Read_Node_Name(char *s_d, char *s_a, t_node *d, t_tree *tree)
 
 void Read_Branch_Support(char *s_d, char *s_a, t_edge *b, t_tree *tree)
 {
-  char *sub_tp;
   char *p;
   int   i;
 
   if (s_d[0] != '(') return; // b is an external edge -> no edge support on it
 
-  sub_tp = (char *)mCalloc(10 + strlen(s_d) + 1, sizeof(char));
-
-  sub_tp[0] = '(';
-  sub_tp[1] = '\0';
-  strcat(sub_tp, s_d);
-  p = strstr(s_a, sub_tp);
-
-  if (!p)
-  {
-    sub_tp[0] = ',';
-    sub_tp[1] = '\0';
-    strcat(sub_tp, s_d);
-    p = strstr(s_a, sub_tp);
-  }
+  p = Find_Subtree_In_Ancestor(s_d, s_a);
   assert(p);
-
-  p++;
 
   i = 0;
   if (p[i] == '(')
@@ -379,7 +393,6 @@ void Read_Branch_Support(char *s_d, char *s_a, t_edge *b, t_tree *tree)
     b->support_val = atof((char *)(p + i));
   }
 
-  Free(sub_tp);
 }
 
 //////////////////////////////////////////////////////////////
@@ -387,32 +400,16 @@ void Read_Branch_Support(char *s_d, char *s_a, t_edge *b, t_tree *tree)
 
 void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree)
 {
-  char *sub_tp;
   char *p;
   int   i;
 
   b->l->v = -1.;
 
-  sub_tp = (char *)mCalloc(10 + strlen(s_d) + 1, sizeof(char));
-
-  sub_tp[0] = '(';
-  sub_tp[1] = '\0';
-  strcat(sub_tp, s_d);
-  p = strstr(s_a, sub_tp);
-
-  if (!p)
-  {
-    sub_tp[0] = ',';
-    sub_tp[1] = '\0';
-    strcat(sub_tp, s_d);
-    p = strstr(s_a, sub_tp);
-  }
+  p = Find_Subtree_In_Ancestor(s_d, s_a);
   assert(p);
 
-  p++;
-
   i = 0;
-  while (p[i] != ':' && p[i] != '\0')
+  while (p[i] != ':' && p[i] != '\0' && p[i] != ',' && p[i] != ')')
   {
     if (p[i] == '(') i = Next_Matching_Char(p, '(', ')', i);
     if (p[i] == '[') i = Next_Matching_Char(p, '[', ']', i);
@@ -432,7 +429,6 @@ void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree)
     /* PhyML_Printf("\n. READ LENGTH for s_d: %s b: %f",s_d,b->l->v); */
   }
 
-  Free(sub_tp);
 }
 
 //////////////////////////////////////////////////////////////
@@ -440,30 +436,14 @@ void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree)
 
 void Read_Edge_Label(char *s_d, char *s_a, t_edge *b)
 {
-  char *sub_tp;
   char *p;
   int   i;
 
-  sub_tp = (char *)mCalloc(10 + strlen(s_d) + 1, sizeof(char));
-
-  sub_tp[0] = '(';
-  sub_tp[1] = '\0';
-  strcat(sub_tp, s_d);
-  p = strstr(s_a, sub_tp);
-
-  if (!p)
-  {
-    sub_tp[0] = ',';
-    sub_tp[1] = '\0';
-    strcat(sub_tp, s_d);
-    p = strstr(s_a, sub_tp);
-  }
+  p = Find_Subtree_In_Ancestor(s_d, s_a);
   assert(p);
 
-  p++;
-
   i = 0;
-  while (p[i] != ':' && p[i] != '\0')
+  while (p[i] != ':' && p[i] != '\0' && p[i] != ',' && p[i] != ')')
   {
     if (p[i] == '(') i = Next_Matching_Char(p, '(', ')', i);
     if (p[i] == '[') i = Next_Matching_Char(p, '[', ']', i);
@@ -500,7 +480,6 @@ void Read_Edge_Label(char *s_d, char *s_a, t_edge *b)
     }
   }
 
-  Free(sub_tp);
 }
 
 //////////////////////////////////////////////////////////////
@@ -508,31 +487,15 @@ void Read_Edge_Label(char *s_d, char *s_a, t_edge *b)
 
 void Read_Node_Label(char *s_d, char *s_a, t_node *n)
 {
-  char *sub_tp;
   char *p;
   int   i;
 
-  sub_tp = (char *)mCalloc(10 + strlen(s_d) + 1, sizeof(char));
-
-  sub_tp[0] = '(';
-  sub_tp[1] = '\0';
-  strcat(sub_tp, s_d);
-  p = strstr(s_a, sub_tp);
-
-  if (!p)
-  {
-    sub_tp[0] = ',';
-    sub_tp[1] = '\0';
-    strcat(sub_tp, s_d);
-    p = strstr(s_a, sub_tp);
-  }
+  p = Find_Subtree_In_Ancestor(s_d, s_a);
   assert(p);
 
-  p++;
-
   i = 0;
-  if (p[0] == '(') i = Next_Matching_Char(p, '(', ')', i);
-  while (p[i] != '[' && p[i] != '\0') i++;
+  if (p[0] == '(') i = Next_Matching_Char(p, '(', ')', i) + 1;
+  while (p[i] != '[' && p[i] != '\0' && p[i] != ',' && p[i] != ')') i++;
 
   if (p[i] == '[')
   {
@@ -564,7 +527,6 @@ void Read_Node_Label(char *s_d, char *s_a, t_node *n)
     /*              n->label->next->key,n->label->next->val); */
     Free(s_lab);
   }
-  Free(sub_tp);
 }
 
 //////////////////////////////////////////////////////////////

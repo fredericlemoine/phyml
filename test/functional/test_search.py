@@ -121,12 +121,12 @@ class Constraints(PhymlTestCase):
         return self.run_phyml("-i", JC8, "-m", "JC69", "-c", "1", "-b", "0",
                               "--constraint_file", self.write(text), timeout=60)
 
-    @known_bug("constraint trees have no branch lengths, so Read_Node_Name (io.c:327) overflows")
     def test_constraint_without_branch_lengths(self):
         with open(data("sim_jc_8.constraint.nwk")) as fh:
             res = self.constrained(fh.read().strip())
         self.assertSuccess(res)
-        self.assertTrue(res.tree(JC8).has_split(["t1", "t3"]))
+        self.assertEqual(sorted(res.tree(JC8).leaf_names()), sorted("t%d" % i for i in range(1, 9)))
+        # Whether the constraint is kept: test_constraint_is_respected (known bug)
 
     @known_bug("a constraint on a subset of the taxa crashes (bus error)")
     def test_constraint_on_some_taxa(self):

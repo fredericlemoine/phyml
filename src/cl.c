@@ -992,6 +992,16 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
       if (!isalpha(optarg[0]))
       {
+        // Both forms below set r_mat, which is otherwise only made at the
+        // end of this case
+        io->mod->ns = 4;
+        if (io->mod->r_mat == NULL)
+        {
+          io->mod->r_mat = (t_rmat *)Make_Rmat(io->mod->ns);
+          Init_Rmat(io->mod->r_mat);
+          Make_Custom_Model(io->mod);
+        }
+
         // Custom model for DNA sequences, e.g., 000000 (or 111111, etc)
         // is JC69
         if (strchr(optarg, ',') == NULL)
@@ -1251,7 +1261,9 @@ int Read_Command_Line(option *io, int argc, char **argv)
         Make_Custom_Model(io->mod);
       }
 
-      if (io->mod->whichmodel == GTR) io->mod->r_mat->optimize = YES;
+      // GTR rates are estimated, unless given (-m r1,r2,...,r6)
+      if (io->mod->whichmodel == GTR && isalpha(optarg[0]))
+        io->mod->r_mat->optimize = YES;
 
       break;
     }

@@ -2577,7 +2577,7 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
     PhyML_Fprintf(fp_out, "\n. Model of nucleotides substitution: \t%s",
                   tree->mod->modelname->s);
     if (io->mod->whichmodel == CUSTOM)
-      PhyML_Fprintf(fp_out, " (%s)", io->mod->custom_mod_string);
+      PhyML_Fprintf(fp_out, " (%s)", io->mod->custom_mod_string->s);
   }
   else if (tree->io->datatype == AA)
   {

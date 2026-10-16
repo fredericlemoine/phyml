@@ -160,12 +160,10 @@ class FixedParameterLikelihood(PhymlTestCase):
                 self.check(["-d", "aa", "-m", model, "-f", "m", "-c", "1"], expected,
                            aln=AA_ALN, tree=AA_TREE)
 
-    # --- custom DNA models (currently crash, see test_known_bugs too) -----
-    @known_bug("cl.c:956/968 writes to io->mod->r_mat before it is allocated")
+    # --- custom DNA models ---------------------------------------------
     def test_custom_model_string(self):
         self.check(["-m", "000000", "-f", FREQ_ARG, "-c", "1"], dna_reference(freqs=FREQS))
 
-    @known_bug("cl.c:980 writes to io->mod->r_mat before it is allocated")
     def test_gtr_user_rates(self):
         rates = (1.5, 3.0, 0.7, 1.2, 4.0, 1.0)
         self.check(["-m", ",".join(map(str, rates)), "-f", FREQ_ARG, "-c", "4", "-a", "0.7"],

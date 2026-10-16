@@ -75,8 +75,8 @@ lines.
 Known bugs covered at the time of writing:
 
 - Crashes: `-d generic` aborts whenever parameters are optimised
-  (`eigen.c:53`); the covarion model (`--cov`) segfaults; custom DNA models (`-m 012345`, `-m r1,...,r6`)
-  (`cl.c:968`); user or constraint trees without branch
+  (`eigen.c:53`); the covarion model (`--cov`) segfaults; user or
+  constraint trees without branch
   lengths (`io.c:327`); internal polytomies (`io.c:247`); unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.

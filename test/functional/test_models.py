@@ -3,6 +3,7 @@
 import math
 import os
 import random
+import re
 import unittest
 
 import oracle
@@ -262,6 +263,43 @@ class Invariance(PhymlTestCase):
         self.assertSuccess(b)
         self.assertLnlClose(a.final_lnl(), b.final_lnl(), 1e-6)
 
+
+
+class CustomDnaModels(PhymlTestCase):
+    """-m with a 6-digit rate grouping (012345 = GTR) or user GTR rates."""
+
+    def run_model(self, *args, run_id):
+        self.stage(SIM, TRUE)
+        res = self.run_phyml("-i", SIM, "-u", TRUE, "-o", "lr", "-b", "0", "-c", "4", "-a", "e",
+                             *args, "--run_id", run_id)
+        self.assertSuccess(res)
+        return res
+
+    def gtr_rates(self, res, run_id):
+        text = res.read(SIM + "_phyml_stats_%s.txt" % run_id)
+        return [float(x) for x in re.findall(r"[ACGT] <-> [ACGT]\s+([-0-9.]+)", text)]
+
+    def test_full_grouping_is_gtr(self):
+        custom = self.run_model("-m", "012345", "-f", "o", run_id="custom")
+        gtr = self.run_model("-m", "GTR", "-f", "o", run_id="gtr")
+        self.assertLnlClose(custom.stats(SIM).lnl, gtr.stats(SIM).lnl, tol=1e-6)
+        self.assertIn("Custom (012345)", custom.stats(SIM).text)
+
+    def test_groupings_are_nested(self):
+        lnl = {}
+        for code in ("000000", "010010", "012345"):
+            lnl[code] = self.run_model("-m", code, run_id=code).stats(SIM).lnl
+        self.assertGreaterEqual(lnl["010010"], lnl["000000"] - 1e-3)
+        self.assertGreaterEqual(lnl["012345"], lnl["010010"] - 1e-3)
+
+    def test_user_gtr_rates_stay_fixed(self):
+        """The given rates are used, not re-estimated, while the rest is optimised."""
+        rates = (1.5, 3.0, 0.7, 1.2, 4.0, 1.0)
+        res = self.run_model("-m", ",".join(map(str, rates)), "-f", "o", run_id="user")
+        printed = self.gtr_rates(res, "user")
+        self.assertEqual(len(printed), 6)
+        for given, got in zip(rates, printed):
+            self.assertAlmostEqual(got / printed[-1], given / rates[-1], places=3)
 
 
 class OtherModels(PhymlTestCase):

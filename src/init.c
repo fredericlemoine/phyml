@@ -1371,7 +1371,7 @@ void Init_Model(calign *data, t_mod *mod, option *io)
 
     if (mod->whichmodel == CUSTOM)
     {
-      if (mod->e_frq->type == EMPIRICAL)
+      if (mod->e_frq->type == EMPIRICAL || mod->e_frq->type == ML)
         Init_Efrqs_Using_Observed_Freqs(mod->e_frq, data->obs_state_frq,
                                         mod->ns);
       else

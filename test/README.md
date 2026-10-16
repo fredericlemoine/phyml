@@ -74,7 +74,7 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Crashes: the covarion model (`--cov`) segfaults; unbalanced or
+- Crashes: unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.
 - Memory errors found by ASan: `%1000s` taxon-name reads (`Read_Seq_Sequential`/`Read_Seq_Interleaved`),

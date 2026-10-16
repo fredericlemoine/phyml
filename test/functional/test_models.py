@@ -337,11 +337,17 @@ class OtherModels(PhymlTestCase):
         self.assertSuccess(res)
         self.assertLnlClose(res.final_lnl(), expected, tol=1e-8)
 
-    @known_bug("--cov (covarion model) segfaults after optimising lambda")
-    def test_covarion_model(self):
+    def test_covarion_options_are_refused(self):
+        """The covarion (M4) code is not built: its options stop with a message
+        (--cov used to segfault, --cov_free too, the others were ignored)."""
         self.stage(SIM, TRUE)
-        res = self.run_phyml("-i", SIM, "-u", TRUE, "--cov", "-m", "HKY85", "-o", "lr", "-b", "0")
-        self.assertSuccess(res)
+        for opts in (["--cov"], ["--cov_free"], ["--cov_delta", "1"], ["--cov_alpha", "e"],
+                     ["--cov_ncats", "3"]):
+            with self.subTest(opts=opts):
+                res = self.run_phyml("-i", SIM, "-u", TRUE, *opts, "-m", "HKY85", "-o", "lr",
+                                     "-b", "0")
+                self.assertCleanFailure(res)
+                self.assertIn("covarion model", res.output)
 
 
 if __name__ == "__main__":

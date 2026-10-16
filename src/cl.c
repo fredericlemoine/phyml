@@ -712,8 +712,17 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 37:
     {
+#ifndef M4
+      // The covarion (M4) code is only compiled with -DM4, which no build
+      // target defines, and it no longer compiles: refuse the option
+      // instead of crashing on the missing model
+      Exit("\n. The covarion model (--cov and the --cov_* options) is not "
+           "available in this version of PhyML.\n\n");
+#endif
+#ifdef M4
       io->mod->m4mod->use_cov_alpha = NO;
       io->mod->m4mod->use_cov_free  = YES;
+#endif
       break;
     }
     case 36:
@@ -725,6 +734,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 35:
     {
+#ifndef M4
+      // The covarion (M4) code is only compiled with -DM4, which no build
+      // target defines, and it no longer compiles: refuse the option
+      // instead of crashing on the missing model
+      Exit("\n. The covarion model (--cov and the --cov_* options) is not "
+           "available in this version of PhyML.\n\n");
+#endif
 #ifdef M4
       io->mod->m4mod->n_h = (int)atoi(optarg);
 
@@ -741,6 +757,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 34:
     {
+#ifndef M4
+      // The covarion (M4) code is only compiled with -DM4, which no build
+      // target defines, and it no longer compiles: refuse the option
+      // instead of crashing on the missing model
+      Exit("\n. The covarion model (--cov and the --cov_* options) is not "
+           "available in this version of PhyML.\n\n");
+#endif
 #ifdef M4
       io->mod->m4mod->use_cov_alpha = YES;
       io->mod->m4mod->use_cov_free  = NO;
@@ -769,6 +792,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 33:
     {
+#ifndef M4
+      // The covarion (M4) code is only compiled with -DM4, which no build
+      // target defines, and it no longer compiles: refuse the option
+      // instead of crashing on the missing model
+      Exit("\n. The covarion model (--cov and the --cov_* options) is not "
+           "available in this version of PhyML.\n\n");
+#endif
 #ifdef M4
       if (!strcmp(optarg, "e") || !strcmp(optarg, "E") ||
           !strcmp(optarg, "estimated") || !strcmp(optarg, "ESTIMATED"))
@@ -794,6 +824,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 32:
     {
+#ifndef M4
+      // The covarion (M4) code is only compiled with -DM4, which no build
+      // target defines, and it no longer compiles: refuse the option
+      // instead of crashing on the missing model
+      Exit("\n. The covarion model (--cov and the --cov_* options) is not "
+           "available in this version of PhyML.\n\n");
+#endif
       io->mod->use_m4mod = YES;
       break;
     }

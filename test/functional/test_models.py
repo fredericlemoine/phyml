@@ -207,6 +207,14 @@ class RateHeterogeneity(PhymlTestCase):
         self.assertSuccess(res)
         return res
 
+    def test_gamma_shape_is_estimated_by_default(self):
+        """Without -a, alpha is estimated (the manual's default), as with -a e."""
+        default = self.run_on_true_tree("-c", "4", "--run_id", "default")
+        explicit = self.run_on_true_tree("-c", "4", "-a", "e", "--run_id", "e")
+        self.assertNotAlmostEqual(default.stats(SIM).alpha, 1.0, places=2)
+        self.assertLess(abs(default.stats(SIM).alpha - 0.8), 0.25)  # simulated with 0.8
+        self.assertLnlClose(default.final_lnl(), explicit.final_lnl(), tol=1e-9)
+
     def test_gamma_improves_on_uniform_rates(self):
         uni = self.run_on_true_tree("-c", "1").final_lnl()
         gam = self.run_on_true_tree("-c", "4", "-a", "e").final_lnl()

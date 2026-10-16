@@ -741,6 +741,7 @@ void Set_Defaults_Ras(t_ras *ras)
   ras->normalise_rr        = YES;
   ras->pinvar->v           = 0.0;
   ras->alpha->v            = 1.0;
+  ras->alpha->optimize     = YES; // estimated by default (-a e), as documented
   ras->invar               = NO;
   ras->free_mixt_rates     = NO;
   ras->parent_class_number = 0;

@@ -39,6 +39,7 @@ void Bootstrap_MPI(t_tree *tree)
 	MPI_Status Stat;
 	int iterations_per_process, bootRecv, nbElem, i;
 	int *score_par, *score_tot;
+	phydbl *dist_par, *dist_tot; /* TBE: sums of transfer distances */
 	char *bootStr, *t;
 	
 	if(tree->is_mixt_tree == YES)
@@ -96,12 +97,17 @@ void Bootstrap_MPI(t_tree *tree)
 	{
 		score_tot = (int *)mCalloc((2*tree->n_otu - 3),sizeof(int));
 		for(i=0;i<2*tree->n_otu-3;++i) score_tot[i] = 0;
+		dist_tot = (phydbl *)mCalloc((2*tree->n_otu - 3),sizeof(phydbl));
 	}
 	else
+	{
 		score_tot = NULL;
+		dist_tot = NULL;
+	}
 	
 	score_par = (int *)mCalloc((2*tree->n_otu - 3),sizeof(int));
 	for(i=0;i<2*tree->n_otu-3;++i) score_par[i] = 0;
+	dist_par = (phydbl *)mCalloc((2*tree->n_otu - 3),sizeof(phydbl));
 	
 	for (replicate = 0; replicate < iterations_per_process; replicate++)
 	{
@@ -328,27 +334,32 @@ fflush(stdout);
 			Free_Tree(boot_tree);
 			Free_Model(boot_mod);
 
-			//Each process computes the Bip score sum for all its bootstrap trees
-			for(i=0;i<2*tree->n_otu-3;++i) score_par[i] = tree->a_edges[i]->bip_score;
+		}
 
-			//Each process sends its Bip score sum. The sums are summed.
-			MPI_Reduce(score_par, score_tot, 2*tree->n_otu - 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-		}
-		else
+		// Each process sends the Bip score and transfer distance sums of all
+		// its bootstrap trees so far (also a process without a replicate in
+		// this round). The sums are summed on rank 0.
+		for(i=0;i<2*tree->n_otu-3;++i)
 		{
-			// For the remaining process that did not have a last replicate to compute
-			for(i=0;i<2*tree->n_otu-3;++i) score_par[i] = 0;
-			
-			MPI_Reduce(score_par, score_tot, 2*tree->n_otu - 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+			score_par[i] = tree->a_edges[i]->bip_score;
+			dist_par[i]  = tree->a_edges[i]->tdist_score;
 		}
+		MPI_Reduce(score_par, score_tot, 2*tree->n_otu - 3, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Reduce(dist_par, dist_tot, 2*tree->n_otu - 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	}
 	
 	if (Global_myRank == 0)
 	{
-		for(i=0;i<2*tree->n_otu-3;++i) tree->a_edges[i]->bip_score = score_tot[i];
+		for(i=0;i<2*tree->n_otu-3;++i)
+		{
+			tree->a_edges[i]->bip_score   = score_tot[i];
+			tree->a_edges[i]->tdist_score = dist_tot[i];
+		}
 		Free (score_tot);
+		Free (dist_tot);
 	}
 	Free (score_par);
+	Free (dist_par);
 	
 	if(Global_myRank == 0)
 		if(((bootRecv)%tree->io->boot_prog_every))

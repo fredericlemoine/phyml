@@ -88,7 +88,7 @@ Independent benchmarks on empirical phylogenomic data (Zhou et al., Mol. Biol. E
 
 ## 3. Critical assessment of the code
 
-The numerical core is sound: on fixed trees, PhyML's likelihoods match an independent reference implementation to 1e-8 for every model tested. The code around it carries real defects, though: 29 of the 35 problems listed below were reproduced by running PhyML, 11 of them crashes, aborts or memory errors. Two are now fixed: `-o n` without `-m`, and the AB matrix. On top of these come unchecked buffers, no automated tests until now, and a monolithic structure that makes each fix risky. The first version of this report came from reading the source at commit 42bb4b5. The findings were then checked with the test suite in `test/` (section 3.4), run on macOS arm64, Linux aarch64 and Linux x86-64, with sanitizer, `-DNDEBUG` and MPI builds.
+The numerical core is sound: on fixed trees, PhyML's likelihoods match an independent reference implementation to 1e-8 for every model tested. The code around it carries real defects, though: 29 of the 35 problems listed below were reproduced by running PhyML, 11 of them crashes, aborts or memory errors. Three are now fixed: `-o n` without `-m`, the AB matrix, and TBE supports in `phyml-mpi`. On top of these come unchecked buffers, no automated tests until now, and a monolithic structure that makes each fix risky. The first version of this report came from reading the source at commit 42bb4b5. The findings were then checked with the test suite in `test/` (section 3.4), run on macOS arm64, Linux aarch64 and Linux x86-64, with sanitizer, `-DNDEBUG` and MPI builds.
 
 ### 3.1 Bugs and correctness risks
 
@@ -96,7 +96,7 @@ The numerical core is sound: on fixed trees, PhyML's likelihoods match an indepe
 
 | Severity | Location | Problem | Consequence | Verified |
 | --- | --- | --- | --- | --- |
-| High | `mpi_boot.c` (~line 330), `io.c:6818` | `phyml-mpi` reduces only `bip_score` across ranks. TBE's `tdist_score` stays local to rank 0 but is divided by the total replicate count. | `phyml-mpi --tbe` reports supports biased towards 1: on a test branch it printed 1.0 where its own replicate trees give 0.9. | test (`test_mpi.py`) |
+| High | `mpi_boot.c` (~line 330), `io.c:6818` | `phyml-mpi` reduces only `bip_score` across ranks. TBE's `tdist_score` stays local to rank 0 but is divided by the total replicate count. | `phyml-mpi --tbe` reported supports biased towards 1: on a test branch it printed 1.0 where its own replicate trees give 0.9. | Fixed 2026-10-16 (`tdist_score` is now reduced too); test (`test_mpi.py`) |
 | High | `cl.c:956-968`, `cl.c:980` | Custom DNA models (`-m 012345`, `-m 000000`, ...) and user GTR rates (`-m 1.5,3,0.7,1.2,4,1`) write to `io->mod->r_mat` before it is allocated. | Segmentation fault for every custom nucleotide model, although `--help` documents them. | test (`test_likelihood_oracle.py`) |
 | High | `cl.c:1882` | With `-o n` and no `-m`, the option handler writes `io->mod->r_mat->optimize` while `r_mat` is still NULL. | `phyml -i aln -o n` crashes (also `-o tl`, `-o l`); it works only when `-m` is given. | Fixed 2026-10-15 (needed by `--sms`, which forbids `-m`); test (`test_cli.py`) |
 | High | `io.c:327` (`Read_Node_Name`) | Copies a tip name until `:` or `[`; a tip without a branch length has neither. | Heap overflow and crash on any user tree without branch lengths, and therefore on every `--constraint_file` (constraint trees have no lengths). | test, ASan (`test_inputs.py`, `test_search.py`, `test_memory_safety.py`) |
@@ -157,7 +157,7 @@ The history shows the cost of fixes without tests: 361 of about 2,100 commits me
 
 ### 3.4 Build, packaging and testing
 
-- **Tests: now a first suite, not yet in CI.** The repository had no tests, and GitHub Actions builds on three platforms without running an analysis. `test/` now holds 56 C unit tests and 193 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 37 known-bug tests (35 in `make check`, 2 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. The README still shows a Travis badge (travis-ci.org closed in 2021).
+- **Tests: now a first suite, not yet in CI.** The repository had no tests, and GitHub Actions builds on three platforms without running an analysis. `test/` now holds 56 C unit tests and 193 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 36 known-bug tests (35 in `make check`, 1 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. The README still shows a Travis badge (travis-ci.org closed in 2021).
 - **Generated files in git.** `config.h`, `config.log`, `config.status`, the generated `Makefile`s and LaTeX `.aux`/`.log` files are tracked; each commit carries about 1,000 lines of build noise, which hides real changes in review.
 - **Configure quirks.** `AC_DEFINE([DEBUG],[1])` is unconditional; the compiler-specific `-mcpu=native` choice is overwritten a few lines later; one binary per configure run, chosen by ten mutually exclusive flags. The unconditional `-march=native` also hides that the x86-64 SSE code needs SSE3 (section 3.1).
 - **Sanitizer cost.** Under GCC 13's AddressSanitizer, PhyML runs about 40 times slower unless `detect_stack_use_after_return=0` is set; the test suite sets it.
@@ -173,7 +173,7 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git and drop the Travis badge.
 2. **Fix the high-severity bugs (days).**
     - Crashes in documented features: allocate `r_mat` before option parsing (custom DNA models; the `-o n` case is fixed); make `Read_Node_Name` stop at `,` and `)`; fill the buffer that `R_rtree` re-parses after resolving a polytomy; then check that constraints are kept during SPR moves.
-    - MPI: reduce `tdist_score` as well as `bip_score`; run the ML search on rank 0 only and broadcast the length before the string; keep the user's replicate count and give the remainder to the first ranks.
+    - MPI: run the ML search on rank 0 only and broadcast the length before the string; keep the user's replicate count and give the remainder to the first ranks.
     - Replace `rand()` with a seeded 64-bit generator (PCG or xoshiro), one stream per MPI rank, unbiased bounded integers and a `Uni()` on the open interval (0, 1).
     - Rewrite the sequence readers with bounds checks, `int` for `fgetc`, real error messages, and no side effects inside `assert`.
     - Replace fixed `T_MAX_*` buffers and `strcpy`/`strcat`/`sprintf` with sized allocations (`snprintf`, `asprintf`); widen size arithmetic to `size_t`.
@@ -194,4 +194,4 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Profile mixture models (C20 to C60, PMSF) and partition-wise models from a simple NEXUS partition file, not only XML.
     - Checkpoint and restart for long searches and bootstraps (`checkpoint.c` is a start), and a ultrafast-style bootstrap or parametric alternative to make TBE affordable on large trees.
 
-The quickest wins with the highest impact are the option-parsing crash (`r_mat`), the Newick reader, the MPI TBE reduction, the random number generator and the sequence readers. Each is a few dozen lines, and together they remove every high-severity item in section 3.1. The known-bug tests in `test/` show when each one is fixed.
+The quickest wins with the highest impact are the option-parsing crash (`r_mat`), the Newick reader, the random number generator and the sequence readers. Each is a few dozen lines, and together they remove every high-severity item in section 3.1. The known-bug tests in `test/` show when each one is fixed.

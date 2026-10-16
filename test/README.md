@@ -86,8 +86,8 @@ Known bugs covered at the time of writing:
   (`cl.c:1415`).
 - Wrong results: constraints not respected by the search; root polytomies
   resolved with copied branch lengths; with `-n`, random starts only on the
-  first data set and two trees per data set in the tree file; MPI TBE uses only
-  rank 0's replicates; MPI silently rounds the replicate count up;
+  first data set and two trees per data set in the tree file; MPI silently
+  rounds the replicate count up;
   `Permutate()` is not a uniform shuffle.
 - Other: `-DNDEBUG` builds hang on sequential files (reader inside `assert`);
   `--print_trace` writes an empty file; duplicate taxon names are accepted;

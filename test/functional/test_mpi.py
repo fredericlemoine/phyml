@@ -52,8 +52,6 @@ class MpiBootstrap(PhymlTestCase):
         for split, v in main.supports().items():
             self.assertEqual(int(v), sum(1 for t in reps if split in t.splits()))
 
-    @known_bug("mpi_boot.c reduces bip_score across ranks but not tdist_score: "
-               "TBE only counts rank 0's replicates, divided by all replicates")
     def test_tbe_matches_replicate_trees(self):
         self.assertSuccess(self.tbe)
         main = self.tbe.tree("dna_small.phy")

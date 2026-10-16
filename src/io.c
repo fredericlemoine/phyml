@@ -181,6 +181,7 @@ void R_rtree(char *s_tree_a, char *s_tree_d, t_node *a, t_tree *tree,
   if (s_tree_d[0] == '(')
   {
     char  **subs;
+    char   *resolved;
     int     degree;
     t_edge *b;
 
@@ -242,18 +243,22 @@ void R_rtree(char *s_tree_a, char *s_tree_d, t_node *a, t_tree *tree,
 
     if (degree > 2)
     {
+      // Polytomy: group the extra subtrees into binary ones (with a NULL
+      // edge), then read the node again from its two subtrees
       Clean_Multifurcation(subs, degree, 2);
 
-      Free(s_tree_d);
-
-      s_tree_d =
-          (char *)mCalloc(strlen(subs[0]) + strlen(subs[1]) + 5, sizeof(char));
+      resolved =
+          (char *)mCalloc(strlen(subs[0]) + strlen(subs[1]) + 4, sizeof(char));
+      sprintf(resolved, "(%s,%s)", subs[0], subs[1]);
 
       i = 0;
       while (subs[i] != NULL) Free(subs[i++]);
       Free(subs);
 
-      subs = Sub_Trees(s_tree_d, &degree);
+      // s_tree_d belongs to this call (freed at the end): replace it
+      Free(s_tree_d);
+      s_tree_d = resolved;
+      subs     = Sub_Trees(s_tree_d, &degree);
     }
 
     R_rtree(s_tree_d, subs[0], d, tree, n_int, n_ext);
@@ -427,6 +432,12 @@ void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree)
     tree->has_branch_lengths = YES;
     b->does_exist            = YES;
     /* PhyML_Printf("\n. READ LENGTH for s_d: %s b: %f",s_d,b->l->v); */
+  }
+  else if (strlen(s_d) >= 6 && !strcmp(s_d + strlen(s_d) - 6, ")#NULL"))
+  {
+    // Edge added by Clean_Multifurcation to resolve a polytomy: no length in
+    // the tree, it has length zero
+    b->l->v = 0.0;
   }
 
 }

@@ -85,21 +85,17 @@ TEST(newick, rooted_tree_is_recognised)
                               "0.06000000):0.07000000);");
 }
 
-/* Clean_Multifurcation gives the edges it creates the length of a sibling
-   edge instead of zero: (A:.1,B:.2,C:.3,D:.4,E:.5) is written back as
-   (((A:.1,B:.2):.3,C:.3):.4,D:.4,E:.5), inflating the tree length. */
-KNOWN_BUG(newick, multifurcating_root_is_resolved,
-          "io.c Clean_Multifurcation copies sibling lengths onto new edges")
+/* The edges Clean_Multifurcation creates to resolve a polytomy have length
+   zero (they used to get a sibling's length, inflating the tree length). */
+TEST(newick, multifurcating_root_is_resolved)
 {
   t_tree *t = parse("(A:0.1,B:0.2,C:0.3,D:0.4,E:0.5);");
   CHECK_EQ_INT(t->n_otu, 5);
   CHECK_NEAR(Get_Tree_Size(t), 1.5, 1e-9);
 }
 
-/* R_rtree (io.c:247-256) frees the subtree string, allocates an empty
-   buffer and parses it again without copying the resolved subtrees into it. */
-KNOWN_BUG(newick, internal_multifurcation_is_resolved_with_zero_length_edges,
-          "io.c:247 R_rtree re-parses an empty buffer after Clean_Multifurcation")
+/* R_rtree used to re-parse an empty buffer after resolving a polytomy. */
+TEST(newick, internal_multifurcation_is_resolved_with_zero_length_edges)
 {
   t_tree *t = parse("((A:0.1,B:0.2,C:0.3):0.1,D:0.4,E:0.5);");
   CHECK_EQ_INT(t->n_otu, 5);

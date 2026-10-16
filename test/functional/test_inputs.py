@@ -205,7 +205,6 @@ class UserTrees(PhymlTestCase):
                 self.assertEqual(sorted(tree.leaf_names()), sorted(names))
                 self.assertTrue(tree.has_split(["t1", "t10"]), tree.to_string())
 
-    @known_bug("io.c:247 R_rtree re-parses an empty buffer after resolving a polytomy")
     def test_internal_polytomy(self):
         res = self.run_tree("((t1:0.1,t2:0.1,t3:0.1):0.1,t4:0.1,"
                             "((t5:0.1,t6:0.1):0.1,(t7:0.1,t8:0.1):0.1):0.1);", "lr")

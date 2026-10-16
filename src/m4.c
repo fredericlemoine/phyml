@@ -13,6 +13,9 @@ the GNU public licence. See http://www.opensource.org for details.
 /* Routines for Markov-Modulated Markov Models (M4) */
 
 #include "m4.h"
+#ifdef MPI
+#include "mpi_boot.h"
+#endif
 
 int M4_main(int argc, char **argv)
 {
@@ -240,8 +243,7 @@ int M4_main(int argc, char **argv)
                 "\n. Launch bootstrap analysis on the most likely tree...\n");
 
 #ifdef MPI
-          MPI_Bcast(most_likely_tree, strlen(most_likely_tree) + 1, MPI_CHAR, 0,
-                    MPI_COMM_WORLD);
+          Bcast_String(&most_likely_tree);
           if (!io->quiet)
             PhyML_Printf("\n. The bootstrap analysis will use %d CPUs.\n",
                          Global_numTask);

@@ -32,6 +32,7 @@ extern int Global_numTask;
 extern int Global_myRank;
 
 void Bootstrap_MPI(t_tree *tree);
+void Bcast_String(char **s);
 void Print_Fp_Out_Lines_MPI(t_tree *tree, option *io, int n_data_set, char *bootStr);
 
 #endif  // MPI

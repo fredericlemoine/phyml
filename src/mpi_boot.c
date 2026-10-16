@@ -24,6 +24,26 @@ int Global_myRank;
    if tbe_bootstrap == 0 => Classical FBP (Felsenstein bootstrap proportions) 
    else => TBE (Transfer bootstrap expectation)
 */
+/* Send rank 0's string to all ranks. The length goes first: each rank has
+   its own string (e.g. its own ML tree), and MPI_Bcast needs the same count
+   everywhere. The other ranks' strings are replaced (reallocated). */
+
+void Bcast_String(char **s)
+{
+  int len;
+
+  len = (Global_myRank == 0) ? (int)strlen(*s) + 1 : 0;
+  MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (Global_myRank != 0)
+  {
+    if (*s) Free(*s);
+    *s = (char *)mCalloc(len, sizeof(char));
+  }
+  MPI_Bcast(*s, len, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
+/*********************************************************/
+
 void Bootstrap_MPI(t_tree *tree)
 {
 	int *site_num, n_site;

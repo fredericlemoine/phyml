@@ -1376,6 +1376,8 @@ typedef struct __Model
    * weights. This flag prevents this resetting from happening */
 #endif
 
+  struct __Struct_Mod *smod; /* structure model (Le & Gascuel 2010), or NULL */
+
 } t_mod;
 
 /*!********************************************************/
@@ -1567,6 +1569,16 @@ typedef struct __Option
   short int sms_criterion;    /* SMS_AIC or SMS_BIC */
   int       sms_n_catg;       /* rate categories of +G and +R for SMS (-c) */
   struct __Sms_Fit *sms_fit;  /* Model selected by SMS, with its estimates */
+
+  int    struct_partition;  /* structure model: STRUCT_EX, STRUCT_EHO, STRUCT_EX_EHO, or 0 */
+  int    struct_model;      /* STRUCT_MIX, STRUCT_PART, STRUCT_CONF_LG, STRUCT_CONF_MIX */
+  int    struct_n_gamma;    /* Gamma categories of the structure model (-c) */
+  char  *struct_file;       /* annotation file (--struct_file), or NULL */
+  phydbl struct_chi;        /* fixed chi (--struct_chi), or -1 to estimate it */
+  phydbl struct_props[6];   /* fixed class proportions (--struct_props) */
+  int    struct_n_props;    /* number of values in struct_props, 0 to estimate */
+  int    struct_fix_props;  /* YES: proportions not estimated (--struct_fix_props) */
+  short *struct_site_class; /* class of each alignment site, read from struct_file */
 
   short int do_tbe;
   short int do_boot;

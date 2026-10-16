@@ -236,6 +236,7 @@ def main():
     # Threads only engage above 128 site patterns per thread. Own generator,
     # so that adding these did not change the data sets above.
     write_threads_data(random.Random(20261015))
+    write_structure_data(random.Random(20261016))
     print("data written to", DATA)
 
 
@@ -278,6 +279,70 @@ def write_threads_data(rng):
     q = gtr_q_n(2)
     n, seqs = simulate(t, 3000, "01", q, [0.5, 0.5], rng)
     write_phylip(os.path.join(DATA, "threads_binary.phy"), n, seqs)
+
+
+STRUCT_CLASSES = ["BUR_EXT", "BUR_HEL", "BUR_OTH", "EXP_EXT", "EXP_HEL", "EXP_OTH"]
+STRUCT_RATES = [0.761816796788931, 0.744425646802117, 0.532457759429489,
+                1.5639387472863, 2.06403411829438, 1.43336795177594]
+
+
+def read_structure_matrices():
+    """EX_EHO matrices (Le & Gascuel 2010) from the authors' AllModels.txt."""
+    mats, name, buf = {}, None, []
+    with open(os.path.join(DATA, "aa_matrices", "structure_AllModels.txt")) as fh:
+        for line in fh:
+            s = line.strip()
+            if s and s.replace("_", "").isalpha() and s.isupper():
+                if name:
+                    mats[name] = buf
+                name, buf = s, []
+            elif name and s and not s.startswith("-"):
+                buf += [float(x) for x in s.split()]
+    mats[name] = buf
+    return mats
+
+
+def write_structure_data(rng):
+    """Proteins evolving under the EX_EHO classes of Le & Gascuel (2010), with
+    noisy annotations: 20% of the sites get a random class, 5% none."""
+    t = Newick.parse(random_tree(["a%d" % i for i in range(1, 17)], rng, 0.05, 0.3))
+    write(os.path.join(DATA, "struct_aa.true.nwk"), t.to_string() + "\n")
+    mats = read_structure_matrices()
+    props = [0.2, 0.15, 0.2, 0.15, 0.15, 0.15]
+    nsite = 600
+    columns = []
+    for k, cname in enumerate(STRUCT_CLASSES):
+        v = mats[cname]
+        exch = [[0.0] * 20 for _ in range(20)]
+        idx = 0
+        for i in range(1, 20):
+            for j in range(i):
+                exch[i][j] = exch[j][i] = v[idx]
+                idx += 1
+        freqs = [f / sum(v[190:210]) for f in v[190:210]]
+        q = [[x * STRUCT_RATES[k] for x in row] for row in custom_aa_q(exch, freqs)]
+        n, seqs = simulate(t, int(round(props[k] * nsite)), AA, q, freqs, rng, alpha=0.8)
+        for c in range(len(seqs[0])):
+            columns.append((k, [sq[c] for sq in seqs]))
+    rng.shuffle(columns)
+    seqs = ["".join(col[1][i] for col in columns) for i in range(len(n))]
+    write_phylip(os.path.join(DATA, "struct_aa.phy"), n, seqs)
+    expo, sstr = [], []
+    for k, _ in columns:
+        u = rng.random()
+        if u < 0.05:
+            expo.append("?")
+            sstr.append("?")
+            continue
+        if u < 0.25:
+            k = rng.randrange(6)
+        expo.append("BE"[k // 3])
+        sstr.append("EHO"[k % 3])
+    write(os.path.join(DATA, "struct_aa.annot"),
+          "# EX_EHO classes of struct_aa.phy (20%% noise, 5%% unknown)\n"
+          "exposure: %s\nstructure: %s\n" % ("".join(expo), "".join(sstr)))
+    write(os.path.join(DATA, "struct_aa.classes"),
+          "".join(str(k) for k, _ in columns) + "\n")
 
 
 def gtr_q_n(ns):

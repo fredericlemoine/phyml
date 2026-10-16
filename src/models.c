@@ -11,6 +11,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 */
 
 #include "models.h"
+#include "structure.h"
 
 #ifdef BEAGLE
 #include "beagle_utils.h"
@@ -257,7 +258,19 @@ phydbl Get_Lambda_F84(phydbl *pi, phydbl *kappa)
 void PMat_Empirical(phydbl l, const t_mod *mod, const int pos, phydbl *Pij,
                     phydbl *tPij)
 {
-  const unsigned int ns = mod->ns;
+  PMat_Eigen(l, mod->eigen, mod->ns, pos, Pij, tPij);
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* P(l) = U exp(D l) U^-1 from an eigen system (its imaginary-part vectors
+   are used as scratch space). */
+
+void PMat_Eigen(phydbl l, eigen *eig, const int ns_, const int pos, phydbl *Pij,
+                phydbl *tPij)
+{
+  const unsigned int ns = (unsigned int)ns_;
   unsigned int       i, j, k;
   const phydbl      *U, *V, *R;
   phydbl            *expt;
@@ -266,11 +279,11 @@ void PMat_Empirical(phydbl l, const t_mod *mod, const int pos, phydbl *Pij,
 
   assert(Pij);
 
-  expt  = mod->eigen->e_val_im;
-  uexpt = mod->eigen->r_e_vect_im;
-  U     = mod->eigen->r_e_vect;
-  V     = mod->eigen->l_e_vect;
-  R     = mod->eigen->e_val;
+  expt  = eig->e_val_im;
+  uexpt = eig->r_e_vect_im;
+  U     = eig->r_e_vect;
+  V     = eig->l_e_vect;
+  R     = eig->e_val;
 
   for (k = 0; k < ns; ++k) expt[k] = exp(R[k] * l);
 
@@ -367,7 +380,11 @@ void PMat(phydbl l, t_mod *mod, int pos, phydbl *Pij, phydbl *tPij)
     // tree)
     if (UNINITIALIZED == mod->b_inst) PMat_Empirical(l, mod, pos, Pij, tPij);
 #else
-    PMat_Empirical(l, mod, pos, Pij, tPij);
+    if (mod->smod) // structure model: each category has its own matrix
+      STRUCT_PMat(l, mod->smod, pos / (mod->ns * mod->ns), mod->ns, pos, Pij,
+                  tPij);
+    else
+      PMat_Empirical(l, mod, pos, Pij, tPij);
 #endif
   }
 }
@@ -670,6 +687,12 @@ int Update_RAS(t_mod *mod)
 {
   phydbl sum;
   int    i;
+
+  if (mod->smod)
+  {
+    STRUCT_Update_RAS(mod);
+    return 1;
+  }
 
   if (mod->ras->free_mixt_rates == NO)
   {

@@ -211,11 +211,44 @@ void Usage(void)
   PhyML_Printf("%s\n\t--sms_only%s\n",BOLD,FLAT);
   PhyML_Printf("\t\tRun the SMS model selection (see --sms) and stop, without inferring a tree.\n");
   PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t-m EX%s | %sEHO%s | %sEX_EHO%s (structure models, -d aa)\n",BOLD,FLAT,BOLD,FLAT,BOLD,FLAT);
+  PhyML_Printf("\t\tModels accounting for solvent accessibility and secondary structure (Le &\n");
+  PhyML_Printf("\t\tGascuel, Syst. Biol. 2010): one replacement matrix and global rate per class of\n");
+  PhyML_Printf("\t\tsites, buried/exposed (EX), extended/helix/other (EHO), or their 6 combinations\n");
+  PhyML_Printf("\t\t(EX_EHO), with a Gamma distribution of rates (-c, -a). Branch lengths in the\n");
+  PhyML_Printf("\t\toutput tree are multiplied by the mean rate of the model.\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--struct_model %smix%s|%spart%s|%sconf_lg%s|%sconf_mix%s\n",BOLD,LINE,FLAT,LINE,FLAT,LINE,FLAT,LINE,FLAT);
+  PhyML_Printf("\t\tHow the class matrices are combined. mix: mixture with estimated class\n");
+  PhyML_Printf("\t\tproportions, no annotations. part: each site uses the matrix of its annotated\n");
+  PhyML_Printf("\t\tclass. conf_lg / conf_mix: an annotation is trusted with an estimated probability\n");
+  PhyML_Printf("\t\tchi; otherwise the site follows LG / the mixture. Sites without annotation\n");
+  PhyML_Printf("\t\tfollow the mixture (LG for conf_lg). Default: conf_mix with --struct_file,\n");
+  PhyML_Printf("\t\tmix without.\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--struct_file %sfilename%s\n",BOLD,LINE,FLAT);
+  PhyML_Printf("\t\tSite annotations: a line 'exposure: ...' (B buried, E exposed) and/or a line\n");
+  PhyML_Printf("\t\t'structure: ...' (E extended, H helix, O or another DSSP state for other), one\n");
+  PhyML_Printf("\t\tcharacter per alignment site, '?', 'X' or '-' if unknown.\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--struct_chi %svalue%s, --struct_props %sp1,p2,...%s\n",BOLD,LINE,FLAT,LINE,FLAT);
+  PhyML_Printf("\t\tFix the confidence coefficient chi or the class proportions instead of\n");
+  PhyML_Printf("\t\testimating them. Starting values: chi = 0.8 and the published proportions.\n");
+  PhyML_Printf("\n");
+
+  PhyML_Printf("%s\n\t--struct_fix_props\n",BOLD);
+  PhyML_Printf("\t\tKeep the published class proportions in mix and conf_mix, as the authors'\n");
+  PhyML_Printf("\t\tprogram does for mix.\n");
+  PhyML_Printf("\n");
   #endif
 
 
   #ifndef PHYTIME
-  PhyML_Printf("%s\n\t-f %se%s, %sm%s, %so%s or %sfA,fC,fG,fT%s\n",BOLD,LINE,BOLD,LINE,BOLD,LINE,FLAT);
+  PhyML_Printf("%s\n\t-f %se%s, %sm%s, %so%s or %sfA,fC,fG,fT%s\n",BOLD,LINE,FLAT,LINE,FLAT,LINE,FLAT,LINE,FLAT);
   PhyML_Printf("\t\t%se%s : the character frequencies are determined by counting the number of amino-acids \n",LINE,FLAT);
   PhyML_Printf("\t\t or nucleotides from the sequence alignment. \n");
   PhyML_Printf("\n");

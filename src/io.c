@@ -11,6 +11,7 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "io.h"
+#include "structure.h"
 #include "assert.h"
 
 #ifdef BEAGLE
@@ -2579,8 +2580,13 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
   }
   else if (tree->io->datatype == AA)
   {
-    PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
-                  tree->mod->modelname->s);
+    if (tree->mod->smod)
+      PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
+                    STRUCT_Model_Name(tree->mod->smod->partition,
+                                      tree->mod->smod->model));
+    else
+      PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
+                    tree->mod->modelname->s);
     if (io->mod->whichmodel == CUSTOMAA)
       PhyML_Fprintf(fp_out, " (%s)", tree->mod->aa_rate_mat_file->s);
   }
@@ -2613,10 +2619,31 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
 
   PhyML_Fprintf(fp_out, "\n. Parsimony: \t\t\t\t%d", tree->c_pars);
 
-  PhyML_Fprintf(fp_out, "\n. Tree size: \t\t\t\t%.5f", Get_Tree_Size(tree));
+  // Structure models: branch lengths are rescaled by the mean rate, as in
+  // the tree file
+  PhyML_Fprintf(fp_out, "\n. Tree size: \t\t\t\t%.5f",
+                Get_Tree_Size(tree) *
+                    (tree->mod->smod ? STRUCT_Mean_Rate(tree) : 1.0));
 
+  if (tree->mod->smod)
+  {
+    t_struct *smod = tree->mod->smod;
+    PhyML_Fprintf(fp_out, "\n. Discrete gamma model: \t\t%s",
+                  smod->n_gamma > 1 ? "Yes" : "No");
+    PhyML_Fprintf(fp_out, "\n  - Number of classes: \t\t\t%d", smod->n_gamma);
+    if (smod->n_gamma > 1)
+    {
+      PhyML_Fprintf(fp_out, "\n  - Gamma shape parameter: \t\t%.3f",
+                    tree->mod->ras->alpha->v);
+      for (i = 0; i < smod->n_gamma; i++)
+        PhyML_Fprintf(fp_out,
+                      "\n  - Relative rate in class %d: \t\t%.5f [freq=%4f] \t\t",
+                      i + 1, smod->gamma_rr[i], smod->gamma_p[i]);
+    }
+    STRUCT_Print(fp_out, tree);
+  }
   /* if(tree->mod->ras->n_catg > 1 && tree->mod->ras->free_mixt_rates == NO) */
-  if (tree->mod->ras->free_mixt_rates == NO)
+  else if (tree->mod->ras->free_mixt_rates == NO)
   {
     PhyML_Fprintf(fp_out, "\n. Discrete gamma model: \t\t%s", "Yes");
     PhyML_Fprintf(fp_out, "\n  - Number of classes: \t\t\t%d",
@@ -3258,7 +3285,14 @@ void Print_Settings(option *io)
                    "yes (aBayes branch supports)");
   }
 
-  PhyML_Printf("\n        . Model name:\t\t\t\t\t %s", io->mod->modelname->s);
+  if (io->struct_partition)
+    PhyML_Printf("\n        . Model name:\t\t\t\t\t %s (Le & Gascuel 2010)",
+                 STRUCT_Model_Name(io->struct_partition, io->struct_model));
+  else
+    PhyML_Printf("\n        . Model name:\t\t\t\t\t %s", io->mod->modelname->s);
+  if (io->struct_file)
+    PhyML_Printf("\n        . Structure annotations:\t\t\t %s",
+                 Basename(io->struct_file));
 
   if (io->datatype == AA && io->mod->whichmodel == CUSTOMAA)
     PhyML_Printf(" (%s)", io->mod->aa_rate_mat_file->s);
@@ -3292,7 +3326,7 @@ void Print_Settings(option *io)
     PhyML_Printf("\n        . RAS model:\t\t\t\t\t FreeRate");
 
   PhyML_Printf("\n        . Number of subst. rate catgs:\t\t\t %d",
-               io->mod->ras->n_catg);
+               io->struct_partition ? io->struct_n_gamma : io->mod->ras->n_catg);
 
   if (io->mod->ras->n_catg > 1)
   {
@@ -3310,7 +3344,10 @@ void Print_Settings(option *io)
     }
   }
 
-  if (io->datatype == AA)
+  if (io->datatype == AA && io->struct_partition)
+    PhyML_Printf("\n        . Amino-acid equilibrium frequencies:\t\t those of each "
+                 "class matrix");
+  else if (io->datatype == AA)
   {
     if (io->mod->e_frq->type == ML)
       PhyML_Printf(

@@ -21,6 +21,7 @@
 #include "pars.h"
 #include "simu.h"
 #include "sms.h"
+#include "structure.h"
 #include "spr.h"
 #include "utilities.h"
 
@@ -33,6 +34,35 @@
 #endif
 
 #if (defined PHYML)
+
+/* Structure model (-m EX, EHO, EX_EHO): one rate category per component
+   and Gamma category. */
+
+static void Setup_Structure_Model(calign *cdata, option *io)
+{
+  t_struct *s;
+
+  s = STRUCT_Make(io->struct_partition, io->struct_model, io->struct_n_gamma);
+  if (io->struct_site_class && io->struct_model != STRUCT_MIX)
+    STRUCT_Set_Site_Classes(s, io->struct_site_class, cdata);
+
+  if (io->struct_chi >= 0.0)
+  {
+    s->chi     = io->struct_chi;
+    s->opt_chi = NO;
+  }
+  if (io->struct_n_props > 0)
+  {
+    STRUCT_Set_Props(s, io->struct_props);
+    s->opt_props = NO;
+  }
+  if (io->struct_fix_props == YES) s->opt_props = NO;
+  if (io->mod->s_opt->opt_subst_param == NO) s->opt_chi = s->opt_props = NO;
+
+  io->mod->smod        = s;
+  io->mod->ras->n_catg = s->n_comp * s->n_gamma;
+}
+
 int main(int argc, char **argv)
 {
   calign *cdata;
@@ -116,11 +146,24 @@ int main(int argc, char **argv)
     {
       if (io->n_data_sets > 1)
         PhyML_Printf("\n. Data set [#%d]\n", num_data_set + 1);
+      // Structure annotations: a site pattern must not mix classes, so the
+      // sites are not compressed
+      if (io->struct_partition && io->struct_file &&
+          io->struct_model != STRUCT_MIX)
+      {
+        if (io->struct_site_class) Free(io->struct_site_class);
+        io->struct_site_class = STRUCT_Read_File(
+            io->struct_file, io->struct_partition, io->data[0]->len);
+        io->colalias = NO;
+      }
+
       cdata = Compact_Data(io->data, io);
       Free_Seq(io->data, cdata->n_otu);
 
       // Sets io->mod to the selected model
       if (io->sms == YES) SMS_Select_Model(cdata, io);
+
+      if (io->struct_partition) Setup_Structure_Model(cdata, io);
     }
 
     Make_Model_Complete(io->mod);
@@ -399,6 +442,13 @@ int main(int argc, char **argv)
         dum->io   = io;
         Connect_CSeqs_To_Nodes(cdata, io, dum);
         Insert_Duplicates(dum);
+        // Structure models: branch lengths in expected substitutions per
+        // site, i.e. multiplied by the model's mean rate (Le & Gascuel 2010)
+        if (mod->smod)
+        {
+          phydbl f = STRUCT_Mean_Rate_Data(mod->smod, cdata);
+          for (int e = 0; e < 2 * dum->n_otu - 3; ++e) dum->a_edges[e]->l->v *= f;
+        }
         Free(most_likely_tree);
         most_likely_tree = Write_Tree(dum);
         Free_Tree(dum);
@@ -416,6 +466,11 @@ int main(int argc, char **argv)
       Exit("\n");
     }
     Free_Model_Complete(mod);
+    if (mod->smod)
+    {
+      STRUCT_Free(mod->smod);
+      mod->smod = NULL;
+    }
     SMS_Free_Fits(io->sms_fit);
     io->sms_fit = NULL;
   }

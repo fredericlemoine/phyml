@@ -11,6 +11,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 */
 
 #include "free.h"
+#include "structure.h"
 
 
 //////////////////////////////////////////////////////////////
@@ -864,6 +865,8 @@ void Free_RAS(t_ras *ras)
 
 void Free_Model(t_mod *mod)
 {
+  if (mod->smod) STRUCT_Free(mod->smod);
+  mod->smod = NULL;
   Free_Custom_Model(mod);
   Free_Model_Complete(mod);
   Free_Model_Basic(mod);

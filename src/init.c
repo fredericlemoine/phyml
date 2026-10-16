@@ -638,6 +638,14 @@ void Set_Defaults_Input(option *io)
   io->sms_criterion            = SMS_BIC;
   io->sms_n_catg               = 4;
   io->sms_fit                  = NULL;
+  io->struct_partition         = 0;
+  io->struct_model             = 0;
+  io->struct_n_gamma           = 4;
+  io->struct_file              = NULL;
+  io->struct_chi               = -1.0;
+  io->struct_n_props           = 0;
+  io->struct_fix_props         = NO;
+  io->struct_site_class        = NULL;
   io->print_node_num           = NO;
   io->print_support_val        = NO;
   io->n_boot_replicates        = 0;
@@ -689,6 +697,7 @@ void Set_Defaults_Model(t_mod *mod)
   mod->mod_num        = 0;
   mod->update_eigen   = NO;
   mod->is_mixt_mod    = NO;
+  mod->smod           = NULL;
 
   mod->kappa->v        = 4.0;
   mod->kappa->optimize = YES;

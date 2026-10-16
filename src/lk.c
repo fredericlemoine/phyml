@@ -12,6 +12,7 @@ the GNU public licence. See http://www.opensource.org for details.
 
 #include "assert.h"
 #include "lk.h"
+#include "structure.h"
 #ifdef BEAGLE
 #include "beagle_utils.h"
 #endif
@@ -860,6 +861,9 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
     {
       for(catg=0;catg<ncatg;++catg)
         {
+          // Structure model: each category has its own matrix and frequencies
+          if(tree->mod->smod) pi = (phydbl *)STRUCT_Pi(tree->mod->smod,catg);
+
           if(ns == 4 || ns == 20)
             {
 #if ((defined(__AVX__) || defined(__AVX2__)) && !defined(DISABLE_NATIVE))
@@ -887,7 +891,10 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
 
   site_lk = .0;
   site_lk_cat = tree->unscaled_site_lk_cat + site*ncatg;
-  for(catg=0;catg<ncatg;++catg) site_lk += site_lk_cat[catg] * tree->mod->ras->gamma_r_proba->v[catg];
+  if(tree->mod->smod) // site-specific weights of the categories
+    for(catg=0;catg<ncatg;++catg) site_lk += site_lk_cat[catg] * STRUCT_Weight(tree->mod->smod,site,catg);
+  else
+    for(catg=0;catg<ncatg;++catg) site_lk += site_lk_cat[catg] * tree->mod->ras->gamma_r_proba->v[catg];
 
   if(tree->mod->ras->invar == YES)
     {

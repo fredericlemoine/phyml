@@ -7,6 +7,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 */
 
 #include "optimiz.h"
+#include "structure.h"
 
 static phydbl Br_Len_Spline(phydbl *l, t_edge *b, int n_iter_max, phydbl tol, t_tree *tree);
 
@@ -616,6 +617,32 @@ phydbl Br_Len_Opt(phydbl *l, t_edge *b, t_tree *tree)
 
   if(b->l->onoff == OFF || b->l->optimize == NO) return tree->c_lnL;
 
+  if(tree->mod->smod != NULL)
+    {
+      // Structure model: one eigen system per category, so no eigen-LR
+      // derivatives; Brent search on the likelihood at this edge
+      Set_Update_Eigen_Lr(NO,tree);
+      Set_Use_Eigen_Lr(NO,tree);
+      lk_begin = Lk(b,tree);
+      tree->n_tot_bl_opt += Generic_Brent_Lk(l,
+                                             tree->mod->l_min,
+                                             tree->mod->l_max,
+                                             tree->mod->s_opt->min_diff_lk_local,
+                                             tree->mod->s_opt->brent_it_max,
+                                             tree->mod->s_opt->quickdirty,
+                                             Wrap_Lk_At_Given_Edge,
+                                             b,tree,NULL,NO,NO);
+      Update_PMat_At_Given_Edge(b,tree);
+      lk_end = Lk(b,tree);
+      if(lk_end < lk_begin - tree->mod->s_opt->min_diff_lk_local)
+        {
+          PhyML_Fprintf(stderr,"\n. lk_beg = %f lk_end = %f",lk_begin, lk_end);
+          PhyML_Fprintf(stderr,"\n. Err. in file %s at line %d",__FILE__,__LINE__);
+          Exit("\n");
+        }
+      return tree->c_lnL;
+    }
+
   lk_begin = UNLIKELY;
   lk_end   = UNLIKELY;
   
@@ -985,6 +1012,7 @@ void Optimiz_All_Free_Param(t_tree *tree, int verbose)
   Optimize_Free_Rate(tree,verbose);
   Optimize_Br_Len_Multiplier(tree,verbose);
   Optimize_M4mod(tree, verbose);
+  STRUCT_Optimize(tree, verbose);
 
   if(tree->io->print_json_trace == YES) JSON_Tree_Io(tree,tree->io->fp_out_json_trace); 
   

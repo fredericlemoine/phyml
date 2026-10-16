@@ -38,6 +38,8 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | `functional/newick.py` | Newick parser, splits, Robinson-Foulds and transfer-bootstrap reference code |
 | `data/` | Small alignments and trees; regenerate with `make -C test data` (`tools/make_data.py`, deterministic) |
 | `data/aa_matrices/` | PAML files of protein matrices tested by SMS: Q.pfam, Q.bird, Q.insect, Q.mammal, Q.plant, Q.yeast and MtZoa (from SMS 2.1.1, identical to IQ-TREE's), AB (identical to the paper's supplementary file) and FLU; not generated |
+| `data/aa_matrices/structure_AllModels.txt` | The 11 structure matrices of Le & Gascuel (2010) (EX, EHO, EX_EHO classes), from the authors' archive (identical to IQ-TREE's); not generated |
+| `data/struct_aa.*` | Protein alignment simulated under the 6 EX_EHO classes, with its true tree, true classes and noisy annotations (20% random, 5% unknown) |
 
 ## What is tested
 
@@ -57,6 +59,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | `-DNDEBUG` build | | `test_build_variants.py` |
 | Multithreading: identical results with 1, 2 and 4 threads (search, supports, bootstrap, ancestral states, site likelihoods), `--threads` validation | | `test_threads.py` |
 | SMS model selection (`--sms`): fits table (K, AIC, BIC, order), heuristic path, nested models, selected model used by the analysis, `--sms_only`, `--sms_criterion`, `-c`, `-o tl`, `-u`, several data sets, refused options, same fits for any number of threads | | `test_sms.py` |
+| Structure models (`-m EX\|EHO\|EX_EHO`, `--struct_model`): the 12 combinations vs a reference built on the oracle (`structure_ref.py`), default starting values, `--struct_fix_props`, identical columns with different classes, nesting, chi recovered, outputs, refused options and bad annotation files, threads | | `test_structure.py` |
 | MPI bootstrap | | `test_mpi.py` |
 
 ## Known bugs
@@ -84,7 +87,8 @@ Known bugs covered at the time of writing:
 - Wrong results: constraints not respected by the search; with `-n`, random starts only on the
   first data set and two trees per data set in the tree file; MPI silently
   rounds the replicate count up;
-  `Permutate()` is not a uniform shuffle.
+  `Permutate()` is not a uniform shuffle; `-d aa -m LG` without `-f` uses
+  the empirical amino-acid frequencies (LG+F).
 - Other: `-DNDEBUG` builds hang on sequential files (reader inside `assert`);
   `--print_trace` writes an empty file; duplicate taxon names are accepted;
   `--version`/`--help` exit with status 1; stale `config.h` version; help text

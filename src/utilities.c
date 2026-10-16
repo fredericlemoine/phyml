@@ -10,6 +10,7 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "utilities.h"
+#include "structure.h"
 #include "assert.h"
 #include "tbe.h"
 
@@ -4598,6 +4599,9 @@ t_mod *Copy_Model(t_mod *ori)
   cpy->whichmodel   = ori->whichmodel;
   cpy->io           = ori->io;
   cpy->gamma_mgf_bl = ori->gamma_mgf_bl;
+  // Own chi and proportions: a bootstrap replicate must not change the main
+  // model's
+  cpy->smod = (ori->smod != NULL) ? STRUCT_Copy(ori->smod) : NULL;
 
   Make_Model_Complete(cpy);
   Record_Model(ori, cpy);
@@ -14891,6 +14895,9 @@ do
 
   mod = mod->next;
 } while (mod);
+
+// Structure model: chi and the class proportions, if estimated
+if (mixt_tree->mod->smod) n_params += STRUCT_Free_Params(mixt_tree->mod->smod);
 
 return (n_params);
 }

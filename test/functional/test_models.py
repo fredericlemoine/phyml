@@ -86,6 +86,20 @@ class AminoAcidModels(PhymlTestCase):
         self.assertSuccess(b)
         self.assertNotAlmostEqual(a.final_lnl(), b.final_lnl(), places=2)
 
+    @known_bug("-m LG without -f uses the empirical amino-acid frequencies (LG+F)")
+    def test_default_frequencies_are_the_model_ones(self):
+        """Other programs, and PhyML's help for -f m, take a protein model's own
+        frequencies; the default is empirical (EMPIRICAL = 0 in a calloc'ed
+        t_efrq that nothing sets for amino acids)."""
+        self.stage("oracle_aa.phy", "oracle5.nwk")
+        common = ["-i", "oracle_aa.phy", "-d", "aa", "-m", "LG", "-u", "oracle5.nwk",
+                  "-o", "n", "-c", "1", "-b", "0"]
+        a = self.run_phyml(*common, "--run_id", "default")
+        b = self.run_phyml(*common, "-f", "m", "--run_id", "model")
+        self.assertSuccess(a)
+        self.assertSuccess(b)
+        self.assertAlmostEqual(a.final_lnl(), b.final_lnl(), places=6)
+
 
 class ParameterEstimation(PhymlTestCase):
     """Estimates on 2,000 simulated sites should land near the true values."""

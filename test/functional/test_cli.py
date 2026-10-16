@@ -19,8 +19,11 @@ class Basics(PhymlTestCase):
     def test_help_lists_main_options(self):
         res = self.run_phyml("--help")
         for opt in ("-i (or --input)", "-d (or --datatype)", "-m (or --model)",
-                    "-b (or --bootstrap)", "-o params", "--r_seed"):
+                    "-b (or --bootstrap)", "-o params", "--r_seed",
+                    "-f e, m, o or fA,fC,fG,fT"):
             self.assertIn(opt, re.sub(r"\x1b\[[0-9;]*m", "", res.output))
+        # The -f line had 9 %s for 7 arguments: a crash on Linux x86-64
+        self.assertGreaterEqual(res.returncode, 0)
 
     @known_bug("--version and --help exit with status 1")
     def test_version_and_help_exit_zero(self):

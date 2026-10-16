@@ -64,6 +64,7 @@ optimiz.c optimiz.h\
 lk.c lk.h\
 bionj.c bionj.h\
 models.c models.h\
+structure.c structure.h\
 free.c free.h\
 help.c help.h\
 simu.c simu.h\
@@ -134,6 +135,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -171,6 +173,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -209,6 +212,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -245,6 +249,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -289,6 +294,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -325,6 +331,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -371,6 +378,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -414,6 +422,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -445,6 +454,7 @@ optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
+structure.c structure.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\

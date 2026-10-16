@@ -11,6 +11,7 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "cl.h"
+#include "structure.h"
 
 /*********************************************************/
 /**
@@ -140,6 +141,11 @@ int Read_Command_Line(option *io, int argc, char **argv)
       {"sms", no_argument, NULL, 89},
       {"sms_criterion", required_argument, NULL, 90},
       {"sms_only", no_argument, NULL, 91},
+      {"struct_model", required_argument, NULL, 92},
+      {"struct_file", required_argument, NULL, 93},
+      {"struct_chi", required_argument, NULL, 94},
+      {"struct_props", required_argument, NULL, 95},
+      {"struct_fix_props", no_argument, NULL, 96},
       {0, 0, 0, 0}};
 
   io->datatype = UNDEFINED;
@@ -190,6 +196,68 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
     switch (c)
     {
+    case 96:
+    {
+      io->struct_fix_props = YES;
+      break;
+    }
+    case 95:
+    {
+      char *tok, *copy, *end;
+      int   n = 0;
+      copy      = (char *)mCalloc(strlen(optarg) + 1, sizeof(char));
+      strcpy(copy, optarg);
+      for (tok = strtok(copy, ","); tok; tok = strtok(NULL, ","))
+      {
+        if (n == 6)
+          Exit("\n. --struct_props takes at most 6 proportions.\n\n");
+        io->struct_props[n] = strtod(tok, &end);
+        if (end == tok || *end != '\0' || io->struct_props[n] < 0.0)
+          Exit("\n. --struct_props: proportions must be non-negative numbers "
+               "separated by commas.\n\n");
+        n++;
+      }
+      Free(copy);
+      io->struct_n_props = n;
+      break;
+    }
+    case 94:
+    {
+      char *end;
+      io->struct_chi = strtod(optarg, &end);
+      if (end == optarg || *end != '\0' || io->struct_chi < 0.0 ||
+          io->struct_chi > 1.0)
+        Exit("\n. --struct_chi must be a number between 0 and 1.\n\n");
+      break;
+    }
+    case 93:
+    {
+      io->struct_file = (char *)mCalloc(strlen(optarg) + 1, sizeof(char));
+      strcpy(io->struct_file, optarg);
+      if (!Filexists(io->struct_file))
+      {
+        PhyML_Printf("\n. The structure annotation file '%s' does not exist.\n",
+                     io->struct_file);
+        Exit("\n");
+      }
+      break;
+    }
+    case 92:
+    {
+      char *m = To_Upper_String(optarg);
+      if (!strcmp(m, "MIX"))
+        io->struct_model = STRUCT_MIX;
+      else if (!strcmp(m, "PART"))
+        io->struct_model = STRUCT_PART;
+      else if (!strcmp(m, "CONF_LG") || !strcmp(m, "CONF/LG"))
+        io->struct_model = STRUCT_CONF_LG;
+      else if (!strcmp(m, "CONF_MIX") || !strcmp(m, "CONF/MIX"))
+        io->struct_model = STRUCT_CONF_MIX;
+      else
+        Exit("\n. --struct_model must be mix, part, conf_lg or conf_mix.\n\n");
+      Free(m);
+      break;
+    }
     case 91:
     {
       io->sms      = YES;
@@ -1238,6 +1306,17 @@ int Read_Command_Line(option *io, int argc, char **argv)
           io->mod->ns         = 20;
           io->mod->whichmodel = FLU;
         }
+        else if (!strcmp(s, "EX") || !strcmp(s, "EX2") || !strcmp(s, "EHO") ||
+                 !strcmp(s, "EX_EHO"))
+        {
+          // Structure models (Le & Gascuel 2010): LG is the base model
+          io->datatype         = AA;
+          io->mod->ns          = 20;
+          io->mod->whichmodel  = LG;
+          io->struct_partition = !strcmp(s, "EHO")      ? STRUCT_EHO
+                                 : !strcmp(s, "EX_EHO") ? STRUCT_EX_EHO
+                                                        : STRUCT_EX;
+        }
         else if (strcmp(s, "Q.PFAM") == 0)
         {
           io->datatype        = AA;
@@ -1887,6 +1966,45 @@ int Read_Command_Line(option *io, int argc, char **argv)
 #endif
 
   if (io->datatype == UNDEFINED) io->datatype = NT;
+
+  if (io->struct_partition == 0 &&
+      (io->struct_model || io->struct_file || io->struct_chi >= 0.0 ||
+       io->struct_n_props || io->struct_fix_props))
+    Exit("\n. The --struct_* options need a structure model: -m EX, EHO or "
+         "EX_EHO.\n\n");
+
+  if (io->struct_partition != 0)
+  {
+    int n_class = io->struct_partition == STRUCT_EX    ? 2
+                  : io->struct_partition == STRUCT_EHO ? 3
+                                                       : 6;
+    if (io->struct_model == 0)
+      io->struct_model = io->struct_file ? STRUCT_CONF_MIX : STRUCT_MIX;
+    if (io->struct_model != STRUCT_MIX && io->struct_file == NULL)
+      Exit("\n. The PART, CONF/LG and CONF/MIX structure models need site "
+           "annotations (--struct_file).\n\n");
+    // Each class matrix has its own frequencies; no invariant sites
+    if (io->mod->e_frq != NULL || io->mod->ras->invar == YES ||
+        io->mod->ras->pinvar->optimize == YES ||
+        io->mod->ras->free_mixt_rates == YES || io->mod->fp_aa_rate_mat != NULL ||
+        io->sms == YES)
+      Exit("\n. Structure models (-m EX, EHO, EX_EHO) cannot be combined with "
+           "-f, -v, --freerates, --aa_rate_file or --sms.\n\n");
+    if (io->struct_fix_props == YES && io->struct_model != STRUCT_MIX &&
+        io->struct_model != STRUCT_CONF_MIX)
+      Exit("\n. --struct_fix_props only applies to the mix and conf_mix "
+           "structure models.\n\n");
+    if (io->struct_n_props && io->struct_n_props != n_class)
+    {
+      PhyML_Printf("\n. --struct_props needs %d proportions for this model.\n",
+                   n_class);
+      Exit("\n");
+    }
+    if (io->n_data_sets > 1 && io->struct_file)
+      Exit("\n. Structure annotations (--struct_file) work with a single data "
+           "set.\n\n");
+    io->struct_n_gamma = io->mod->ras->n_catg;
+  }
 
   if (io->sms == YES)
   {

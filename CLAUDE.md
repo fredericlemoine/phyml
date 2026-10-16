@@ -63,6 +63,7 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 | `spr.c`, `pars.c`, `bionj.c` | Tree search, parsimony, BioNJ |
 | `alrt.c`, `tbe.c`, `mpi_boot.c` | Branch supports (aLRT, aBayes, SH), TBE, MPI bootstrap |
 | `sms.c` | SMS model selection (`--sms`), run from `main()` before the analysis |
+| `structure.c` | Structure models of Le & Gascuel 2010 (`-m EX\|EHO\|EX_EHO`, `--struct_model`, `--struct_file`) |
 | `utilities.c/.h` | Core structs (`t_tree`, `t_node`, `t_edge`, `t_mod`, `option`), bootstrap, bipartitions, everything else |
 | `mixt.c` | Mixture and partition models (XML) |
 | `times.c`, `rates.c`, `mcmc.c`, `phyrex.c`, ... | PhyTime and PhyREX |
@@ -96,6 +97,15 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   model; `SMS_Set_Parameters` starts the analysis from the SMS estimates.
   `-m`, `-f`, `-v`, `-a`, `-t`, `--freerates` and `--aa_rate_file` are refused
   with `--sms`.
+- Structure models (`structure.c`, `mod->smod`) turn each class matrix (plus
+  LG for CONF/LG) times each Gamma category into one rate category with its
+  own eigen system (`STRUCT_PMat`) and site-specific weights (`STRUCT_Weight`,
+  read in `Lk_Core_Site`). Site classes are per pattern, so annotations are
+  read before `Compact_Data` and columns are not merged across classes
+  (`io->colalias = NO`). Branch lengths are optimised with Brent, and output
+  trees are multiplied by the mean rate (`STRUCT_Mean_Rate_Data`). Rates,
+  class proportions and starting values (chi = 0.8) follow the authors'
+  PhyML-Structure binary, which gives the same likelihoods to 2e-3.
 - New built-in protein matrices go in `init.c` (`Init_Qmat_*`, or a PAML
   lower triangle via `Init_Qmat_Lower_Triangle`), `Init_Model`,
   `Set_Model_Name`, the `-m` parser and the `-d nt` reset list in `cl.c`, and

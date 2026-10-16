@@ -22,6 +22,12 @@ IUPAC = {
 
 def tip_vector(char, alphabet):
     char = char.upper()
+    if alphabet not in (DNA, AA):  # generic states, e.g. "01"
+        if char in alphabet:
+            return [1.0 if s == char else 0.0 for s in alphabet]
+        if char in "X-?":
+            return [1.0] * len(alphabet)
+        raise ValueError("unknown character " + char)
     if alphabet == DNA:
         allowed = IUPAC[char]
         return [1.0 if s in allowed else 0.0 for s in DNA]

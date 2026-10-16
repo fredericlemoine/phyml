@@ -1566,10 +1566,11 @@ void Init_Model(calign *data, t_mod *mod, option *io)
     mod->e_frq->type       = MODEL;
     mod->kappa->optimize  = NO;
     mod->lambda->optimize = NO;
+    // Equal exchangeabilities. Update_Qmat_Generic reads rr_val as the
+    // exchangeabilities themselves (as for proteins), not their logs: log(1)
+    // made the rate matrix zero and its normalisation NaN.
     for (i = 0; i < mod->ns * (mod->ns - 1) / 2; i++)
-      mod->r_mat->rr_val->v[i] = log(1.0);
-    /* for(i=0;i<mod->ns*(mod->ns-1)/2;i++) mod->r_mat->rr_val->v[i] = exp(1.0);
-     */
+      mod->r_mat->rr_val->v[i] = 1.0;
     for (i = 0; i < mod->ns * (mod->ns - 1) / 2; i++)
       mod->r_mat->rr->v[i] = 1.0;
   }

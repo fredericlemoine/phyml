@@ -34,7 +34,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | --- | --- |
 | `unit/` | C unit tests linked against PhyML's objects (`tinytest.h`: each test runs in a forked child, so `exit()` or a crash fails one test only) |
 | `functional/` | Python `unittest` tests that run the `phyml` binary |
-| `functional/oracle.py` | Independent reference implementation of the likelihood (Felsenstein pruning, GTR family, discrete Gamma, +I, ambiguity codes, custom amino-acid matrices) and of marginal ancestral states |
+| `functional/oracle.py` | Independent reference implementation of the likelihood (Felsenstein pruning, GTR family, discrete Gamma, +I, ambiguity codes, custom amino-acid matrices, generic states such as 0/1) and of marginal ancestral states |
 | `functional/newick.py` | Newick parser, splits, Robinson-Foulds and transfer-bootstrap reference code |
 | `data/` | Small alignments and trees; regenerate with `make -C test data` (`tools/make_data.py`, deterministic) |
 | `data/aa_matrices/` | PAML files of protein matrices tested by SMS: Q.pfam, Q.bird, Q.insect, Q.mammal, Q.plant, Q.yeast and MtZoa (from SMS 2.1.1, identical to IQ-TREE's), AB (identical to the paper's supplementary file) and FLU; not generated |
@@ -74,8 +74,7 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Crashes: `-d generic` aborts whenever parameters are optimised
-  (`eigen.c:53`); the covarion model (`--cov`) segfaults; unbalanced or
+- Crashes: the covarion model (`--cov`) segfaults; unbalanced or
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.
 - Memory errors found by ASan: `%1000s` taxon-name reads (`Read_Seq_Sequential`/`Read_Seq_Interleaved`),

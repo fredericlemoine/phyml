@@ -1022,6 +1022,27 @@ void Detect_Tree_File_Format(option *io)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Number of states of generic data read from a PHYLIP file: the largest
+   digit in the alignment plus one, and at least two. */
+
+static int Generic_Alphabet_Size(option *io)
+{
+  int  i, j, max;
+  char c;
+
+  max = 1;
+  for (i = 0; i < io->n_otu; ++i)
+    for (j = 0; j < io->data[i]->len; ++j)
+    {
+      c = io->data[i]->state[j];
+      if (isdigit((unsigned char)c) && c - '0' > max) max = c - '0';
+    }
+  return max + 1;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 align **Get_Seq(option *io)
 {
   io->data = NULL;
@@ -1040,6 +1061,10 @@ align **Get_Seq(option *io)
   case PHYLIP:
   {
     io->data = Get_Seq_Phylip(io);
+    // NEXUS files give the generic alphabet (symbols=...); for PHYLIP files
+    // the states are the digits 0 to max, as the manual describes
+    if (io->data && io->datatype == GENERIC && io->state_len == 1)
+      io->mod->ns = Generic_Alphabet_Size(io);
     break;
   }
   case NEXUS:

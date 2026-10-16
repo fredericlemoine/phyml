@@ -314,12 +314,28 @@ class OtherModels(PhymlTestCase):
     """Data types and models outside the usual DNA/protein ones. Both use the
     generic likelihood code (Update_Partial_Lk_Generic)."""
 
-    @known_bug("-d generic aborts on any analysis that optimises parameters: "
-               "eigen.c:53 assert(isnan(A[i]) == NO)")
     def test_generic_data_type(self):
         self.stage("threads_binary.phy")
-        res = self.run_phyml("-i", "threads_binary.phy", "-d", "generic", "-c", "1", "-b", "0")
+        res = self.run_phyml("-i", "threads_binary.phy", "-d", "generic", "-b", "0")
         self.assertSuccess(res)
+        self.assertTrue(math.isfinite(res.final_lnl()))
+
+    def test_generic_likelihood_matches_reference(self):
+        """Binary data, equal rates and frequencies, fixed tree: exact likelihood."""
+        names, seqs = oracle.read_phylip(data("threads_binary.phy"))
+        names, seqs = names[:6], [s[:300] for s in seqs[:6]]
+        with open(os.path.join(self.tmp, "bin6.phy"), "w") as fh:
+            fh.write("6 300\n" + "".join("%-10s %s\n" % (n, s) for n, s in zip(names, seqs)))
+        text = "((%s:0.1,%s:0.2):0.05,%s:0.3,(%s:0.15,(%s:0.1,%s:0.25):0.1):0.05);" % tuple(names)
+        with open(os.path.join(self.tmp, "bin6.nwk"), "w") as fh:
+            fh.write(text + "\n")
+        q = [[0.0, 1.0], [1.0, 0.0]]
+        expected = oracle.log_likelihood(oracle.Newick.parse(text), names, seqs,
+                                         oracle.normalise(q, [0.5, 0.5]), [0.5, 0.5], "01")
+        res = self.run_phyml("-i", "bin6.phy", "-d", "generic", "-u", "bin6.nwk", "-o", "n",
+                             "-c", "1", "-b", "0")
+        self.assertSuccess(res)
+        self.assertLnlClose(res.final_lnl(), expected, tol=1e-8)
 
     @known_bug("--cov (covarion model) segfaults after optimising lambda")
     def test_covarion_model(self):

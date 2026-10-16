@@ -12,6 +12,7 @@ the GNU public licence. See http://www.opensource.org for details.
 
 #include "io.h"
 #include "structure.h"
+#include "lg4.h"
 #include "assert.h"
 
 #ifdef BEAGLE
@@ -2584,6 +2585,9 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
       PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
                     STRUCT_Model_Name(tree->mod->smod->partition,
                                       tree->mod->smod->model));
+    else if (tree->mod->lg4)
+      PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
+                    LG4_Model_Name(tree->mod->lg4->model));
     else
       PhyML_Fprintf(fp_out, "\n. Model of amino acids substitution: \t%s",
                     tree->mod->modelname->s);
@@ -2642,6 +2646,8 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
     }
     STRUCT_Print(fp_out, tree);
   }
+  else if (tree->mod->lg4)
+    LG4_Print(fp_out, tree);
   /* if(tree->mod->ras->n_catg > 1 && tree->mod->ras->free_mixt_rates == NO) */
   else if (tree->mod->ras->free_mixt_rates == NO)
   {
@@ -2815,7 +2821,9 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
     // PhyML_Fprintf(fp_out,"\n");
   }
 
-  if (tree->io->datatype == AA &&
+  // Structure models, LG4M and LG4X: each matrix has its own frequencies
+  if (tree->io->datatype == AA && tree->mod->smod == NULL &&
+      tree->mod->lg4 == NULL &&
       (tree->mod->e_frq->type == ML || tree->mod->e_frq->type == EMPIRICAL))
   {
     PhyML_Fprintf(fp_out, "\n. Amino-acid frequencies");
@@ -3288,6 +3296,9 @@ void Print_Settings(option *io)
   if (io->struct_partition)
     PhyML_Printf("\n        . Model name:\t\t\t\t\t %s (Le & Gascuel 2010)",
                  STRUCT_Model_Name(io->struct_partition, io->struct_model));
+  else if (io->lg4_model)
+    PhyML_Printf("\n        . Model name:\t\t\t\t\t %s (Le, Dang & Gascuel 2012)",
+                 LG4_Model_Name(io->lg4_model));
   else
     PhyML_Printf("\n        . Model name:\t\t\t\t\t %s", io->mod->modelname->s);
   if (io->struct_file)
@@ -3347,6 +3358,9 @@ void Print_Settings(option *io)
   if (io->datatype == AA && io->struct_partition)
     PhyML_Printf("\n        . Amino-acid equilibrium frequencies:\t\t those of each "
                  "class matrix");
+  else if (io->datatype == AA && io->lg4_model)
+    PhyML_Printf("\n        . Amino-acid equilibrium frequencies:\t\t those of each "
+                 "matrix");
   else if (io->datatype == AA)
   {
     if (io->mod->e_frq->type == ML)

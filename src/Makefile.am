@@ -65,6 +65,7 @@ lk.c lk.h\
 bionj.c bionj.h\
 models.c models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c free.h\
 help.c help.h\
 simu.c simu.h\
@@ -136,6 +137,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -174,6 +176,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -213,6 +216,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -250,6 +254,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -295,6 +300,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -332,6 +338,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -379,6 +386,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -423,6 +431,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\
@@ -455,6 +464,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
 simu.c  simu.h\

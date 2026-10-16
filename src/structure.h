@@ -86,6 +86,7 @@ void      STRUCT_PMat(phydbl l, const t_struct *s, int catg, int ns, int pos,
                       phydbl *Pij, phydbl *tPij);
 phydbl    STRUCT_Weight(const t_struct *s, int site, int catg);
 const phydbl *STRUCT_Pi(const t_struct *s, int catg);
+eigen    *STRUCT_Eigen(const t_struct *s, int catg);
 short    *STRUCT_Read_File(const char *file, int partition, int n_site);
 void      STRUCT_Optimize(t_tree *tree, int verbose);
 phydbl    STRUCT_Mean_Rate(const t_tree *tree);

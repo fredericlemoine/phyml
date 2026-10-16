@@ -13,6 +13,7 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "assert.h"
 #include "lk.h"
 #include "structure.h"
+#include "lg4.h"
 #ifdef BEAGLE
 #include "beagle_utils.h"
 #endif
@@ -618,7 +619,8 @@ phydbl Lk(t_edge *b, t_tree *tree)
           if(tree->mixt_tree != NULL)     len *= tree->mixt_tree->mod->ras->gamma_rr->v[tree->mod->ras->parent_class_number];
           if(len < tree->mod->l_min)      len = tree->mod->l_min;
           else if(len > tree->mod->l_max) len = tree->mod->l_max;
-          for(state=0;state<ns;++state) expl[catg*ns+state] = exp(tree->mod->eigen->e_val[state]*len);
+          const phydbl *e_val = Cat_Eigen(tree->mod,catg)->e_val;
+          for(state=0;state<ns;++state) expl[catg*ns+state] = exp(e_val[state]*len);
         }
     }
 
@@ -738,7 +740,7 @@ phydbl dLk(phydbl *l, t_edge *b, t_tree *tree)
       
       for(state=0;state<ns;++state) 
         {
-          ev = tree->mod->eigen->e_val[state];
+          ev = Cat_Eigen(tree->mod,catg)->e_val[state];
           expevlen = exp(ev*len);
 
           if(tree->mod->gamma_mgf_bl == YES)
@@ -861,8 +863,9 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
     {
       for(catg=0;catg<ncatg;++catg)
         {
-          // Structure model: each category has its own matrix and frequencies
-          if(tree->mod->smod) pi = (phydbl *)STRUCT_Pi(tree->mod->smod,catg);
+          // Structure models, LG4M, LG4X: each category has its own matrix
+          // and frequencies
+          pi = Cat_Pi(tree->mod,catg);
 
           if(ns == 4 || ns == 20)
             {
@@ -1147,7 +1150,7 @@ void Lk_dLk_Core_Eigen_Lr_Site(unsigned int site, phydbl *expl, phydbl *dot_prod
 
 void Update_Eigen_Lr(t_edge *b, t_tree *tree)
 {
-  phydbl *dot_prod,*r_e_vect,*l_e_vect,*p_lk_left,*p_lk_rght,*pi;
+  phydbl *dot_prod,*p_lk_left,*p_lk_rght;
   
   const unsigned int npattern = tree->data->n_pattern;
   const unsigned int ns = tree->mod->ns;
@@ -1161,7 +1164,8 @@ void Update_Eigen_Lr(t_edge *b, t_tree *tree)
       return;
     }
 
-  if(tree->mod->ns == 4 || tree->mod->ns == 20)
+  // The SIMD versions use a single eigen system for all the categories
+  if((tree->mod->ns == 4 || tree->mod->ns == 20) && tree->mod->lg4 == NULL && tree->mod->smod == NULL)
     {
 #if ((defined(__AVX__) || defined(__AVX2__)) && !defined(DISABLE_NATIVE))
       AVX_Update_Eigen_Lr(b,tree);
@@ -1175,9 +1179,16 @@ void Update_Eigen_Lr(t_edge *b, t_tree *tree)
   assert(tree->update_eigen_lr == YES);
   
   dot_prod = tree->dot_prod;
-  r_e_vect = tree->mod->eigen->r_e_vect;
-  l_e_vect = tree->mod->eigen->l_e_vect;
-  pi       = tree->mod->e_frq->pi->v;
+
+  // Eigen system and frequencies of each category (one per category for
+  // LG4M, LG4X and the structure models)
+  const phydbl *cat_r_e_vect[ncatg],*cat_l_e_vect[ncatg],*cat_pi[ncatg];
+  for(unsigned int c=0;c<ncatg;++c)
+    {
+      cat_r_e_vect[c] = Cat_Eigen(tree->mod,c)->r_e_vect;
+      cat_l_e_vect[c] = Cat_Eigen(tree->mod,c)->l_e_vect;
+      cat_pi[c]       = Cat_Pi(tree->mod,c);
+    }
     
   if(b->left->tax == YES) p_lk_left = b->p_lk_tip_l;
   else                    p_lk_left = b->p_lk_left;
@@ -1209,6 +1220,9 @@ void Update_Eigen_Lr(t_edge *b, t_tree *tree)
 
         for(c=0;c<ncatg;++c)
           {
+            const phydbl *r_e_vect = cat_r_e_vect[c];
+            const phydbl *l_e_vect = cat_l_e_vect[c];
+            const phydbl *pi       = cat_pi[c];
             for(i=0;i<ns;++i)
               {
                 left = rght = 0.0;
@@ -2092,7 +2106,7 @@ phydbl Lk_Given_Two_Seq(calign *data, int numseq1, int numseq2, phydbl dist, t_m
                 {
                   site_lk +=
                     mod->ras->gamma_r_proba->v[j] *
-                    mod->e_frq->pi->v[k] *
+                    Cat_Pi(mod,j)[k] *
                     p_lk_l[i*dim1+k] *
                     mod->Pij_rr->v[j*dim2+k*dim1+l] *
                     p_lk_r[i*dim1+l];
@@ -2108,7 +2122,7 @@ phydbl Lk_Given_Two_Seq(calign *data, int numseq1, int numseq2, phydbl dist, t_m
                         {
                           site_lk +=
                             mod->ras->gamma_r_proba->v[j] *
-                            mod->e_frq->pi->v[k] *
+                            Cat_Pi(mod,j)[k] *
                             p_lk_l[i*dim1+k] *
                             mod->Pij_rr->v[j*dim2+k*dim1+l] *
                             p_lk_r[i*dim1+l];
@@ -2556,12 +2570,11 @@ phydbl Lk_Dist(phydbl *F, phydbl dist, t_mod *mod)
 
   for(i=0;i<mod->ns-1;i++)
     {
-      pi = mod->e_frq->pi->v[i];
-
       for(j=i+1;j<mod->ns;j++)
         {
           for(k=0;k<mod->ras->n_catg;k++)
             {
+              pi   = Cat_Pi(mod,k)[i];
               pijk = mod->Pij_rr->v[dim1*k+dim2*i+j];              
               lnL += (F[dim1*k+dim2*i+j] + F[dim1*k+dim2*j+i]) * log(pi * pijk);
               /* PhyML_Printf("\n. pijk: %g lnL: %g",pijk,lnL); */
@@ -2571,10 +2584,9 @@ phydbl Lk_Dist(phydbl *F, phydbl dist, t_mod *mod)
   
   for(i=0;i<mod->ns;i++) 
     {
-      pi = mod->e_frq->pi->v[i];
-      
       for(k=0;k<mod->ras->n_catg;k++) 
         {
+          pi   = Cat_Pi(mod,k)[i];
           pijk = mod->Pij_rr->v[dim1*k+dim2*i+i];
           lnL += F[dim1*k+dim2*i+i]* log(pi * pijk);
           /* PhyML_Printf("\n. pijk: %g lnL: %g",pijk,lnL); */

@@ -219,10 +219,12 @@ def site_log_likelihoods(tree, names, seqs, q, freqs, alphabet,
     return result
 
 
-def ancestral_marginals(tree, names, seqs, q, freqs, alphabet, clade):
+def ancestral_marginals(tree, names, seqs, q, freqs, alphabet, clade, normalise=True):
     """Marginal posterior state probabilities, per site, at the internal node
     whose descendants (in `tree` as written) are exactly `clade`.
-    Single rate class, no invariable sites."""
+    Single rate class, no invariable sites. With normalise=False, returns the
+    joint probabilities pi_i * L(data | state i at the node), to be combined
+    over rate classes."""
     seq_of = dict(zip(names, seqs))
     ns = len(alphabet)
     # undirected adjacency: node -> [(neighbour, branch length)]
@@ -269,7 +271,7 @@ def ancestral_marginals(tree, names, seqs, q, freqs, alphabet, clade):
     for site in range(len(seqs[0])):
         v = partial(target, None, site)
         w = [freqs[i] * v[i] for i in range(ns)]
-        tot = sum(w)
+        tot = sum(w) if normalise else 1.0
         result.append([x / tot for x in w])
     return result
 

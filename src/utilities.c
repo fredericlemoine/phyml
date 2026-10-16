@@ -11,6 +11,7 @@ the GNU public licence. See http://www.opensource.org for details.
 
 #include "utilities.h"
 #include "structure.h"
+#include "lg4.h"
 #include "assert.h"
 #include "tbe.h"
 
@@ -4602,6 +4603,7 @@ t_mod *Copy_Model(t_mod *ori)
   // Own chi and proportions: a bootstrap replicate must not change the main
   // model's
   cpy->smod = (ori->smod != NULL) ? STRUCT_Copy(ori->smod) : NULL;
+  cpy->lg4  = (ori->lg4 != NULL) ? LG4_Copy(ori->lg4) : NULL;
 
   Make_Model_Complete(cpy);
   Record_Model(ori, cpy);
@@ -13857,14 +13859,15 @@ int *Integer_To_Bit(int val, const int ns)
 
   int         *res;
   unsigned int mask = 1U << (ns - 1);
+  unsigned int bits = (unsigned int)val; // shifting a signed int overflows
   int          i;
 
   res = (int *)mCalloc(ns, sizeof(int));
 
   for (i = 0; i < ns; ++i)
   {
-    res[i] = (val & mask) ? 1 : 0;
-    val <<= 1;
+    res[i] = (bits & mask) ? 1 : 0;
+    bits <<= 1;
   }
 
   return res;

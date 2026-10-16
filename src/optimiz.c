@@ -8,6 +8,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 
 #include "optimiz.h"
 #include "structure.h"
+#include "lg4.h"
 
 static phydbl Br_Len_Spline(phydbl *l, t_edge *b, int n_iter_max, phydbl tol, t_tree *tree);
 

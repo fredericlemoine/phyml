@@ -100,6 +100,67 @@ class ExactLikelihood(PhymlTestCase):
         self.check_all("dup.phy", "oracle5.nwk", names, seqs, expo, sstr)
 
 
+class AncestralStates(PhymlTestCase):
+    """Marginal probabilities weight each class matrix, Gamma category and
+    site as the likelihood does."""
+
+    def test_part_and_conf_mix(self):
+        self.stage("oracle_aa.phy", "oracle5.nwk")
+        names, seqs = oracle.read_phylip(data("oracle_aa.phy"))
+        expo, sstr = random_annotations(len(seqs[0]), random.Random(4))
+        with open(os.path.join(self.tmp, "annot.txt"), "w") as fh:
+            fh.write("exposure: %s\nstructure: %s\n" % (expo, sstr))
+        ref_tree = Newick.read(data("oracle5.nwk"))
+        ref_clades = {frozenset(n.name for n in Newick(c).leaves())
+                      for c in ref_tree.internal_nodes()}
+        mats = sr.read_matrices()
+        gamma = oracle.discrete_gamma_rates(0.7, 4)
+        props = PARTITIONS["EX"]
+        classes = sr.site_classes("EX", expo, sstr)
+        for model in ("part", "conf_mix"):
+            with self.subTest(model=model):
+                res = self.run_phyml("-i", "oracle_aa.phy", "-d", "aa", "-m", "EX",
+                                     "--struct_model", model, "--struct_file", "annot.txt",
+                                     "-u", "oracle5.nwk", "-o", "n", "-a", "0.7", "-c", "4",
+                                     "-b", "0", "--struct_chi", "0.6",
+                                     "--struct_props", ",".join(map(str, props)),
+                                     "--ancestral", "--run_id", model)
+                self.assertSuccess(res)
+                rows = {}
+                for line in res.read("oracle_aa.phy_phyml_ancestral_%s_seq.txt" % model).splitlines():
+                    parts = line.split()
+                    if len(parts) == 23 and parts[0].isdigit():
+                        rows[(int(parts[1]), int(parts[0]))] = [float(x) for x in parts[2:22]]
+                anc = Newick.parse(res.read("oracle_aa.phy_phyml_ancestral_%s_tree.txt"
+                                            % model).strip())
+                checked = 0
+                for node in anc.internal_nodes():
+                    clade = frozenset(n.name for n in Newick(node).leaves())
+                    if node.label is None or clade not in ref_clades or len(clade) == len(names):
+                        continue
+                    per_class = []
+                    for cname in sr.CLASSES["EX"]:
+                        exch, freqs = mats[cname]
+                        q0 = oracle.custom_aa_q(exch, freqs)
+                        acc = None
+                        for g in gamma:
+                            q = [[x * sr.RATES[cname] * g for x in row] for row in q0]
+                            part = oracle.ancestral_marginals(ref_tree, names, seqs, q, freqs,
+                                                              oracle.AA, clade, normalise=False)
+                            acc = part if acc is None else [[a + b for a, b in zip(x, y)]
+                                                            for x, y in zip(acc, part)]
+                        per_class.append(acc)
+                    for site in range(len(seqs[0])):
+                        w = sr.weights(model, 2, classes[site], 0.6, props)
+                        p = [sum(w[k] * per_class[k][site][i] for k in range(2)) for i in range(20)]
+                        tot = sum(p)
+                        got = rows[(int(node.label), site + 1)]
+                        for a, b in zip(got, p):
+                            self.assertAlmostEqual(a, b / tot, delta=2e-5)
+                    checked += 1
+                self.assertGreaterEqual(checked, 1)
+
+
 class SimulatedData(PhymlTestCase):
     """Models fitted on the true tree of struct_aa.phy (branch lengths and
     parameters estimated)."""

@@ -237,6 +237,7 @@ def main():
     # so that adding these did not change the data sets above.
     write_threads_data(random.Random(20261015))
     write_structure_data(random.Random(20261016))
+    write_lg4_data(random.Random(20261017))
     print("data written to", DATA)
 
 
@@ -343,6 +344,35 @@ def write_structure_data(rng):
           "exposure: %s\nstructure: %s\n" % ("".join(expo), "".join(sstr)))
     write(os.path.join(DATA, "struct_aa.classes"),
           "".join(str(k) for k, _ in columns) + "\n")
+
+
+LG4X_WEIGHTS = [0.3, 0.3, 0.25, 0.15]
+LG4X_RAW_RATES = [0.15, 0.6, 1.4, 3.2]
+
+
+def lg4x_true_rates():
+    """Rates of the LG4X simulation, scaled so that sum w_k rho_k = 1."""
+    mean = sum(w * r for w, r in zip(LG4X_WEIGHTS, LG4X_RAW_RATES))
+    return [r / mean for r in LG4X_RAW_RATES]
+
+
+def write_lg4_data(rng):
+    """Proteins evolving under LG4X (Le, Dang & Gascuel 2012): category k uses
+    matrix X_k at rate rho_k, with weight w_k."""
+    import lg4_ref
+    t = Newick.parse(random_tree(["b%d" % i for i in range(1, 17)], rng, 0.05, 0.4))
+    write(os.path.join(DATA, "lg4_aa.true.nwk"), t.to_string() + "\n")
+    mats = lg4_ref.read_matrices()
+    nsite = 800
+    columns = []
+    for k, (w, r) in enumerate(zip(LG4X_WEIGHTS, lg4x_true_rates())):
+        exch, freqs = mats["X%d" % (k + 1)]
+        q = [[x * r for x in row] for row in custom_aa_q(exch, freqs)]
+        n, seqs = simulate(t, int(round(w * nsite)), AA, q, freqs, rng)
+        columns += [[sq[c] for sq in seqs] for c in range(len(seqs[0]))]
+    rng.shuffle(columns)
+    seqs = ["".join(col[i] for col in columns) for i in range(len(n))]
+    write_phylip(os.path.join(DATA, "lg4_aa.phy"), n, seqs)
 
 
 def gtr_q_n(ns):

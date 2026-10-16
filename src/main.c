@@ -22,6 +22,7 @@
 #include "simu.h"
 #include "sms.h"
 #include "structure.h"
+#include "lg4.h"
 #include "spr.h"
 #include "utilities.h"
 
@@ -61,6 +62,26 @@ static void Setup_Structure_Model(calign *cdata, option *io)
 
   io->mod->smod        = s;
   io->mod->ras->n_catg = s->n_comp * s->n_gamma;
+}
+
+/* Tree search, or optimisation on the fixed topology. */
+
+static void Search_Or_Optimize(t_tree *tree)
+{
+  if (tree->mod->s_opt->opt_topo)
+  {
+    Global_Spr_Search(tree);
+    if (tree->n_root) Add_Root(tree->a_edges[0], tree);
+  }
+  else
+  {
+#ifdef BEAGLE
+    tree->b_inst = create_beagle_instance(tree, tree->io->quiet, tree->io);
+#endif
+    if (tree->mod->s_opt->opt_subst_param ||
+        tree->mod->s_opt->opt_bl_one_by_one)
+      Round_Optimize(tree, ROUND_MAX);
+  }
 }
 
 int main(int argc, char **argv)
@@ -164,6 +185,7 @@ int main(int argc, char **argv)
       if (io->sms == YES) SMS_Select_Model(cdata, io);
 
       if (io->struct_partition) Setup_Structure_Model(cdata, io);
+      if (io->lg4_model) io->mod->lg4 = LG4_Make(io->lg4_model);
     }
 
     Make_Model_Complete(io->mod);
@@ -202,6 +224,7 @@ int main(int argc, char **argv)
 
           Init_Model(cdata, mod, io);
           SMS_Set_Parameters(mod, io->sms_fit);
+          if (mod->lg4) LG4_Set_Rates(mod, mod->lg4->model);
           Set_Model_Parameters(mod);
 
 #ifdef M4
@@ -317,20 +340,33 @@ int main(int argc, char **argv)
 
           PhyML_Printf("\n. Init log-likelihood: %f", tree->c_lnL);
 
-          if (tree->mod->s_opt->opt_topo)
+          // LG4X (Le, Dang & Gascuel 2012): "the starting tree, rates, and
+          // weights (=0.25) are first estimated with LG4M", then the six
+          // rate and weight parameters are optimised
+          if (tree->mod->lg4 && tree->mod->lg4->model == LG4_X &&
+              tree->mod->s_opt->opt_subst_param == YES &&
+              (tree->mod->s_opt->opt_topo ||
+               tree->mod->s_opt->opt_bl_one_by_one))
           {
-            Global_Spr_Search(tree);
-            if (tree->n_root) Add_Root(tree->a_edges[0], tree);
+            int alpha_opt = tree->mod->ras->alpha->optimize;
+            tree->mod->ras->alpha->optimize = YES;
+            LG4_Switch(tree->mod, LG4_M);
+            Set_Update_Eigen(YES, tree->mod);
+            Lk(NULL, tree);
+            Set_Update_Eigen(NO, tree->mod);
+            PhyML_Printf("\n. LG4X: first fitting LG4M (log-likelihood %f)",
+                         tree->c_lnL);
+            Search_Or_Optimize(tree);
+            tree->mod->ras->alpha->optimize = alpha_opt;
+            LG4_Switch(tree->mod, LG4_X);
+            Set_Update_Eigen(YES, tree->mod);
+            Lk(NULL, tree);
+            Set_Update_Eigen(NO, tree->mod);
+            PhyML_Printf("\n. LG4X: starting from the LG4M tree and rates "
+                         "(log-likelihood %f)", tree->c_lnL);
           }
-          else
-          {
-#ifdef BEAGLE
-            tree->b_inst = create_beagle_instance(tree, io->quiet, io);
-#endif
-            if (tree->mod->s_opt->opt_subst_param ||
-                tree->mod->s_opt->opt_bl_one_by_one)
-              Round_Optimize(tree, ROUND_MAX);
-          }
+
+          Search_Or_Optimize(tree);
 
         
           /* if(tree->mod->gamma_mgf_bl)
@@ -470,6 +506,11 @@ int main(int argc, char **argv)
     {
       STRUCT_Free(mod->smod);
       mod->smod = NULL;
+    }
+    if (mod->lg4)
+    {
+      LG4_Free(mod->lg4);
+      mod->lg4 = NULL;
     }
     SMS_Free_Fits(io->sms_fit);
     io->sms_fit = NULL;

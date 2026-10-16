@@ -475,46 +475,6 @@ static const char *struct_class_names[STRUCT_N_MATRICES] = {
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-/* Eigen system of the normalised rate matrix built from exchangeabilities
-   daa (20 x 20, symmetric) and frequencies pi. */
-
-static eigen *STRUCT_Eigen(const phydbl *daa, const phydbl *pi)
-{
-  const int ns = 20;
-  eigen    *e;
-  phydbl    rr[190], qmat[400], f[20];
-  int       i, j;
-
-  e = Make_Eigen_Struct(ns);
-  Init_Eigen_Struct(e);
-
-  for (i = 0; i < ns; i++) f[i] = pi[i];
-  for (i = 0; i < ns; i++)
-    for (j = i + 1; j < ns; j++)
-      rr[i * ns + j - (i + 1 + (i + 1) * (i + 1)) / 2] = daa[i * ns + j];
-
-  Update_Qmat_Generic(rr, f, ns, qmat); // normalised: mean rate 1
-
-  if (Eigen(1, qmat, ns, e->e_val, e->e_val_im, e->r_e_vect, e->r_e_vect_im,
-            e->space) != 0)
-  {
-    PhyML_Fprintf(stderr, "\n. Eigen decomposition failed for a structure "
-                          "model matrix.\n");
-    Exit("\n");
-  }
-  for (i = 0; i < ns * ns; ++i) e->l_e_vect[i] = e->r_e_vect[i];
-  if (!Matinv(e->l_e_vect, ns, ns, YES))
-  {
-    PhyML_Fprintf(stderr, "\n. Cannot invert the eigen vectors of a "
-                          "structure model matrix.\n");
-    Exit("\n");
-  }
-  return e;
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
 t_struct *STRUCT_Make(int partition, int model, int n_gamma)
 {
   t_struct *s;
@@ -551,7 +511,7 @@ t_struct *STRUCT_Make(int partition, int model, int n_gamma)
     sum = 0.0;
     for (i = 0; i < 20; i++) sum += f[i];
     for (i = 0; i < 20; i++) s->pi[k][i] = f[i] / sum;
-    s->eig[k] = STRUCT_Eigen(daa, s->pi[k]);
+    s->eig[k] = Make_Normalised_Eigen(daa, s->pi[k], 20);
   }
 
   // Starting values, as in the authors' binary
@@ -725,6 +685,13 @@ const phydbl *STRUCT_Pi(const t_struct *s, int catg)
   int k = catg / s->n_gamma;
   if (k >= s->n_comp) k = s->n_comp - 1;
   return s->pi[k];
+}
+
+eigen *STRUCT_Eigen(const t_struct *s, int catg)
+{
+  int k = catg / s->n_gamma;
+  if (k >= s->n_comp) k = s->n_comp - 1;
+  return s->eig[k];
 }
 
 //////////////////////////////////////////////////////////////

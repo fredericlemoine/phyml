@@ -12,6 +12,7 @@ the GNU public licence. See http://www.opensource.org for details.
 
 #include "cl.h"
 #include "structure.h"
+#include "lg4.h"
 
 /*********************************************************/
 /**
@@ -1306,6 +1307,15 @@ int Read_Command_Line(option *io, int argc, char **argv)
           io->mod->ns         = 20;
           io->mod->whichmodel = FLU;
         }
+        else if (!strcmp(s, "LG4M") || !strcmp(s, "LG4X"))
+        {
+          // Le, Dang & Gascuel 2012: one matrix per rate category; LG is the
+          // base model (its matrix is not used)
+          io->datatype        = AA;
+          io->mod->ns         = 20;
+          io->mod->whichmodel = LG;
+          io->lg4_model       = !strcmp(s, "LG4M") ? LG4_M : LG4_X;
+        }
         else if (!strcmp(s, "EX") || !strcmp(s, "EX2") || !strcmp(s, "EHO") ||
                  !strcmp(s, "EX_EHO"))
         {
@@ -2004,6 +2014,29 @@ int Read_Command_Line(option *io, int argc, char **argv)
       Exit("\n. Structure annotations (--struct_file) work with a single data "
            "set.\n\n");
     io->struct_n_gamma = io->mod->ras->n_catg;
+  }
+
+  if (io->lg4_model != 0)
+  {
+    // As in the paper and in PhyML-4X: four rate categories (mean rates of
+    // the Gamma ones for LG4M), each matrix with its own frequencies, no
+    // invariant sites
+    if (io->mod->e_frq != NULL || io->mod->ras->invar == YES ||
+        io->mod->ras->pinvar->optimize == YES ||
+        io->mod->ras->free_mixt_rates == YES || io->mod->fp_aa_rate_mat != NULL ||
+        io->sms == YES || io->struct_partition != 0)
+      Exit("\n. LG4M and LG4X cannot be combined with -f, -v, --freerates, "
+           "--aa_rate_file, --sms or the structure models.\n\n");
+    if (io->mod->ras->n_catg != LG4_N_CATG)
+      Exit("\n. LG4M and LG4X have four rate categories (-c 4).\n\n");
+    if (io->mod->ras->gamma_median == YES)
+      Exit("\n. LG4M uses the mean rate of each Gamma category: --use_median "
+           "does not apply.\n\n");
+    if (io->lg4_model == LG4_X)
+    {
+      io->mod->ras->free_mixt_rates       = YES;
+      io->mod->s_opt->opt_free_mixt_rates = YES;
+    }
   }
 
   if (io->sms == YES)

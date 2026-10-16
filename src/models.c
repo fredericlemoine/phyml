@@ -12,6 +12,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 
 #include "models.h"
 #include "structure.h"
+#include "lg4.h"
 
 #ifdef BEAGLE
 #include "beagle_utils.h"
@@ -264,6 +265,67 @@ void PMat_Empirical(phydbl l, const t_mod *mod, const int pos, phydbl *Pij,
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Eigen system of the rate matrix built from exchangeabilities daa (ns x ns,
+   symmetric) and frequencies pi, normalised to one substitution per unit
+   time. */
+
+eigen *Make_Normalised_Eigen(const phydbl *daa, const phydbl *pi, int ns)
+{
+  eigen *e;
+  phydbl rr[190], qmat[400], f[20];
+  int    i, j;
+
+  assert(ns <= 20);
+
+  e = Make_Eigen_Struct(ns);
+  Init_Eigen_Struct(e);
+
+  for (i = 0; i < ns; i++) f[i] = pi[i];
+  for (i = 0; i < ns; i++)
+    for (j = i + 1; j < ns; j++)
+      rr[i * ns + j - (i + 1 + (i + 1) * (i + 1)) / 2] = daa[i * ns + j];
+
+  Update_Qmat_Generic(rr, f, ns, qmat);
+
+  if (Eigen(1, qmat, ns, e->e_val, e->e_val_im, e->r_e_vect, e->r_e_vect_im,
+            e->space) != 0)
+  {
+    PhyML_Fprintf(stderr, "\n. Eigen decomposition failed for a model matrix.\n");
+    Exit("\n");
+  }
+  for (i = 0; i < ns * ns; ++i) e->l_e_vect[i] = e->r_e_vect[i];
+  if (!Matinv(e->l_e_vect, ns, ns, YES))
+  {
+    PhyML_Fprintf(stderr, "\n. Cannot invert the eigen vectors of a model matrix.\n");
+    Exit("\n");
+  }
+  return e;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* Eigen system and equilibrium frequencies used by rate category catg. Most
+   models have a single matrix; structure models and LG4M/LG4X have one per
+   category. */
+
+eigen *Cat_Eigen(const t_mod *mod, int catg)
+{
+  if (mod->lg4) return mod->lg4->eig[catg];
+  if (mod->smod) return STRUCT_Eigen(mod->smod, catg);
+  return mod->eigen;
+}
+
+phydbl *Cat_Pi(const t_mod *mod, int catg)
+{
+  if (mod->lg4) return mod->lg4->pi[catg];
+  if (mod->smod) return (phydbl *)STRUCT_Pi(mod->smod, catg);
+  return mod->e_frq->pi->v;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 /* P(l) = U exp(D l) U^-1 from an eigen system (its imaginary-part vectors
    are used as scratch space). */
 
@@ -383,6 +445,8 @@ void PMat(phydbl l, t_mod *mod, int pos, phydbl *Pij, phydbl *tPij)
     if (mod->smod) // structure model: each category has its own matrix
       STRUCT_PMat(l, mod->smod, pos / (mod->ns * mod->ns), mod->ns, pos, Pij,
                   tPij);
+    else if (mod->lg4) // LG4M, LG4X: one matrix per rate category
+      LG4_PMat(l, mod->lg4, pos / (mod->ns * mod->ns), mod->ns, pos, Pij, tPij);
     else
       PMat_Empirical(l, mod, pos, Pij, tPij);
 #endif

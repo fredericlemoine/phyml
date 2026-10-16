@@ -1377,6 +1377,7 @@ typedef struct __Model
 #endif
 
   struct __Struct_Mod *smod; /* structure model (Le & Gascuel 2010), or NULL */
+  struct __LG4_Mod *lg4;     /* LG4M or LG4X (Le, Dang & Gascuel 2012), or NULL */
 
 } t_mod;
 
@@ -1578,6 +1579,7 @@ typedef struct __Option
   phydbl struct_props[6];   /* fixed class proportions (--struct_props) */
   int    struct_n_props;    /* number of values in struct_props, 0 to estimate */
   int    struct_fix_props;  /* YES: proportions not estimated (--struct_fix_props) */
+  int    lg4_model;         /* LG4_M or LG4_X (-m LG4M, -m LG4X), or 0 */
   short *struct_site_class; /* class of each alignment site, read from struct_file */
 
   short int do_tbe;

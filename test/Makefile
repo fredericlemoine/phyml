@@ -52,7 +52,7 @@ endif
 # Same sources as phyml_SOURCES in src/Makefile.am, minus main.c.
 LIB_SRCS := utilities optimiz lk bionj models free help simu eigen pars alrt \
             interface cl spr draw stats io make nexus init xml sse avx tbe   \
-            ancestral mixt evolve rates date times m4 cv sms structure
+            ancestral mixt evolve rates date times m4 cv sms structure lg4
 
 DEFS   := -DUNIX -DPHYML -DHAVE_CONFIG_H -I$(ROOT) -I$(SRC)
 BASE   := -std=gnu99 -w $(DEFS)

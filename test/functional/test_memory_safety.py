@@ -76,7 +76,7 @@ class MemorySafety(PhymlTestCase):
     # --- regression guard: everyday analyses ---------------------------
     def test_everyday_analyses_are_clean(self):
         self.stage("sim_jc_8.phy", "dna_small.phy", "aa_small.phy", "oracle_dna.phy",
-                   "oracle6.nwk", "dna_small.nex")
+                   "oracle6.nwk", "dna_small.nex", "oracle_aa.phy", "oracle5.nwk")
         runs = [
             ["-i", "sim_jc_8.phy", "-m", "JC69", "-c", "1", "-b", "0"],
             ["-i", "dna_small.phy"],
@@ -87,6 +87,11 @@ class MemorySafety(PhymlTestCase):
             ["-i", "oracle_dna.phy", "-q", "-u", "oracle6.nwk", "-m", "GTR", "-o", "lr",
              "--ancestral", "--print_site_lnl"],
             ["-i", "dna_small.phy", "-m", "HKY85", "-v", "e", "--freerates"],
+            # Amino-acid ancestral states: Integer_To_Bit shifted a signed int
+            ["-i", "oracle_aa.phy", "-d", "aa", "-u", "oracle5.nwk", "-o", "n", "--ancestral"],
+            ["-i", "oracle_aa.phy", "-d", "aa", "-m", "LG4M", "-u", "oracle5.nwk", "-o", "lr",
+             "--ancestral"],
+            ["-i", "oracle_aa.phy", "-d", "aa", "-m", "LG4X", "-b", "2"],
         ]
         for args in runs:
             with self.subTest(args=" ".join(args)):

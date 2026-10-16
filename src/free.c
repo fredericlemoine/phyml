@@ -12,6 +12,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 
 #include "free.h"
 #include "structure.h"
+#include "lg4.h"
 
 
 //////////////////////////////////////////////////////////////
@@ -867,6 +868,8 @@ void Free_Model(t_mod *mod)
 {
   if (mod->smod) STRUCT_Free(mod->smod);
   mod->smod = NULL;
+  if (mod->lg4) LG4_Free(mod->lg4);
+  mod->lg4 = NULL;
   Free_Custom_Model(mod);
   Free_Model_Complete(mod);
   Free_Model_Basic(mod);

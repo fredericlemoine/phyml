@@ -39,6 +39,8 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | `data/` | Small alignments and trees; regenerate with `make -C test data` (`tools/make_data.py`, deterministic) |
 | `data/aa_matrices/` | PAML files of protein matrices tested by SMS: Q.pfam, Q.bird, Q.insect, Q.mammal, Q.plant, Q.yeast and MtZoa (from SMS 2.1.1, identical to IQ-TREE's), AB (identical to the paper's supplementary file) and FLU; not generated |
 | `data/aa_matrices/structure_AllModels.txt` | The 11 structure matrices of Le & Gascuel (2010) (EX, EHO, EX_EHO classes), from the authors' archive (identical to IQ-TREE's); not generated |
+| `data/aa_matrices/LG4X_4M.txt` | The LG4M and LG4X matrices (Le, Dang & Gascuel 2012), as published by the authors; not generated |
+| `data/lg4_aa.*` | Protein alignment simulated under LG4X (weights 0.3, 0.3, 0.25, 0.15), with its true tree |
 | `data/struct_aa.*` | Protein alignment simulated under the 6 EX_EHO classes, with its true tree, true classes and noisy annotations (20% random, 5% unknown) |
 
 ## What is tested
@@ -60,6 +62,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Multithreading: identical results with 1, 2 and 4 threads (search, supports, bootstrap, ancestral states, site likelihoods), `--threads` validation | | `test_threads.py` |
 | SMS model selection (`--sms`): fits table (K, AIC, BIC, order), heuristic path, nested models, selected model used by the analysis, `--sms_only`, `--sms_criterion`, `-c`, `-o tl`, `-u`, several data sets, refused options, same fits for any number of threads | | `test_sms.py` |
 | Structure models (`-m EX\|EHO\|EX_EHO`, `--struct_model`): the 12 combinations vs a reference built on the oracle (`structure_ref.py`), default starting values, `--struct_fix_props`, identical columns with different classes, nesting, chi recovered, outputs, refused options and bad annotation files, threads | | `test_structure.py` |
+| LG4M and LG4X (`-m LG4M`, `-m LG4X`): fixed likelihoods and ancestral states vs a reference built on the oracle (`lg4_ref.py`), parameter recovery and true tree on simulated data, refused options, threads | | `test_lg4.py` |
 | MPI bootstrap | | `test_mpi.py` |
 
 ## Known bugs

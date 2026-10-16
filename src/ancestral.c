@@ -11,6 +11,8 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "ancestral.h"
+#include "models.h"
+#include "structure.h"
 
 void Sample_Ancestral_Seq(int fullmutmap, int fromprior, t_tree *tree)
 {
@@ -811,10 +813,15 @@ void Ancestral_Sequences_One_Node(t_node *d, t_tree *tree, int print)
                           if(catg == 0 && i == 0) sum_scale += sum_scale2[csite];
                         }
                           
+                      // Frequencies and weight of the category: per
+                      // category for LG4M and LG4X, per site and category
+                      // for the structure models
                       inc =
                         p0*p1*p2*
-                        tree->mod->e_frq->pi->v[i] *
-                        tree->mod->ras->gamma_r_proba->v[catg];
+                        Cat_Pi(tree->mod,catg)[i] *
+                        (tree->mod->smod ?
+                         STRUCT_Weight(tree->mod->smod,csite,catg) :
+                         tree->mod->ras->gamma_r_proba->v[catg]);
 
                       p[i] += inc;                      
 

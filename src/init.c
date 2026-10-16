@@ -645,6 +645,7 @@ void Set_Defaults_Input(option *io)
   io->struct_chi               = -1.0;
   io->struct_n_props           = 0;
   io->struct_fix_props         = NO;
+  io->lg4_model                = 0;
   io->struct_site_class        = NULL;
   io->print_node_num           = NO;
   io->print_support_val        = NO;
@@ -698,6 +699,7 @@ void Set_Defaults_Model(t_mod *mod)
   mod->update_eigen   = NO;
   mod->is_mixt_mod    = NO;
   mod->smod           = NULL;
+  mod->lg4            = NULL;
 
   mod->kappa->v        = 4.0;
   mod->kappa->optimize = YES;

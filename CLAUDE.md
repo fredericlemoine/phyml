@@ -64,6 +64,7 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 | `alrt.c`, `tbe.c`, `mpi_boot.c` | Branch supports (aLRT, aBayes, SH), TBE, MPI bootstrap |
 | `sms.c` | SMS model selection (`--sms`), run from `main()` before the analysis |
 | `structure.c` | Structure models of Le & Gascuel 2010 (`-m EX\|EHO\|EX_EHO`, `--struct_model`, `--struct_file`) |
+| `lg4.c` | LG4M and LG4X (Le, Dang & Gascuel 2012): one matrix per rate category |
 | `utilities.c/.h` | Core structs (`t_tree`, `t_node`, `t_edge`, `t_mod`, `option`), bootstrap, bipartitions, everything else |
 | `mixt.c` | Mixture and partition models (XML) |
 | `times.c`, `rates.c`, `mcmc.c`, `phyrex.c`, ... | PhyTime and PhyREX |
@@ -106,6 +107,11 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   trees are multiplied by the mean rate (`STRUCT_Mean_Rate_Data`). Rates,
   class proportions and starting values (chi = 0.8) follow the authors'
   PhyML-Structure binary, which gives the same likelihoods to 2e-3.
+- Models with one matrix per rate category (structure models, LG4M and LG4X,
+  `mod->lg4`) are read through `Cat_Eigen` and `Cat_Pi` (`models.c`): use
+  them, not `mod->eigen` or `mod->e_frq->pi`, in likelihood code. LG4M and
+  LG4X reuse the Gamma and FreeRate code for the rates and weights; LG4X
+  first fits LG4M (`main.c`), as in the paper.
 - New built-in protein matrices go in `init.c` (`Init_Qmat_*`, or a PAML
   lower triangle via `Init_Qmat_Lower_Triangle`), `Init_Model`,
   `Set_Model_Name`, the `-m` parser and the `-d nt` reset list in `cl.c`, and

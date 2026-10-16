@@ -212,6 +212,15 @@ void Usage(void)
   PhyML_Printf("\t\tRun the SMS model selection (see --sms) and stop, without inferring a tree.\n");
   PhyML_Printf("\n");
 
+  PhyML_Printf("%s\n\t-m LG4M%s | %sLG4X%s (-d aa)\n",BOLD,FLAT,BOLD,FLAT);
+  PhyML_Printf("\t\tOne replacement matrix per rate category (Le, Dang & Gascuel, Mol. Biol. Evol.\n");
+  PhyML_Printf("\t\t2012). LG4M: four Gamma categories of equal weights, matrix M1 for the slowest\n");
+  PhyML_Printf("\t\tto M4 for the fastest; alpha is estimated unless -a is given. LG4X: four\n");
+  PhyML_Printf("\t\tcategories of free rates and weights (matrices X1 to X4), estimated starting\n");
+  PhyML_Printf("\t\tfrom an LG4M fit. Each matrix has its own amino-acid frequencies: -f, -v,\n");
+  PhyML_Printf("\t\t--freerates and -c other than 4 are refused.\n");
+  PhyML_Printf("\n");
+
   PhyML_Printf("%s\n\t-m EX%s | %sEHO%s | %sEX_EHO%s (structure models, -d aa)\n",BOLD,FLAT,BOLD,FLAT,BOLD,FLAT);
   PhyML_Printf("\t\tModels accounting for solvent accessibility and secondary structure (Le &\n");
   PhyML_Printf("\t\tGascuel, Syst. Biol. 2010): one replacement matrix and global rate per class of\n");

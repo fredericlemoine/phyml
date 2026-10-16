@@ -108,7 +108,6 @@ class MemorySafety(PhymlTestCase):
                          "".join("t%d ACGTACGTAC\n" % i for i in range(3)))
         self.assertNoMemoryErrors(self.run_asan("-i", aln, "-q", "-m", "JC69"))
 
-    @known_bug("io.c:1721 Read_One_Line_Seq writes past the sequence buffer")
     def test_sequence_longer_than_header(self):
         names, seqs = [], []
         with open(data("oracle_dna.phy")) as fh:

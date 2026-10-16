@@ -78,7 +78,7 @@ Known bugs covered at the time of writing:
   unclosed Newick input; truncated or short sequences and fewer than three taxa
   end in `assert()`.
 - Memory errors found by ASan: `%1000s` taxon-name reads (`Read_Seq_Sequential`/`Read_Seq_Interleaved`),
-  1000-character names, sequence lines longer than the header (`io.c:1721`),
+  1000-character names,
   long input paths (`cl.c:1842`) and the "file name too long" message itself
   (`cl.c:1415`).
 - Wrong results: constraints not respected by the search; with `-n`, random starts only on the

@@ -134,6 +134,22 @@ class BadAlignments(PhymlTestCase):
         res = self.run_phyml("-i", "sim_jc_8.phy", "-u", "bad_tree_taxa.nwk", "-m", "JC69")
         self.assertCleanFailure(res)
 
+    def test_sequence_longer_than_header(self):
+        """Read_One_Line_Seq used to write past the sequence buffer."""
+        names, seqs = oracle.read_phylip(data("oracle_dna.phy"))
+        long_first = [seqs[0] + "ACGTACGTAC"] + seqs[1:]
+        for interleaved in (False, True):
+            with self.subTest(interleaved=interleaved):
+                path = os.path.join(self.tmp, "long.phy")
+                with open(path, "w") as fh:
+                    fh.write("%d %d\n" % (len(names), len(seqs[0])))
+                    for n, sq in zip(names, long_first):
+                        fh.write("%-10s %s\n" % (n, sq))
+                opts = ("-i", "long.phy", "-m", "JC69", "-b", "0") + (() if interleaved else ("-q",))
+                res = self.run_phyml(*opts)
+                self.assertCleanFailure(res)
+                self.assertIn("longer than", res.output)
+
     @known_bug("io.c:1504 a short sequence trips assert(Read_One_Line_Seq(...))")
     def test_sequence_shorter_than_header(self):
         self.assertCleanFailure(self.run_bad("bad_short_seq.phy"))

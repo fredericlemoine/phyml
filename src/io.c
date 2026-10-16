@@ -1499,7 +1499,7 @@ align **Read_Seq_Sequential(option *io)
     Check_Sequence_Name(data[i]->name);
 
     while (data[i]->len < io->init_len * io->state_len)
-      assert(Read_One_Line_Seq(&data, i, io->fp_in_align));
+      assert(Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align));
 
     if (data[i]->len != io->init_len * io->state_len)
     {
@@ -1560,7 +1560,7 @@ align **Read_Seq_Interleaved(option *io)
 
     Check_Sequence_Name(data[i]->name);
 
-    if (!Read_One_Line_Seq(&data, i, io->fp_in_align))
+    if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align))
     {
       end = 1;
       if ((i != io->n_otu) && (i != io->n_otu - 1))
@@ -1626,7 +1626,7 @@ align **Read_Seq_Interleaved(option *io)
                         data[i]->name);
           Exit("");
         }
-        else if (!Read_One_Line_Seq(&data, i, io->fp_in_align))
+        else if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align))
         {
           end = 1;
           if ((i != io->n_otu) && (i != io->n_otu - 1))
@@ -1671,59 +1671,59 @@ align **Read_Seq_Interleaved(option *io)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-int Read_One_Line_Seq(align ***data, int num_otu, FILE *in)
+int Read_One_Line_Seq(align ***data, int num_otu, int max_len, FILE *in)
 {
-  char c     = ' ';
+  int  c     = ' '; // int, not char: EOF must stay distinct from any character
+  char ch;
   int  nchar = 0;
 
   while (1)
   {
-    /*       if((c == EOF) || (c == '\n') || (c == '\r')) break; */
-
     if ((c == 13) || (c == 10))
     {
-      /* PhyML_Printf("[%d %d]\n",c,nchar); fflush(NULL); */
       if (!nchar)
       {
-        c = (char)fgetc(in);
+        c = fgetc(in);
         continue;
       }
       else
-      {
-        /* PhyML_Printf("break\n"); */
         break;
-      }
     }
     else if (c == EOF)
-    {
-      /* PhyML_Printf("EOL\n"); */
       break;
-    }
-    else if ((c == ' ') || (c == '\t') || (c == 32))
+    else if ((c == ' ') || (c == '\t'))
     {
-      /* PhyML_Printf("[%d]",c); */
-      c = (char)fgetc(in);
+      c = fgetc(in);
       continue;
     }
 
-    nchar++;
-    Uppercase(&c);
-
-    if (c == '.')
+    // The sequence buffer holds the length given in the header
+    if ((*data)[num_otu]->len >= max_len)
     {
-      c = (*data)[0]->state[(*data)[num_otu]->len];
+      PhyML_Fprintf(stderr,
+                    "\n. Err.: the sequence of '%s' is longer than the %d "
+                    "characters given in the header.\n",
+                    (*data)[num_otu]->name, max_len);
+      Exit("");
+    }
+
+    nchar++;
+    ch = (char)c;
+    Uppercase(&ch);
+
+    if (ch == '.')
+    {
       if (!num_otu)
         Warn_And_Exit(
             "\n. Err: Symbol \".\" should not appear in the first sequence\n");
+      ch = (*data)[0]->state[(*data)[num_otu]->len];
     }
-    (*data)[num_otu]->state[(*data)[num_otu]->len] = c;
+    (*data)[num_otu]->state[(*data)[num_otu]->len] = ch;
     (*data)[num_otu]->len++;
-    c = (char)fgetc(in);
-    /* PhyML_Printf("[%c %d]",c,c); fflush(NULL); */
+    c = fgetc(in);
     if (c == ';') break;
   }
 
-  /* printf("\n. Exit nchar: %d [%d]\n",nchar,c==EOF); */
   if (c == EOF)
     return 0;
   else

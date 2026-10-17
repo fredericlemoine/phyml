@@ -61,7 +61,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Models and optimisation (nesting, parameter recovery on simulated data, `-o` levels, fixed values, FreeRate, invariance to taxon and site order) | | `test_models.py` |
 | Tree search (true topology recovered, optimality, starting trees, random starts, constraints) | | `test_search.py` |
 | Supports (aLRT, chi2, SH, aBayes, bootstrap counts, TBE vs reference, Bayesian bootstrap, reproducibility) | | `test_supports.py` |
-| Input formats, duplicates, malformed alignments and trees | | `test_inputs.py` |
+| Input formats (PHYLIP, NEXUS, FASTA), duplicates, malformed alignments and trees | | `test_inputs.py` |
 | Command line, output names, seeds, multiple data sets | | `test_cli.py` |
 | Ancestral states vs reference, site weights, traces, stats file | | `test_outputs.py` |
 | Memory errors under ASan/UBSan | | `test_memory_safety.py` |

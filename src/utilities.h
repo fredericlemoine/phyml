@@ -276,6 +276,7 @@ static inline int isinf_ld(long double x) { return isnan(x - x); }
 #define PHYLIP 0
 #define NEXUS 1
 #define IBDSIM 2
+#define FASTA 3
 
 #ifndef YES
 #define YES 1
@@ -2765,6 +2766,7 @@ void    Get_Best_Root_Position_Post(t_node *a, t_node *d, int *has_outgrp,
 void    Get_Best_Root_Position_Pre(t_node *a, t_node *d, t_tree *tree);
 void    Get_OutIn_Scores(t_node *a, t_node *d);
 int     Check_Sequence_Name(char *s);
+align **Get_Seq_Fasta(option *io);
 int     Scale_Subtree_Height(t_node *a, phydbl K, phydbl floor, int *n_nodes,
                              t_tree *tree);
 void    Scale_Node_Heights_Post(t_node *a, t_node *d, phydbl K, phydbl floor,

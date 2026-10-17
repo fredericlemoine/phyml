@@ -62,7 +62,7 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 | --- | --- |
 | `main.c` | `main()` for each program, selected by `PHYML`, `PHYTIME`, ... |
 | `cl.c`, `interface.c`, `help.c` | Command line, PHYLIP-style menu, help text |
-| `io.c`, `nexus.c`, `xml.c` | Alignment, Newick, NEXUS and XML input; output files |
+| `io.c`, `nexus.c`, `xml.c` | Alignment (PHYLIP, FASTA, NEXUS), Newick and XML input; output files |
 | `lk.c`, `sse.c`, `avx.c`, `eigen.c`, `models.c` | Likelihood engine and substitution models |
 | `optimiz.c` | Branch-length and parameter optimisation |
 | `spr.c`, `pars.c`, `bionj.c` | Tree search, parsimony, BioNJ |

@@ -952,6 +952,16 @@ void Detect_Align_File_Format(option *io)
 
   fgetpos(io->fp_in_align, &curr_pos);
 
+  // FASTA: the first non-blank character is '>'
+  while ((c = fgetc(io->fp_in_align)) != EOF && isspace(c))
+    ;
+  fsetpos(io->fp_in_align, &curr_pos);
+  if (c == '>')
+  {
+    io->data_file_format = FASTA;
+    return;
+  }
+
   errno = 0;
 
   while ((c = fgetc(io->fp_in_align)) != EOF)
@@ -1065,6 +1075,14 @@ align **Get_Seq(option *io)
     io->data = Get_Seq_Phylip(io);
     // NEXUS files give the generic alphabet (symbols=...); for PHYLIP files
     // the states are the digits 0 to max, as the manual describes
+    if (io->data && io->datatype == GENERIC && io->state_len == 1)
+      io->mod->ns = Generic_Alphabet_Size(io);
+    break;
+  }
+  case FASTA:
+  {
+    io->data = Get_Seq_Fasta(io);
+    // Generic data: the states are the digits 0 to max, as for PHYLIP
     if (io->data && io->datatype == GENERIC && io->state_len == 1)
       io->mod->ns = Generic_Alphabet_Size(io);
     break;
@@ -1420,6 +1438,151 @@ align **Get_Seq_Phylip(option *io)
     io->data = Read_Seq_Sequential(io);
 
   return io->data;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* FASTA alignment: records '>name [description]' followed by the sequence
+   on one or more lines. The name is the first word after '>'. All the
+   sequences must have the same length (the file is an alignment). Blank
+   characters are ignored; '.' is a gap, as in most FASTA alignments. A
+   FASTA file holds a single data set. */
+
+align **Get_Seq_Fasta(option *io)
+{
+  align **data;
+  int     n, cap, c, i, len;
+  size_t  name_len;
+
+  if (io->n_data_sets > 1)
+    Exit("\n. A FASTA file holds a single alignment: '-n' cannot be used with "
+         "it.\n");
+
+  n    = 0;
+  cap  = 16;
+  data = (align **)mCalloc(cap, sizeof(align *));
+
+  c = fgetc(io->fp_in_align);
+  while (c != EOF && isspace(c)) c = fgetc(io->fp_in_align);
+  if (c != '>') Exit("\n. A FASTA file must start with a '>' line.\n");
+
+  while (c == '>')
+  {
+    align *a;
+    int    state_cap;
+
+    if (n == cap)
+    {
+      align **more = (align **)mCalloc(2 * cap, sizeof(align *));
+      for (i = 0; i < n; ++i) more[i] = data[i];
+      Free(data);
+      data = more;
+      cap *= 2;
+    }
+
+    a            = (align *)mCalloc(1, sizeof(align));
+    a->name      = (char *)mCalloc(T_MAX_NAME, sizeof(char));
+    a->is_ambigu = NULL;
+    data[n++]    = a;
+
+    // Name: first word after '>'; the rest of the line is a description
+    c = fgetc(io->fp_in_align);
+    while (c == ' ' || c == '\t') c = fgetc(io->fp_in_align);
+    name_len = 0;
+    while (c != EOF && !isspace(c))
+    {
+      if (name_len == T_MAX_NAME - 1)
+      {
+        PhyML_Fprintf(stderr,
+                      "\n. Err.: the name of sequence %d in the FASTA file is "
+                      "longer than %d characters.\n",
+                      n, T_MAX_NAME - 1);
+        Exit("");
+      }
+      a->name[name_len++] = (char)c;
+      c                   = fgetc(io->fp_in_align);
+    }
+    if (name_len == 0)
+    {
+      PhyML_Fprintf(stderr,
+                    "\n. Err.: sequence %d of the FASTA file has no name.\n", n);
+      Exit("");
+    }
+    Check_Sequence_Name(a->name);
+    while (c != EOF && c != '\n' && c != '\r') c = fgetc(io->fp_in_align);
+
+    // Sequence: every line up to the next line starting with '>'
+    state_cap = 1024;
+    a->state  = (char *)mCalloc(state_cap + 1, sizeof(char));
+    a->len    = 0;
+    while (c != EOF)
+    {
+      if (c == '\n' || c == '\r')
+      {
+        c = fgetc(io->fp_in_align);
+        if (c == '>') break;
+        continue;
+      }
+      if (!isspace(c))
+      {
+        char ch = (char)c;
+        Uppercase(&ch);
+        if (ch == '.') ch = '-';
+        if (a->len == state_cap)
+        {
+          char *more = (char *)mCalloc(2 * state_cap + 1, sizeof(char));
+          memcpy(more, a->state, (size_t)a->len);
+          Free(a->state);
+          a->state = more;
+          state_cap *= 2;
+        }
+        a->state[a->len++] = ch;
+      }
+      c = fgetc(io->fp_in_align);
+    }
+    a->state[a->len] = '\0';
+  }
+
+  len = data[0]->len;
+  for (i = 0; i < n; ++i)
+  {
+    if (data[i]->len == 0)
+    {
+      PhyML_Fprintf(stderr, "\n. Err.: sequence '%s' is empty.\n",
+                    data[i]->name);
+      Exit("");
+    }
+    if (data[i]->len != len)
+    {
+      PhyML_Fprintf(stderr,
+                    "\n. Err.: the sequences of the FASTA file are not aligned: "
+                    "'%s' has %d characters, '%s' has %d.\n",
+                    data[0]->name, len, data[i]->name, data[i]->len);
+      Exit("");
+    }
+  }
+  if (len % io->state_len != 0)
+  {
+    PhyML_Fprintf(stderr,
+                  "\n. Err.: the sequence length (%d) is not a multiple of the "
+                  "state length (%d).\n",
+                  len, io->state_len);
+    Exit("");
+  }
+  if (n > N_MAX_OTU)
+  {
+    PhyML_Fprintf(stderr, "\n. The number of taxa should not exceed %d",
+                  N_MAX_OTU);
+    Exit("\n");
+  }
+
+  io->n_otu    = n;
+  io->init_len = len / io->state_len;
+
+  Restrict_To_Coding_Position(data, io);
+
+  return data;
 }
 
 //////////////////////////////////////////////////////////////
@@ -3261,7 +3424,10 @@ void Print_Settings(option *io)
   PhyML_Printf("\n        . Alphabet size:\t\t\t\t %d", io->mod->ns);
 
   PhyML_Printf("\n        . Sequence format:\t\t\t\t %s",
-               io->interleaved ? "interleaved" : "sequential");
+               io->data_file_format == FASTA   ? "FASTA"
+               : io->data_file_format == NEXUS ? "NEXUS"
+               : io->interleaved               ? "interleaved"
+                                               : "sequential");
   PhyML_Printf("\n        . Number of data sets:\t\t\t\t %d", io->n_data_sets);
 
   PhyML_Printf("\n        . Nb of bootstrapped data sets:\t\t\t %d",

@@ -517,7 +517,8 @@ are described in what follows.
 \begin{itemize}
 
 \item \x{-i} (or \x{--input}) \x{seq\_file\_name}\index{command-line options!\x{--input}} \\
-\x{seq\_file\_name} is the name of the nucleotide or amino-acid sequence file in PHYLIP format.
+\x{seq\_file\_name} is the name of the nucleotide or amino-acid sequence file in PHYLIP, NEXUS or
+FASTA format (detected automatically).
 
 \item \x{-d} (or \x{--datatype}) \x{data\_type}\index{command-line options!\x{--data\_type}}\\
 \x{data\_type} is \x{nt} for nucleotide (default) and \x{aa} for amino-acid sequences.
@@ -977,6 +978,31 @@ multiple  data set  option can  be  used to  process re-sampled  data  that were
 non-parametric  procedure such  as  cross-validation or  jackknife  (a bootstrap  option is  already
 included in PhyML).  This  option is also useful in multiple gene studies,  even if fitting the same
 substitution model to all data sets may not be suitable.
+
+PhyML also reads aligned sequences in FASTA\index{FASTA} format, detected when the first non-blank
+character of the file is `\x{>}'. Each sequence starts with a line \x{>name}; the name is the first
+word after `\x{>}', and the rest of the line (a description) is ignored. The sequence follows on one
+or more lines, up to the next line starting with `\x{>}'. All the sequences must have the same
+length, blank characters and line breaks (including Windows line endings) are ignored, and `\x{.}'
+is read as a gap, as in most FASTA alignments. Names follow the same rules as in PHYLIP files. A
+FASTA file holds a single data set, so the \x{-n} option cannot be used with it, and \x{-q} does not
+apply.
+
+\begin{small}
+\begin{Verbatim}[frame=single, label=FASTA, samepage=true, baselinestretch=0.5]
+
+>seq1 any description
+CCATCTCACGGTCGGTACGATACACCKGCTTTTGGCAGGAAATGGTCAATATTACAAGGT
+ATCKGCTTTTGGCAGGAAAT
+>seq2
+CCATCTCACGGTCAG---GATACACCKGCTTTTGGCGGGAAATGGTCAACATTAAAAGAT
+ATCKGCTTTTGGCGGGAAAT
+>seq3
+RCATCTCCCGCTCAG---GATACCCCKGCTGTTG????????????????ATTAAAAGGT
+AGCKGCTGTTG?????????
+
+\end{Verbatim}
+\end{small}
 
 PhyML can  also process alignments in  NEXUS format. Although not  all the options provided  by this
 format are supported  by PhyML, a few specific  features are exploited.  Of course,  this format can

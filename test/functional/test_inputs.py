@@ -77,6 +77,84 @@ class AlignmentFormats(PhymlTestCase):
         self.assertEqual(len(res.tree("aa_small.phy").leaf_names()), 8)
 
 
+class FastaFormat(PhymlTestCase):
+    """FASTA alignments: detected from the leading '>', same results as PHYLIP."""
+
+    def write_fasta(self, name, names, seqs, width=None, newline="\n", lower=False,
+                    description=""):
+        with open(os.path.join(self.tmp, name), "w", newline="") as fh:
+            for n, sq in zip(names, seqs):
+                fh.write(">%s%s%s" % (n, description, newline))
+                if lower:
+                    sq = sq.lower()
+                step = width or len(sq)
+                for i in range(0, len(sq), step):
+                    fh.write(sq[i:i + step] + newline)
+        return name
+
+    def lnl(self, aln, *opts, tree=TREE):
+        self.stage(tree)
+        res = self.run_phyml("-i", aln, "-u", tree, *opts, "--run_id", "f")
+        self.assertSuccess(res)
+        return res
+
+    def test_same_likelihood_as_phylip(self):
+        self.stage(ALN)
+        names, seqs = oracle.read_phylip(data(ALN))
+        ref = self.lnl(ALN, "-q", *FIXED).final_lnl()
+        for label, kw in (("plain", {}),
+                          ("wrapped, lowercase, CRLF, descriptions",
+                           dict(width=23, newline="\r\n", lower=True,
+                                description=" sample description"))):
+            with self.subTest(label):
+                fa = self.write_fasta("a.fasta", names, seqs, **kw)
+                res = self.lnl(fa, *FIXED)
+                self.assertEqual(res.final_lnl(), ref)
+                self.assertIn("FASTA", res.output)
+
+    def test_amino_acids(self):
+        self.stage("oracle_aa.phy", "oracle5.nwk")
+        names, seqs = oracle.read_phylip(data("oracle_aa.phy"))
+        opts = ["-d", "aa", "-m", "LG", "-c", "4", "-a", "0.7", "-o", "n", "-b", "0"]
+        ref = self.lnl("oracle_aa.phy", "-q", *opts, tree="oracle5.nwk").final_lnl()
+        fa = self.write_fasta("aa.fasta", names, seqs, width=60)
+        self.assertEqual(self.lnl(fa, *opts, tree="oracle5.nwk").final_lnl(), ref)
+
+    def test_dot_is_a_gap(self):
+        self.stage(ALN)
+        names, seqs = oracle.read_phylip(data(ALN))
+        gapped = [sq[:10] + "-" * 5 + sq[15:] for sq in seqs]
+        a = self.lnl(self.write_fasta("dash.fasta", names, gapped), *FIXED).final_lnl()
+        dotted = [sq.replace("-", ".") for sq in gapped]
+        b = self.lnl(self.write_fasta("dot.fasta", names, dotted), *FIXED).final_lnl()
+        self.assertEqual(a, b)
+
+    def test_tree_search_keeps_the_names(self):
+        self.stage("sim_jc_8.phy")
+        names, seqs = oracle.read_phylip(data("sim_jc_8.phy"))
+        fa = self.write_fasta("sim.fasta", names, seqs, width=50)
+        res = self.run_phyml("-i", fa, "-m", "JC69", "-c", "1", "-b", "0", "--r_seed", "1")
+        self.assertSuccess(res)
+        self.assertEqual(sorted(res.tree(fa).leaf_names()), sorted(names))
+
+    def test_bad_fasta_files(self):
+        names, seqs = oracle.read_phylip(data(ALN))
+        cases = (
+            ("unaligned", [seqs[0][:-3]] + seqs[1:], names, "not aligned"),
+            ("colon in name", seqs, ["a:b"] + names[1:], "':' is not permitted"),
+        )
+        for label, sq, nm, msg in cases:
+            with self.subTest(label):
+                fa = self.write_fasta("bad.fasta", nm, sq)
+                res = self.run_phyml("-i", fa, "-m", "JC69", "-b", "0")
+                self.assertCleanFailure(res)
+                self.assertIn(msg, res.output)
+        fa = self.write_fasta("ok.fasta", names, seqs)
+        res = self.run_phyml("-i", fa, "-m", "JC69", "-b", "0", "-n", "2")
+        self.assertCleanFailure(res)
+        self.assertIn("single alignment", res.output)
+
+
 class Duplicates(PhymlTestCase):
 
     def test_duplicates_are_removed_then_put_back(self):

@@ -99,6 +99,16 @@ class MemorySafety(PhymlTestCase):
                 self.assertNoMemoryErrors(res)
                 self.assertEqual(res.returncode, 0, res.describe())
 
+    def test_fasta_input_is_clean(self):
+        """FASTA reader: wrapped lines, descriptions, CRLF, growing buffers."""
+        seqs = {"t%d" % i: ("ACGT" * 700)[i:i + 2500] for i in range(5)}
+        text = "".join(">%s description\r\n%s\r\n%s\r\n" % (n, s[:1300], s[1300:])
+                       for n, s in seqs.items())
+        aln = self.write("a.fasta", text)
+        res = self.run_asan("-i", aln, "-m", "JC69", "-c", "1", "-b", "0")
+        self.assertNoMemoryErrors(res)
+        self.assertEqual(res.returncode, 0, res.describe())
+
     # --- known defects ---------------------------------------------------
     @known_bug("io.c Read_Seq_* fscanf(\"%1000s\") into a 1000-byte name buffer")
     def test_taxon_name_read_is_bounded(self):

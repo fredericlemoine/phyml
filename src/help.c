@@ -86,7 +86,8 @@ void Usage(void)
   PhyML_Printf("%s\nCommand options:\n%s",BOLD,FLAT);
 
   PhyML_Printf("\n\t%s-i (or --input) %sseq_file_name%s\n",BOLD,LINE,FLAT); 
-  PhyML_Printf("\t\t%sseq_file_name%s is the name of the nucleotide or amino-acid sequence file in PHYLIP format.\n",LINE,FLAT);
+  PhyML_Printf("\t\t%sseq_file_name%s is the name of the nucleotide or amino-acid sequence file in PHYLIP,\n",LINE,FLAT);
+  PhyML_Printf("\t\tNEXUS or FASTA format (FASTA files start with '>' and hold one alignment).\n");
   PhyML_Printf("\n");
 
   PhyML_Printf("%s\n\t-d (or --datatype) ""%sdata_type%s\n",BOLD,LINE,FLAT);

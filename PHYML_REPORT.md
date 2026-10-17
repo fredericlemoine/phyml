@@ -176,7 +176,7 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
 1. **Regression tests and CI (started).**
     - Done: `test/` holds unit, functional, sanitizer, `-DNDEBUG` and MPI tests, run by `make -C test check` (section 3.4). It passes on macOS arm64, Linux aarch64 and Linux x86-64.
     - Done: GitHub Actions (`tests.yaml`) and GitLab CI (`.gitlab-ci.yml`) run `check` and `check-mpi`; GitHub covers Linux x86-64, Linux ARM64 and macOS ARM64. Next: Windows.
-    - Add a fuzzing target for the PHYLIP, NEXUS, Newick and XML parsers; most of the crashes in section 3.1 are in these readers.
+    - Add a fuzzing target for the PHYLIP, FASTA (read since 2026-10-17), NEXUS, Newick and XML parsers; most of the crashes in section 3.1 are in these readers.
     - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git and drop the Travis badge.
 2. **Fix the high-severity bugs (days).**
     - Constraints: check that they are kept during SPR moves, and accept constraints on a subset of the taxa.

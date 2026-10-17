@@ -1,0 +1,89 @@
+# GitLab CI: build PhyML and run the test suite (test/README.md).
+#
+#   build:autotools     the distributed build (autogen.sh, configure, make)
+#   test:linux-x86_64   make -C test check: C unit tests and Python functional
+#                       tests, with the scalar, sanitizer, -DNDEBUG and OpenMP
+#                       builds
+#   test:mpi            make -C test check-mpi (Open MPI)
+#   test:linux-aarch64  make -C test check on an ARM64 runner; runs when the
+#                       variable ARM64_RUNNER_TAG names a runner tag (e.g.
+#                       saas-linux-small-arm64 on GitLab.com)
+#   test:asan-full      make -C test check-asan, the whole functional suite on
+#                       the sanitizer build (slow); scheduled pipelines and
+#                       manual runs only
+#
+# The test suite needs only a C compiler, make and Python 3 (standard
+# library). Searches use rand(), so tests check properties rather than exact
+# values and pass with any C library.
+
+stages:
+  - build
+  - test
+
+default:
+  image: debian:bookworm
+  interruptible: true
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  GIT_DEPTH: "20"
+
+.debian-deps: &debian-deps
+  - apt-get update -qq
+  - apt-get install -qq -y --no-install-recommends build-essential python3 file > /dev/null
+
+.test-suite:
+  stage: test
+  needs: []
+  before_script: *debian-deps
+  script:
+    - gcc --version | head -1
+    - python3 --version
+    - make -C test -j"$(nproc)" all
+    - make -C test check
+
+build:autotools:
+  stage: build
+  needs: []
+  before_script:
+    - apt-get update -qq
+    - apt-get install -qq -y --no-install-recommends build-essential autoconf automake libtool file > /dev/null
+  script:
+    - sh ./autogen.sh
+    - ./configure --prefix=/tmp/phyml --disable-dependency-tracking --enable-phyml
+    - make -j"$(nproc)"
+    - make install
+    - /tmp/phyml/bin/phyml --version || test $? -eq 1   # --version exits with 1 (known bug)
+    - file /tmp/phyml/bin/phyml
+
+test:linux-x86_64:
+  extends: .test-suite
+
+test:mpi:
+  stage: test
+  needs: []
+  before_script:
+    - apt-get update -qq
+    - apt-get install -qq -y --no-install-recommends build-essential python3 openmpi-bin libopenmpi-dev > /dev/null
+  script:
+    - mpicc --version | head -1
+    - make -C test check-mpi MPIRUN="mpirun --oversubscribe --allow-run-as-root"
+
+test:linux-aarch64:
+  extends: .test-suite
+  tags:
+    - $ARM64_RUNNER_TAG
+  rules:
+    - if: $ARM64_RUNNER_TAG
+
+test:asan-full:
+  stage: test
+  needs: []
+  timeout: 3h
+  before_script: *debian-deps
+  script:
+    - make -C test check-asan
+  allow_failure: true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - when: manual

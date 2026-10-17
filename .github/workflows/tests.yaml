@@ -1,0 +1,79 @@
+# Test suite (test/README.md): C unit tests and Python functional tests, with
+# the scalar, sanitizer, -DNDEBUG and OpenMP builds made by test/Makefile.
+# The suite needs only a C compiler, make and Python 3 (standard library).
+
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"   # weekly: also runs the full sanitizer suite
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: make check (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            os: ubuntu-24.04
+          - name: Linux aarch64
+            os: ubuntu-24.04-arm
+          - name: macOS arm64
+            os: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install OpenMP (macOS)
+        if: runner.os == 'macOS'
+        run: brew install libomp
+
+      - name: Toolchain
+        run: |
+          cc --version | head -1
+          python3 --version
+
+      - name: Build the test binaries
+        run: make -C test -j4 all
+
+      - name: Run the tests
+        run: make -C test check
+
+  mpi:
+    name: make check-mpi (Open MPI)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Open MPI
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y --no-install-recommends openmpi-bin libopenmpi-dev
+
+      - name: Run the MPI tests
+        run: make -C test check-mpi MPIRUN="mpirun --oversubscribe"
+
+  asan-full:
+    name: make check-asan (whole suite, sanitizer build)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run the functional suite on the sanitizer build
+        run: make -C test check-asan

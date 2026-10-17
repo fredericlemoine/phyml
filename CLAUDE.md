@@ -26,6 +26,11 @@ sh ./autogen.sh && ./configure --enable-phyml && make   # binary: src/phyml
 
 ## Tests
 
+CI runs the suite: `.github/workflows/tests.yaml` (`check` on Linux x86-64,
+Linux ARM64 and macOS ARM64, `check-mpi`, weekly `check-asan`) and
+`.gitlab-ci.yml` (autotools build, `check` and `check-mpi` on Debian x86-64,
+ARM64 when `ARM64_RUNNER_TAG` is set, `check-asan` on schedule).
+
 ```sh
 make -C test check        # unit (C) + functional (Python) tests, 1-2.5 minutes
 make -C test check-mpi    # needs mpicc/mpirun; Open MPI: MPIRUN="mpirun --oversubscribe"

@@ -11,6 +11,13 @@ make -C test check-asan       # whole functional suite on the sanitizer build (s
 make -C test check-mpi        # MPI bootstrap tests (needs mpicc and mpirun)
 ```
 
+In CI, GitHub Actions (`../.github/workflows/tests.yaml`) runs `check` on Linux
+x86-64, Linux ARM64 and macOS ARM64 and `check-mpi` on every push and pull
+request, and `check-asan` weekly or on demand. GitLab CI (`../.gitlab-ci.yml`)
+runs `check` and `check-mpi` on Debian x86-64, `check` on ARM64 when the
+`ARM64_RUNNER_TAG` variable names a runner tag, and `check-asan` on scheduled
+or manual pipelines.
+
 The suite builds its own binaries from `src/` into `test/build/`, so it does
 not depend on autotools or on a previous `./configure`:
 

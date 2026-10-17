@@ -2,7 +2,7 @@
 
   <!-- Tree topology: start with BioNJ and then SPRs -->
   <topology> 
-    <instance id="T1" init.tree="bionj" optimise.tree="no"/> 
+    <instance id="T1" init.tree="bionj" optimise.topology="no"/> 
   </topology>
   
 

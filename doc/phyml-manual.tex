@@ -164,6 +164,42 @@ make V=0;
 \end{verbatim}
 }
 
+\subsection{Multithreading (OpenMP)}\label{sec:install-openmp}\index{OpenMP}\index{multithreading}
+
+PhyML can spread the likelihood computations over several threads of a single machine (option
+\x{--threads}, see Section \ref{sec:threads}). This feature relies on OpenMP, which \x{configure}
+enables automatically when the compiler supports it (\x{./configure --disable-openmp} turns it
+off). GCC supports OpenMP out of the box. With Apple's clang, install the \x{libomp} library (e.g.,
+\x{brew install libomp}) and pass its location to \x{configure}:
+
+{\setlength{\baselineskip}{0.5\baselineskip}
+\begin{verbatim}
+./configure --enable-phyml \
+  CPPFLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include" \
+  LIBS="-L$(brew --prefix libomp)/lib -lomp"
+make
+\end{verbatim}
+}
+
+\subsection{Running the test suite}\label{sec:tests}\index{tests}
+
+The \x{test/} directory contains a test suite that builds its own copies of PhyML from the
+sources (it does not need autotools) and checks them: C unit tests, and functional tests written in
+Python 3 (standard library only) that compare likelihoods with an independent implementation, check
+tree searches, branch supports, model selection and parameter estimation on simulated data, and run
+sanitizer, \x{-DNDEBUG}, OpenMP and MPI builds. Run it with:
+
+{\setlength{\baselineskip}{0.5\baselineskip}
+\begin{verbatim}
+make -C test check        # unit and functional tests (a few minutes)
+make -C test check-mpi    # MPI bootstrap tests (needs mpicc and mpirun)
+make -C test check-asan   # whole suite on the sanitizer build (slow)
+\end{verbatim}
+}
+
+\noindent Known bugs are tests reported as expected failures. The file \x{test/README.md} lists what
+is tested. GitHub Actions and GitLab CI run the suite on Linux (x86-64 and ARM64) and macOS.
+
 % {\em Note} -- when PhyML  is going to be used mostly of exclusively in  batch mode, it is preferable
 % to turn on the batch mode option in the  Makefile. In order to do so, the file \x{Makefile.am} needs
 % to be modified: add \x{-DBATCH} to the line with \x{DEFS=-DUNIX -D\$(PROG) -DDEBUG}.
@@ -518,15 +554,24 @@ distribution of nucleotide  frequencies is uniform).  012345 corresponds to GTR.
 used for encoding any model that is a nested within GTR. See Section \ref{sec:submenus} and Table \ref{tab:modelcode}. {\em NOTE:}
 the  substitution  parameters  of  the  custom  model  will be  optimised  so  as  to  maximise  the
 likelihood.  Also, it is  possible  to  specify and  fix  (i.e., avoid  optimisation)  the  values of  the
-substitution rates in the GTR model by passing the corresponding five rates to the \x{-m}
-option. Commas are used to separate the five relative rates and no blank space should be introduced here.
+substitution rates in the GTR model by passing the corresponding six rates
+(\x{r(ac),r(ag),r(at),r(cg),r(ct),r(gt)}) to the \x{-m} option, e.g., \x{-m 1.5,3,0.7,1.2,4,1}.
+Commas are used to separate the six relative rates and no blank space should be introduced here.
+These rates are then kept fixed.
 
 \item {\it Amino-acid based models}: \x{LG} (default) \x{| WAG | JTT | MtREV | Dayhoff | DCMut | RtREV
- | CpREV | VT | Blosum62 | MtMam | MtArt | HIVw |  HIVb | custom} \\
-The \x{custom} option is  useful when one wants to use an amino-acid  substitution model that is not
+ | CpREV | VT | AB | Blosum62 | MtMam | MtArt | HIVw |  HIVb | FLU | Q.pfam | Q.bird | Q.insect | Q.mammal
+ | Q.plant | Q.yeast | MtZoa | custom} \\
+AB is the antibody model of \cite{mirsky15}, FLU the influenza model of \cite{dang10}, Q.pfam to
+Q.yeast the QMaker matrices of \cite{minh22} and MtZoa the mitochondrial model of
+\cite{rotastabelli09}. The \x{custom} option is  useful when one wants to use an amino-acid  substitution model that is not
 available by  default in PhyML. The  symmetric part of the  rate matrix, as well  as the equilibrium
 amino-acid frequencies, are  given in a file which name  is asked for by the  program. The format of
 this file is described in section \ref{sec:customaa}.
+
+\item {\it Amino-acid models with several matrices}: \x{LG4M | LG4X} use one replacement matrix
+per rate category \cite{lg4x}, and \x{EX | EX2 | EHO | EX\_EHO} one matrix per class of solvent
+accessibility and/or secondary structure \cite{le10}. See Section \ref{sec:multimatrix}.
 \end{itemize}
 
 \begin{table}\index{custom models}
@@ -584,6 +629,10 @@ Nucleotide or amino-acid frequencies.
 \item \x{fA,fC,fG,fT}: only valid for nucleotide-based models. \x{fA}, \x{fC}, \x{fG} and \x{fT} are floating numbers that
 correspond to the frequencies of A, C, G and T respectively.
 \end{itemize}
+{\em Note:} with amino-acid sequences and no \x{-f} option, the current version uses the empirical
+frequencies (\x{-f e}); use \x{-f m} to keep the frequencies of the substitution model. The models
+of Section \ref{sec:multimatrix} always use the frequencies of each of their matrices and do not
+accept \x{-f}.
 
 \item \x{-t} (or \x{--ts/tv}) \x{ts/tv\_ratio} \index{$\kappa$}\index{ts/tv ratio}\index{command-line options!\x{--ts/tv}}\\
 \x{ts/tv\_ratio}: transition/transversion ratio. DNA sequences only. Can be a fixed positive value
@@ -673,6 +722,37 @@ JSON format (see \url{http://www.json.org/}). This option can be useful for moni
 an approximate idea of what the final phylogeny will look like.
 
 
+\item \x{--threads num}\index{command-line options!\x{--threads}}\index{multithreading}\\
+\x{num} is the number of threads used to compute likelihoods (default: 1). The work is split over
+site patterns, so it pays off for long alignments; results do not depend on the number of
+threads. Requires a build with OpenMP (Section \ref{sec:install-openmp}). See Section \ref{sec:threads}.
+
+\item \x{--sms}\index{command-line options!\x{--sms}}\index{model selection}\\
+Selects the substitution model with SMS \cite{lefort17} before the analysis, which then uses the
+selected model. See Section \ref{sec:sms}. Cannot be combined with \x{-m}, \x{-f}, \x{-v}, \x{-a},
+\x{-t}, \x{--freerates} or \x{--aa\_rate\_file}.
+
+\item \x{--sms\_criterion aic|bic}\index{command-line options!\x{--sms\_criterion}}\\
+Criterion used by \x{--sms} to compare models (default: \x{bic}).
+
+\item \x{--sms\_only}\index{command-line options!\x{--sms\_only}}\\
+Runs the SMS model selection and stops, without inferring a tree.
+
+\item \x{--struct\_model mix|part|conf\_lg|conf\_mix}\index{command-line options!\x{--struct\_model}}\\
+With \x{-m EX}, \x{EHO} or \x{EX\_EHO}: how the class matrices are combined (Section
+\ref{sec:structure}). Default: \x{conf\_mix} with \x{--struct\_file}, \x{mix} without.
+
+\item \x{--struct\_file file\_name}\index{command-line options!\x{--struct\_file}}\\
+Site annotations (solvent accessibility and/or secondary structure) used by the \x{part},
+\x{conf\_lg} and \x{conf\_mix} structure models. The format is described in Section \ref{sec:structure}.
+
+\item \x{--struct\_chi value}, \x{--struct\_props p1,p2,...}\index{command-line options!\x{--struct\_chi}}\index{command-line options!\x{--struct\_props}}\\
+Fix the confidence coefficient $\chi$ or the class proportions of a structure model instead of
+estimating them.
+
+\item \x{--struct\_fix\_props}\index{command-line options!\x{--struct\_fix\_props}}\\
+Keep the published class proportions in the \x{mix} and \x{conf\_mix} structure models.
+
 \item \x{--run\_id ID\_string}\index{run ID} \index{command-line options!\x{--run\_id}}\\
 Append the string ID\_string at the end of each PhyML output file. This option may be useful when
 running simulations involving PhyML. It can also be used to `tag' multiple analysis of the same data
@@ -747,6 +827,19 @@ mpirun -np 2 ./phyml-mpi -i seqfile -b 100 &
 will probably NOT work. I do not know how to run a mpi process in batch mode yet. Suggestions welcome...
 Also, at the moment, the number of bootstrap replicates must be a multiple of the number of CPUs
 required in the mpirun command.
+
+\subsection{Multithreading}\label{sec:threads}\index{multithreading}\index{OpenMP}
+
+With a build that supports OpenMP (Section \ref{sec:install-openmp}), \x{--threads num} computes the
+likelihood with \x{num} threads, each handling a share of the site patterns (at least 128 patterns
+per thread). The output files are identical whatever the number of threads, so analyses remain
+reproducible. Multithreading speeds up long alignments; for bootstrap analyses, the parallel
+version based on MPI (Section \ref{sec:parallel_bootstrap}) distributes the replicates instead, and
+the two can be combined. Mixture and partition models defined in XML still run on one thread.
+
+\begin{verbatim}
+phyml -i seqfile -d aa -m LG --threads 8
+\end{verbatim}
 
 \section{Inputs \& outputs for command-line and PHYLIP interface }\label{sec:input_output}
 
@@ -1099,6 +1192,7 @@ Output file name & Content \\
 \x{seq\_phyml\_rand\_trees.txt} & ML trees -- multiple random starts\\
 \x{seq\_phyml\_ancestral\_seq.txt} & ancestral sequences\\
 \x{seq\_phyml\_ancestral\_tree.txt} & ML tree with node labels as in ancestral sequence file\\
+\x{seq\_phyml\_sms.csv} & fits of the models compared by SMS (option \x{--sms})\\
 \hline
 \end{tabular}
 \end{center}
@@ -1163,6 +1257,103 @@ expectation, i.e., ``find the  best value of $p$ while constraining the ratio  o
 that given in the input tree''. Please feel free to send us your suggestions regarding this problem
 by posting on the forum (\url{http://groups.google.com/group/phyml-forum}).
 
+
+\section{Model selection with SMS}\label{sec:sms}\index{SMS}\index{model selection}
+
+SMS (Smart Model Selection, \cite{lefort17}) selects the substitution model before the analysis.
+It used to be a set of scripts running PhyML once per candidate model; it is now built in
+(\x{--sms}). The candidate models are fitted on a fixed tree, in four steps:
+\begin{enumerate}
+\item a BioNJ tree (or the tree given with \x{-u}) is built and its branch lengths estimated with
+  GTR+$\Gamma$+I (nucleotides) or LG (amino acids);
+\item the best rate decoration is chosen among none, +$\Gamma$, +I, +$\Gamma$+I and +R (FreeRate);
+\item the best matrix is chosen: GTR, TN93, HKY85 and K80 for nucleotides; for amino acids, the 23
+  built-in matrices, with and without +F, are tried in the order of the chi-square distance between
+  their frequencies and those of the alignment;
+\item the decoration is chosen again for the selected matrix.
+\end{enumerate}
+Models are compared with the BIC (default) or the AIC (\x{--sms\_criterion aic}). The analysis then
+uses the selected model, starting from its SMS estimates. The fits are written to
+\x{seq\_phyml\_sms.csv} (one row per model: number of parameters, log-likelihood, AIC and BIC, and
+the order in which the models were tried). \x{-c} sets the number of rate categories of +$\Gamma$
+and +R (default 4); \x{--sms\_only} stops after the selection.
+
+\begin{verbatim}
+phyml -i seqfile -d aa --sms
+phyml -i seqfile --sms --sms_criterion aic --sms_only
+\end{verbatim}
+
+\section{Protein models with several matrices}\label{sec:multimatrix}\index{mixture models!protein}
+
+\subsection{LG4M and LG4X}\label{sec:lg4}\index{LG4M}\index{LG4X}
+
+LG4M and LG4X \cite{lg4x} use a different replacement matrix for each rate category, from the
+slowest (M1 or X1) to the fastest (M4 or X4). Each matrix $Q_k$ has its own exchangeabilities and
+amino-acid frequencies $\pi_k$ and is normalised to one substitution per unit of time. With $x_s$
+the data at site $s$ and $L(x_s \mid Q, \pi, \rho)$ the likelihood of the tree with all branch
+lengths multiplied by $\rho$:
+\begin{itemize}
+\item \x{-m LG4M}: four Gamma categories of equal weights, the $k$-th of which uses matrix $M_k$,
+\[ L_s = \frac{1}{4}\sum_{k=1}^{4} L\big(x_s \mid Q^{M}_k, \pi^{M}_k, \gamma_k(\alpha)\big), \]
+  where $\gamma_k(\alpha)$ is the mean rate of the $k$-th category. The only free parameter is
+  $\alpha$ (estimated unless \x{-a} gives its value).
+\item \x{-m LG4X}: four categories with free weights $w_k$ and rates $\rho_k$,
+\[ L_s = \sum_{k=1}^{4} w_k\, L\big(x_s \mid Q^{X}_k, \pi^{X}_k, \rho_k\big), \qquad \sum_k w_k = 1,
+\quad \sum_k w_k \rho_k = 1, \]
+  that is, six free parameters. As in \cite{lg4x}, the tree and $\alpha$ are first estimated with
+  LG4M; LG4X then starts from equal weights and the Gamma rates, and estimates its weights and
+  rates. Matrix $X_k$ stays with category $k$ even if its rate is not the $k$-th one.
+\end{itemize}
+The matrices are those published by the authors (\url{http://www.atgc-montpellier.fr/models/lg4x}).
+Following \cite{lg4x}, these models have four rate categories and neither invariant sites nor
+estimated frequencies: \x{-f}, \x{-v}, \x{--freerates}, \x{-c} other than 4 and \x{--use\_median} are
+refused. The statistics file gives the rate and weight of each matrix. LG4M runs about as fast as LG.
+
+\begin{verbatim}
+phyml -i seqfile -d aa -m LG4X
+\end{verbatim}
+
+\subsection{Models accounting for protein structure}\label{sec:structure}\index{structure models}
+
+The models of \cite{le10} use one replacement matrix per class of sites: buried or exposed to the
+solvent (\x{-m EX}, also written \x{EX2}), extended, helix or other secondary structure (\x{-m EHO}),
+or the six combinations (\x{-m EX\_EHO}). Each class $k$ has its own matrix $Q_k$, frequencies
+$\pi_k$ and global rate $r_k$, and rates vary across sites according to a discrete Gamma
+distribution with $G$ categories (\x{-c}, \x{-a}). With
+\[ L_k(s) = \frac{1}{G}\sum_{g=1}^{G} L\big(x_s \mid Q_k, \pi_k, r_k\,\gamma_g\big), \]
+\x{--struct\_model} chooses how the classes are combined at site $s$, whose annotated class is $a_s$:
+\begin{itemize}
+\item \x{mix}: a mixture, without annotations, $L_s = \sum_k P_k\, L_k(s)$, where the class
+  proportions $P_k$ are estimated;
+\item \x{part}: each site uses the matrix of its class, $L_s = L_{a_s}(s)$;
+\item \x{conf\_lg}: the annotation is trusted with probability $\chi$, otherwise the site follows
+  LG, $L_s = \chi\, L_{a_s}(s) + (1-\chi)\, L_{LG}(s)$;
+\item \x{conf\_mix}: the annotation is trusted with probability $\chi$, otherwise the site follows
+  the mixture, $L_s = \chi\, L_{a_s}(s) + (1-\chi) \sum_k P_k\, L_k(s)$.
+\end{itemize}
+$\chi$ is estimated (\x{--struct\_chi} fixes it), as are the proportions $P_k$ of \x{mix} and
+\x{conf\_mix} (\x{--struct\_props} gives their values, \x{--struct\_fix\_props} keeps the published
+ones). A site without annotation follows the mixture (LG with \x{conf\_lg}). The matrices, rates and
+class proportions are those of the authors (\url{http://www.atgc-montpellier.fr/phyml/structure/}).
+The output tree gives branch lengths in substitutions per site: they are multiplied by the mean rate
+of the model. \x{-f}, \x{-v}, \x{--freerates} and \x{--aa\_rate\_file} cannot be used with these models.
+
+The annotations are given by \x{--struct\_file}, a text file with one line per kind of
+annotation and one character per alignment site:
+\begin{verbatim}
+# solvent accessibility (B buried, E exposed)
+exposure:  BBEEBEE?EB...
+# secondary structure (E extended, H helix, O other)
+structure: HHHOOEE-EH...
+\end{verbatim}
+Unknown values are written \x{?}, \x{X} or \x{-}. The other DSSP states (G, I, B, S, T, C) count as
+`other'. \x{EX} needs the \x{exposure} line, \x{EHO} the \x{structure} line, and \x{EX\_EHO} both.
+Lines starting with \x{\#} are ignored.
+
+\begin{verbatim}
+phyml -i seqfile -d aa -m EX_EHO --struct_model conf_mix \
+      --struct_file annot.txt
+\end{verbatim}
 
 \section{Inputs \& outputs for the XML interface }\label{sec:xmlio}\index{XML}
 
@@ -1653,17 +1844,19 @@ Each instance of the \x{topology} component (there should be only one...) has th
 \item \x{file.name="name\_of\_tree\_file"}. In case \x{init.tree="user"}, this
   attribute  is mandatory. \x{name\_of\_tree\_file} is a
   text file containing a tree in NEWICK format.
-\item \x{optimise.tree="yes"|"true"|"no"|"false"}. The starting tree topology as defined by
+\item \x{optimise.topology="yes"|"true"|"no"|"false"}. The starting tree topology as defined by
   \x{init.tree} is to be optimised (or not) so as to maximise the likelihood function.
 \item \x{search="nni"|"spr"|"none"}. Tree topology search is conducted using NNI (fast), SPR (a bit
   slower but more accurate) or no moves.
 \end{itemize}
+{\em Note:} earlier versions of this manual called this attribute \x{optimise.tree}, which PhyML
+does not read: with it, the topology is always optimised.
 \vspace{0.2cm}
 \begin{Verbatim}[frame=single, label=Example of `topology' component, samepage=true,
   baselinestretch=0.5, fontsize=\small, numbers=left]
 
 <topology>
-  <instance id="T1" init.tree="bionj" optimise.tree="true" \
+  <instance id="T1" init.tree="bionj" optimise.topology="true" \
    search="spr"/>
 </topology>
 
@@ -1929,7 +2122,7 @@ M1, F1, R2, L1} and so forth.
 <phyml runid="simple.example" output.file="p1.output">
 
   <topology>
-    <instance id="T1" init.tree="bionj" optimise.tree="yes" \
+    <instance id="T1" init.tree="bionj" optimise.topology="yes" \
     search="spr"/>
   </topology>
 
@@ -1972,6 +2165,8 @@ M1, F1, R2, L1} and so forth.
 
 \subsection{Example: LG4X}\index{lg4x}
 
+LG4X and LG4M are now available directly with \x{-m LG4X} and \x{-m LG4M} (Section \ref{sec:lg4});
+the XML description below remains useful to modify these models.
 The example below shows how to fit the LG4X model \cite{lg4x} to a given alignment of amino-acid
 sequences (file \x{M587.nex.Phy}). LG4X is a mixture model with four classes. Each class has its own
 rate and corresponding frequencies (hence the use of the FreeRate model below, see the
@@ -1990,7 +2185,7 @@ provided in the PhyML package \x{example/lg4x/} directory.)
   <!-- Tree topology: start with BioNJ and then SPRs -->
   <topology>
     <instance id="T1" init.tree="user" file.name="user_tree.txt" \
-    search="spr" optimise.tree="no"/>
+    search="spr" optimise.topology="no"/>
   </topology>
 
 
@@ -2079,7 +2274,7 @@ the other rate matrices and state frequencies.
   print.json.trace="no" print.site.lk="yes">
   
   <topology>
-  <instance id="T1" init.tree="bionj"  optimise.tree="yes" \
+  <instance id="T1" init.tree="bionj"  optimise.topology="yes" \
   search="spr"/>
   </topology>
   
@@ -2155,7 +2350,7 @@ a NNI search algorithm.
 <phyml runid="nnisearch" output.file="small_p1_output">
 
   <topology>
-    <instance id="T1" init.tree="bionj" optimise.tree="yes" \
+    <instance id="T1" init.tree="bionj" optimise.topology="yes" \
     search="nni"/>
   </topology>
 

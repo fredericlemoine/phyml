@@ -26,6 +26,7 @@ void  PMat_K80(phydbl l,phydbl kappa, int pos, phydbl *Pij);
 void  PMat_TN93(phydbl l, t_mod *mod, int pos, phydbl *Pij);
 void  PMat_Eigen(phydbl l, eigen *eig, const int ns, const int pos, phydbl *Pij, phydbl *tPij);
 eigen *Make_Normalised_Eigen(const phydbl *daa, const phydbl *pi, int ns);
+phydbl (*Make_Aligned_Freqs(int n))[20];
 eigen *Cat_Eigen(const t_mod *mod, int catg);
 phydbl *Cat_Pi(const t_mod *mod, int catg);
 void  PMat_Empirical(phydbl l, const t_mod *mod, const int pos, phydbl *Pij, phydbl *tPij);

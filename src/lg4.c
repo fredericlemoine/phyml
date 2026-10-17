@@ -334,6 +334,7 @@ t_lg4 *LG4_Make(int model)
 
   g        = (t_lg4 *)mCalloc(1, sizeof(t_lg4));
   g->model = model;
+  g->pi    = Make_Aligned_Freqs(LG4_N_CATG);
 
   for (k = 0; k < LG4_N_CATG; k++)
   {
@@ -358,6 +359,7 @@ void LG4_Free(t_lg4 *g)
 
   if (g == NULL) return;
   for (k = 0; k < LG4_N_CATG; k++) Free_Eigen(g->eig[k]);
+  free(g->pi);
   Free(g);
 }
 

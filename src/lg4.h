@@ -44,7 +44,8 @@ typedef struct __LG4_Mod
 {
   int    model;                   /* LG4_M or LG4_X */
   eigen *eig[LG4_N_CATG];         /* eigen system of each normalised matrix */
-  phydbl pi[LG4_N_CATG][20];      /* equilibrium frequencies of each matrix */
+  phydbl (*pi)[20]; /* equilibrium frequencies of each matrix, 32-byte
+                       aligned for the SIMD kernels */
 } t_lg4;
 
 t_lg4      *LG4_Make(int model);

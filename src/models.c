@@ -13,6 +13,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 #include "models.h"
 #include "structure.h"
 #include "lg4.h"
+#include <stdint.h>
 
 #ifdef BEAGLE
 #include "beagle_utils.h"
@@ -305,6 +306,25 @@ eigen *Make_Normalised_Eigen(const phydbl *daa, const phydbl *pi, int ns)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* n frequency vectors of 20 states, 32-byte aligned: the AVX kernels read
+   frequency vectors with aligned loads (rows of 160 bytes stay aligned). */
+
+phydbl (*Make_Aligned_Freqs(int n))[20]
+{
+  void *p = NULL;
+
+  if (posix_memalign(&p, 32, (size_t)n * 20 * sizeof(phydbl)) != 0)
+  {
+    PhyML_Fprintf(stderr, "\n. Cannot allocate frequency vectors.\n");
+    Exit("\n");
+  }
+  memset(p, 0, (size_t)n * 20 * sizeof(phydbl));
+  return (phydbl(*)[20])p;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 /* Eigen system and equilibrium frequencies used by rate category catg. Most
    models have a single matrix; structure models and LG4M/LG4X have one per
    category. */
@@ -318,9 +338,14 @@ eigen *Cat_Eigen(const t_mod *mod, int catg)
 
 phydbl *Cat_Pi(const t_mod *mod, int catg)
 {
-  if (mod->lg4) return mod->lg4->pi[catg];
-  if (mod->smod) return (phydbl *)STRUCT_Pi(mod->smod, catg);
-  return mod->e_frq->pi->v;
+  phydbl *pi;
+
+  if (mod->lg4) pi = mod->lg4->pi[catg];
+  else if (mod->smod) pi = (phydbl *)STRUCT_Pi(mod->smod, catg);
+  else pi = mod->e_frq->pi->v;
+  // The SIMD kernels read frequency vectors with aligned loads
+  assert(((uintptr_t)pi) % BYTE_ALIGN == 0);
+  return pi;
 }
 
 //////////////////////////////////////////////////////////////

@@ -490,6 +490,7 @@ t_struct *STRUCT_Make(int partition, int model, int n_gamma)
   s->n_class   = struct_n_class[partition];
   s->n_comp    = s->n_class + (model == STRUCT_CONF_LG ? 1 : 0);
   s->n_gamma   = n_gamma;
+  s->pi        = Make_Aligned_Freqs(STRUCT_MAX_COMP);
   s->gamma_rr  = (phydbl *)mCalloc(n_gamma, sizeof(phydbl));
   s->gamma_p   = (phydbl *)mCalloc(n_gamma, sizeof(phydbl));
 
@@ -532,6 +533,7 @@ void STRUCT_Free(t_struct *s)
 
   if (s == NULL) return;
   for (k = 0; k < s->n_comp; k++) Free_Eigen(s->eig[k]);
+  free(s->pi);
   Free(s->gamma_rr);
   Free(s->gamma_p);
   if (s->site_class) Free(s->site_class);

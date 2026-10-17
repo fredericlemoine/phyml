@@ -58,7 +58,8 @@ typedef struct __Struct_Mod
   int n_gamma;   /* Gamma categories (-c) */
 
   phydbl  rate[STRUCT_MAX_COMP];   /* global rate of each component */
-  phydbl  pi[STRUCT_MAX_COMP][20]; /* equilibrium frequencies */
+  phydbl (*pi)[20];                /* equilibrium frequencies, 32-byte aligned
+                                      for the SIMD kernels */
   eigen  *eig[STRUCT_MAX_COMP];    /* eigen system of each normalised matrix */
   phydbl *gamma_rr;                /* the n_gamma Gamma rates (mean 1) */
   phydbl *gamma_p;

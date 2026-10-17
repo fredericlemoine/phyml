@@ -94,7 +94,7 @@ Known bugs covered at the time of writing:
   1000-character names,
   long input paths (`cl.c:1842`) and the "file name too long" message itself
   (`cl.c:1415`).
-- Wrong results: constraints not respected by the search; with `-n`, random starts only on the
+- Wrong results: with `-n`, random starts only on the
   first data set and two trees per data set in the tree file; MPI silently
   rounds the replicate count up;
   `Permutate()` is not a uniform shuffle; `-d aa -m LG` without `-f` uses

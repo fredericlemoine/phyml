@@ -104,11 +104,23 @@ class StartingTrees(PhymlTestCase):
         self.assertEqual(len(set(lnls)), 1, lnls)
 
 
+def displays(tree, clade, taxa):
+    """True if `tree`, restricted to `taxa`, separates `clade` from the other
+    taxa: what a constraint tree on `taxa` requires (manual, section
+    'Topological constraint file')."""
+    clade, taxa = frozenset(clade), frozenset(taxa)
+    for side in tree.splits():
+        r = side & taxa
+        if r == clade or taxa - r == clade:
+            return True
+    return False
+
+
 class Constraints(PhymlTestCase):
     """--constraint_file: the search must keep the constrained clades.
 
-    The constraint tree used here, ((t1,t3),t2,t4,t5,t6,t7,t8), contradicts
-    the true tree, which groups t1 with t2.
+    The constraint trees used here, with (t1,t3) as a clade, contradict the
+    true tree, which groups t1 with t2.
     """
 
     def write(self, text):
@@ -126,19 +138,34 @@ class Constraints(PhymlTestCase):
             res = self.constrained(fh.read().strip())
         self.assertSuccess(res)
         self.assertEqual(sorted(res.tree(JC8).leaf_names()), sorted("t%d" % i for i in range(1, 9)))
-        # Whether the constraint is kept: test_constraint_is_respected (known bug)
+        self.assertTrue(res.tree(JC8).has_split(["t1", "t3"]))
 
-    @known_bug("a constraint on a subset of the taxa crashes (bus error)")
     def test_constraint_on_some_taxa(self):
+        """On t1 to t4 only: the output, restricted to them, must group t1 with
+        t3 (the data group t1 with t2 and t3 with t4)."""
         res = self.constrained("((t1:0.1,t3:0.1):0.1,t2:0.1,t4:0.1);")
         self.assertSuccess(res)
-        self.assertTrue(res.tree(JC8).has_split(["t1", "t3"]))
+        tree = res.tree(JC8)
+        self.assertTrue(displays(tree, ["t1", "t3"], ["t1", "t2", "t3", "t4"]), tree.to_string())
+
+    def test_several_clades_and_seeds(self):
+        """Two constrained clades, both against the data, whatever the seed."""
+        self.stage(JC8)
+        cfile = self.write("((t1,t3),(t2,t5),t4,t6,t7,t8);")
+        for seed in (1, 2, 3):
+            with self.subTest(seed=seed):
+                res = self.run_phyml("-i", JC8, "-m", "JC69", "-c", "1", "-b", "0",
+                                     "--constraint_file", cfile, "--r_seed", seed,
+                                     "--run_id", "s%d" % seed, timeout=60)
+                self.assertSuccess(res)
+                tree = Newick.parse(res.read(JC8 + "_phyml_tree_s%d.txt" % seed).strip())
+                self.assertTrue(tree.has_split(["t1", "t3"]), tree.to_string())
+                self.assertTrue(tree.has_split(["t2", "t5"]), tree.to_string())
 
     def test_constraint_with_lengths_on_all_taxa_runs(self):
         res = self.constrained("((t1:0.1,t3:0.1):0.1,t2:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);")
         self.assertSuccess(res)
 
-    @known_bug("the SPR search moves away from the constraint: output groups t1 with t2")
     def test_constraint_is_respected(self):
         res = self.constrained("((t1:0.1,t3:0.1):0.1,t2:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);")
         self.assertSuccess(res)

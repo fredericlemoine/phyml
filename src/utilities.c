@@ -11033,7 +11033,9 @@ int Are_Equal(phydbl a, phydbl b, phydbl eps)
 //////////////////////////////////////////////////////////////
 
 /* Returns 1 if small_tree is displayed by big_tree, 0 otherwise
-   Does not account for the root positions, if any.
+   Does not account for the root positions, if any. Only the splits of
+   small_tree's edges that exist are constraints: the edges that resolve
+   one of its polytomies (does_exist == NO) are arbitrary.
 */
 int Check_Topo_Constraints(t_tree *big_tree, t_tree *small_tree)
 {
@@ -11074,11 +11076,14 @@ int Check_Topo_Constraints(t_tree *big_tree, t_tree *small_tree)
           big_tree_cpy);
 
   for (i = 0; i < 2 * big_tree_cpy->n_otu - 3; ++i)
-    big_tree_cpy->a_edges[i]->bip_score = 0;
+  {
+    big_tree_cpy->a_edges[i]->bip_score  = 0;
+    big_tree_cpy->a_edges[i]->does_exist = YES; // every split of the tree
+  }
   for (i = 0; i < 2 * small_tree->n_otu - 3; ++i)
     small_tree->a_edges[i]->bip_score = 0;
 
-  diffs = Compare_Bip(small_tree, big_tree_cpy, NO, TREE_COMP_RF_PLAIN,-1.0);
+  diffs = Compare_Bip(small_tree, big_tree_cpy, YES, TREE_COMP_RF_PLAIN, -1.0);
 
   /* printf("\n"); */
   /* printf("\n. %s",Write_Tree(big_tree_cpy)); */

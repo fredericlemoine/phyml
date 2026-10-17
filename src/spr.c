@@ -1531,6 +1531,17 @@ int Try_One_Spr_Move_Full(t_spr *move, short int apply_move, t_tree *tree)
                 tree);
   Graft_Subtree(move->b_target,move->n_link,NULL,b_residual,NULL,tree);
 
+  // A move that breaks the topological constraint is never applied
+  if(!Check_Topo_Constraints(tree,tree->io->cstr_tree))
+    {
+      Prune_Subtree(move->n_link,move->n_opp_to_link,&move->b_target,&b_residual,tree);
+      Graft_Subtree(init_target,move->n_link,NULL,b_residual,NULL,tree);
+      Restore_Br_Len(tree);
+      tree->c_lnL = init_lnL;
+      move->lnL   = UNLIKELY;
+      return 0;
+    }
+
   Optimize_Br_Len_Serie(2,tree);
 
   move->lnL = tree->c_lnL;

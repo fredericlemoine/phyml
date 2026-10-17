@@ -1191,15 +1191,13 @@ not need to display the whole list of taxa. For instance, while the only taxa in
 topological constraints above  are A, B, C, D, E  \& F, the actual data set  could include more than
 these six taxa only.
 
-PhyML tree topology  search algorithms all rely on  improving a starting tree. By  default, BioNJ is
-the method  of choice  for building this  tree. However,  there is no  guarantee that  the phylogeny
-estimated with PhyML does comply with the  topological constraints. While it is probably possible to
-implement  BioNJ  with  topological constraints,  we  have  not  done  so yet.   Instead,  the  same
-multifurcating tree that  defines the topological constraints  should also be used  as starting tree
-using  the \x{-u}  (\x{--inputtree})  option. Altogether,  the  command line  should  look like  the
-following: \x{-u}=\x{file\_name} \x{--constraint\_file}=\x{file\_name}. It is not possible to use as
-input  tree a  non-binary phylogeny  that is  distinct  from that  provided in  the constraint  tree
-file. However, any binary tree compatible with the constraint one can be used as input tree.
+A constraint is satisfied when the estimated tree, restricted to the taxa of the constraint tree,
+displays every clade of the constraint tree: with the constraint \x{((t1,t3),t2,t4)}, the estimated
+tree must separate t1 and t3 from t2 and t4, whatever the position of the other taxa. The search
+starts from the constraint tree itself: its polytomies are resolved arbitrarily, the taxa it does
+not name are attached to its root, and its branch lengths are estimated with BioNJ (a tree given
+with \x{-u} is not used). Every tree topology move (NNI or SPR) that would break a constraint is
+rejected, so the output tree complies with the constraints.
 
 
 \subsection{Output files}

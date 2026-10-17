@@ -438,8 +438,9 @@ void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree)
   else if (strlen(s_d) >= 6 && !strcmp(s_d + strlen(s_d) - 6, ")#NULL"))
   {
     // Edge added by Clean_Multifurcation to resolve a polytomy: no length in
-    // the tree, it has length zero
-    b->l->v = 0.0;
+    // the tree, it has length zero, and its split is not in the tree read
+    b->l->v       = 0.0;
+    b->does_exist = NO;
   }
 
 }

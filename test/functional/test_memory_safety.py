@@ -10,7 +10,7 @@ import os
 import re
 import unittest
 
-from phymltest import PHYML_ASAN, PhymlTestCase, data, known_bug
+from phymltest import PHYML_ASAN, PhymlTestCase, data
 
 # detect_stack_use_after_return (on by default with GCC >= 13) makes PhyML
 # about 40 times slower under ASan; leaks are out of scope here.
@@ -173,12 +173,22 @@ class MemorySafety(PhymlTestCase):
         self.assertNoMemoryErrors(self.run_asan("-i", "sim_jc_8.phy", "-u", tree, "-m", "JC69",
                                                 "-o", "lr", "-b", "0", timeout=120))
 
-    @known_bug("io.c:39 an unclosed '[' makes Read_Tree scan past the string")
     def test_user_tree_with_unclosed_comment(self):
         self.stage("sim_jc_8.phy")
         tree = self.write("t.nwk", "((t1:1,t2:1)[x:1,(t3:1,t4:1):1,((t5:1,t6:1):1,(t7:1,t8:1):1):1);\n")
-        self.assertNoMemoryErrors(self.run_asan("-i", "sim_jc_8.phy", "-u", tree, "-m", "JC69",
-                                                "-b", "0", timeout=120))
+        res = self.run_asan("-i", "sim_jc_8.phy", "-u", tree, "-m", "JC69", "-b", "0", timeout=120)
+        self.assertNoMemoryErrors(res)
+        self.assertNotEqual(res.returncode, 0, res.describe())
+        self.assertIn("not closed", res.output)
+
+    def test_user_tree_with_comments(self):
+        self.stage("sim_jc_8.phy")
+        tree = self.write("t.nwk", "((t1:1[x],t2:1)[note]:1,(t3:1,t4:1)[a,b]:1,"
+                                   "((t5:1,t6:1):[&k=v,w]1,(t7:1,t8:1)[]:1):1);\n")
+        res = self.run_asan("-i", "sim_jc_8.phy", "-u", tree, "-m", "JC69", "-o", "n",
+                            "-b", "0", timeout=120)
+        self.assertNoMemoryErrors(res)
+        self.assertEqual(res.returncode, 0, res.describe())
 
 
 class ReportParser(unittest.TestCase):

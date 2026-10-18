@@ -166,6 +166,14 @@ class Constraints(PhymlTestCase):
         res = self.constrained("((t1:0.1,t3:0.1):0.1,t2:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);")
         self.assertSuccess(res)
 
+    def test_malformed_constraint_is_refused(self):
+        for text, msg in (("t1,t3,t2,t4,t5,t6,t7,t8;", "not found"),
+                          ("((t1,t3),t2,t4,t5,t6,t7,t8;", "unbalanced")):
+            with self.subTest(tree=text):
+                res = self.constrained(text)
+                self.assertCleanFailure(res)
+                self.assertIn(msg, res.output)
+
     def test_constraint_is_respected(self):
         res = self.constrained("((t1:0.1,t3:0.1):0.1,t2:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);")
         self.assertSuccess(res)

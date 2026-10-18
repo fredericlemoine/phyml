@@ -330,12 +330,38 @@ class UserTrees(PhymlTestCase):
         res = self.run_tree("(t1:0.1,t2:0.1,t3:0.1,t4:0.1,t5:0.1,t6:0.1,t7:0.1,t8:0.1);", "n")
         self.assertSuccess(res)
 
-    @known_bug("unbalanced parentheses crash the Newick reader instead of an error")
     def test_unbalanced_parentheses(self):
         self.stage("bad_tree.nwk")
         res = self.run_phyml("-i", "sim_jc_8.phy", "-u", "bad_tree.nwk", "-m", "JC69",
                              timeout=60)
         self.assertCleanFailure(res)
+        self.assertIn("unbalanced parentheses", res.output)
+
+    def test_malformed_trees_are_refused(self):
+        for text, msg in (("((t1,t2),(t3,t4)),((t5,t6),(t7,t8)));", "without a matching"),
+                          ("((t1,t2)[x,(t3,t4),((t5,t6),(t7,t8)));", "not closed"),
+                          ("t1,t2,t3,t4,t5,t6,t7,t8;", "tree not found")):
+            with self.subTest(tree=text):
+                res = self.run_tree(text, "n")
+                self.assertCleanFailure(res)
+                self.assertIn(msg, res.output)
+
+    def test_comments_in_tree(self):
+        """Plain [comments] and [&key=value] labels must not change the tree read."""
+        plain = ("((t1:0.1,t2:0.1):0.1,(t3:0.1,t4:0.1):0.1,"
+                 "((t5:0.1,t6:0.1):0.1,(t7:0.1,t8:0.1):0.1):0.1);")
+        ref = self.run_tree(plain, "n")
+        self.assertSuccess(ref)
+        for text in ("((t1:0.1,t2:0.1)[note]:0.1,(t3:0.1,t4:0.1):0.1,"
+                     "((t5:0.1,t6:0.1):0.1,(t7:0.1,t8:0.1):0.1):0.1);",
+                     "((t1:0.1[x],t2:0.1):0.1,(t3:0.1,t4:0.1)[a,b]:0.1,"
+                     "((t5:0.1,t6:0.1):[]0.1,(t7:0.1,t8:0.1)[]:0.1):0.1);",
+                     "((t1:[&x=1,y]0.1,t2:0.1):0.1,(t3:0.1,t4:0.1)[&k=v]:0.1,"
+                     "((t5:0.1,t6:0.1):0.1,(t7:0.1,t8:0.1):0.1):0.1);"):
+            with self.subTest(tree=text):
+                res = self.run_tree(text, "n")
+                self.assertSuccess(res)
+                self.assertLnlClose(res.final_lnl(), ref.final_lnl(), tol=1e-10)
 
 
 if __name__ == "__main__":

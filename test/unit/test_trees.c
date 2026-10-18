@@ -2,6 +2,9 @@
    Robinson-Foulds comparison (utilities.c), transfer distances (tbe.c) and
    BioNJ (bionj.c). */
 
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include "tinytest.h"
 #include "utilities.h"
 #include "bionj.h"
@@ -118,13 +121,13 @@ TEST(newick, tree_without_branch_lengths)
   CHECK(t->has_branch_lengths == NO);
 }
 
-/* Read_Tree skips [comments] when counting taxa, but Sub_Trees does not
-   handle them and the parse fails. */
-KNOWN_BUG(newick, comments_are_skipped,
-          "io.c Sub_Trees does not skip [comments] in Newick strings")
+/* [comments] without key=value pairs used to crash the label reader, and
+   blanks made R_rtree exit. */
+TEST(newick, comments_are_skipped)
 {
   t_tree *t = parse("((A:0.1,B:0.2)[a, comment]:0.05,C:0.3,(D:0.4,E:0.5):0.06);");
   CHECK_EQ_INT(t->n_otu, 5);
+  CHECK_NEAR(Get_Tree_Size(t), 1.61, 1e-9);
 }
 
 TEST(newick, read_from_file)
@@ -138,13 +141,21 @@ TEST(newick, read_from_file)
   fclose(fp);
 }
 
-/* The label skipper in Read_Tree (io.c:39) walks past the end of the
-   string when a '[' is never closed. The parser should reject the tree. */
-KNOWN_BUG(newick, unterminated_comment_is_rejected,
-          "io.c:39 scans past the end of the string on an unclosed '['")
+/* An unclosed '[' used to make Read_Tree scan past the end of the string.
+   PhyML has no error return path: the tree must end the process with
+   status 1, checked here in a child process. */
+TEST(newick, unterminated_comment_is_rejected)
 {
-  t_tree *t = parse("((A:0.1,B:0.2)[oops:0.05,C:0.3,(D:0.4,E:0.5):0.06);");
-  CHECK(t == NULL);
+  int   status;
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    if (!freopen("/dev/null", "w", stderr)) _exit(3);
+    parse("((A:0.1,B:0.2)[oops:0.05,C:0.3,(D:0.4,E:0.5):0.06);");
+    _exit(0);
+  }
+  CHECK(pid > 0 && waitpid(pid, &status, 0) == pid);
+  CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 1);
 }
 
 /* -------------------------------------------------- bipartitions, RF */

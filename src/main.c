@@ -263,6 +263,9 @@ int main(int argc, char **argv)
 
             io->cstr_tree = Read_Tree_File_Phylip(io->fp_in_constraint_tree);
 
+            if (io->cstr_tree == NULL)
+              Exit("\n. Constraint tree not found...\n");
+
             if (io->cstr_tree->n_root != NULL)
             {
               PhyML_Printf("\n== The constraint tree file must be unrooted");

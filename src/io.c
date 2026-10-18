@@ -23,6 +23,57 @@ the GNU public licence. See http://www.opensource.org for details.
    since this string might be freed and then re-allocated by that function
    (i.e., its address in memory might change)
 */
+/* A Newick string must have balanced parentheses and closed [comments]:
+   the parser below assumes both and would read past the string. */
+
+static void Check_Newick_String(const char *s)
+{
+  int         depth = 0, n_open = 0;
+  const char *p, *end;
+
+  for (p = s; *p != '\0'; ++p)
+  {
+    if (*p == '[')
+    {
+      end = strchr(p, ']');
+      if (end == NULL)
+      {
+        PhyML_Fprintf(stderr,
+                      "\n. Err.: the tree has a '[' comment that is not "
+                      "closed:\n. %.60s\n",
+                      s);
+        Exit("");
+      }
+      p = end;
+      continue;
+    }
+    if (*p == '(')
+    {
+      depth++;
+      n_open++;
+    }
+    else if (*p == ')' && --depth < 0)
+    {
+      PhyML_Fprintf(stderr,
+                    "\n. Err.: the tree has a ')' without a matching '(':"
+                    "\n. %.60s\n",
+                    s);
+      Exit("");
+    }
+  }
+  if (depth != 0 || n_open == 0)
+  {
+    PhyML_Fprintf(stderr,
+                  "\n. Err.: the tree is not a valid Newick string "
+                  "(%s):\n. %.60s\n",
+                  n_open == 0 ? "no parenthesis" : "unbalanced parentheses", s);
+    Exit("");
+  }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 t_tree *Read_Tree(char **s_tree)
 {
   char  **subs;
@@ -32,6 +83,18 @@ t_tree *Read_Tree(char **s_tree)
   t_node *root_node;
 
   /* PhyML_Printf("\n. Reading tree %s",(*s_tree)); */
+
+  // Blanks are dropped, as Return_Tree_String_Phylip does for tree files
+  // (R_rtree refuses them)
+  {
+    char *src, *dst;
+    for (src = dst = *s_tree; *src != '\0'; ++src)
+      if (*src != ' ' && *src != '\t' && *src != '\n' && *src != '\r')
+        *dst++ = *src;
+    *dst = '\0';
+  }
+
+  Check_Newick_String(*s_tree);
 
   n_int = n_ext = 0;
 
@@ -473,13 +536,11 @@ void Read_Edge_Label(char *s_d, char *s_a, t_edge *b)
       s_lab    = (char *)mCalloc(strlen(s_a) + 1, sizeof(char));
       s_lab[0] = '[';
 
-      if (sscanf(p + i, "[%[^]]]", s_lab + 1) != 1)
+      // A comment without key=value pairs is not a label: skip it
+      if (sscanf(p + i, "[%[^]]]", s_lab + 1) != 1 || strchr(s_lab, '=') == NULL)
       {
-        PhyML_Fprintf(
-            stderr, "\n. Edge label is in wrong format. A proper label should");
-        PhyML_Fprintf(stderr,
-                      "\n. look as follows: \"[xxx={yyy},xxxx={yy},...]\"");
-        assert(FALSE);
+        Free(s_lab);
+        return;
       }
 
       s_lab[strlen(s_lab)] = ']';
@@ -519,13 +580,12 @@ void Read_Node_Label(char *s_d, char *s_a, t_node *n)
     s_lab    = (char *)mCalloc(strlen(s_a) + 1, sizeof(char));
     s_lab[0] = '[';
 
-    if (sscanf(p + i, "[%[^]]]", s_lab + 1) != 1)
+    // A comment without key=value pairs ("[]", "[note]") is not a label:
+    // skip it (Read_Labels needs at least one '=')
+    if (sscanf(p + i, "[%[^]]]", s_lab + 1) != 1 || strchr(s_lab, '=') == NULL)
     {
-      PhyML_Fprintf(stderr,
-                    "\n. Node label is in wrong format. A proper label should");
-      PhyML_Fprintf(stderr,
-                    "\n. look as follows: \"[xxx={yyy},xxxx={yy},...]\"");
-      assert(FALSE);
+      Free(s_lab);
+      return;
     }
 
     s_lab[strlen(s_lab)] = ']';
@@ -2046,6 +2106,7 @@ t_tree *Read_Tree_File_Phylip(FILE *fp_input_tree)
   t_tree *tree;
 
   line = Return_Tree_String_Phylip(fp_input_tree);
+  if (line == NULL) return NULL;  // no '(' before the end of the file
   tree = Read_Tree(&line);
   Free(line);
 
@@ -7389,6 +7450,8 @@ t_label *Read_Labels(char *s)
 
     key = strtok_r(label, "=", &s_small);
     val = strtok_r(NULL, "=", &s_small);
+    if (key == NULL) key = "";  // empty item, as in "[a=1,]"
+    if (val == NULL) val = "";  // key without a value, as in "[a=1,b]"
 
     Free(lab->key);
     lab->key = (char *)mCalloc(strlen(key) + 1, sizeof(char));

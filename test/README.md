@@ -87,7 +87,6 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Crashes: unbalanced or unclosed Newick input.
 - Wrong results: with `-n`, random starts only on the
   first data set and two trees per data set in the tree file; MPI silently
   rounds the replicate count up;

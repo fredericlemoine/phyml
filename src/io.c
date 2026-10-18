@@ -1315,7 +1315,7 @@ void Get_Nexus_Data(option *io)
 
 int Get_Token(FILE *fp, char *token)
 {
-  char c;
+  int c; // int, not char: EOF must stay distinct from any character
 
   assert(fp != NULL);
 
@@ -2041,7 +2041,7 @@ char *Return_Tree_String_Phylip(FILE *fp_input_tree)
 {
   char *line;
   int   i;
-  char  c;
+  int   c; // int, not char: EOF must stay distinct from any character
   int   open, maxopen;
 
   if (fp_input_tree == NULL)

@@ -9940,7 +9940,7 @@ t_edge *Find_Root_Edge(FILE *fp_input_tree, t_tree *tree)
   int     l_r, r_l;
   int     score;
   char   *line;
-  char    c;
+  int     c; // int, not char: EOF must stay distinct from any character
   t_edge *root_edge;
 
   line = (char *)mCalloc(T_MAX_LINE, sizeof(char));
@@ -10285,7 +10285,7 @@ void Translate_Tax_Names(char **tax_names, t_tree *tree)
 void Skip_Comment(FILE *fp)
 {
   int  in_comment;
-  char c;
+  int  c; // int, not char: EOF must stay distinct from any character
 
   in_comment = 1;
   do

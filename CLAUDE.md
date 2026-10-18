@@ -81,6 +81,8 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   return path).
 - Never put side effects inside `assert()`: `-DNDEBUG` builds skip them (the
   sequential PHYLIP reader once hung that way).
+- Store `fgetc`/`getc` results in an `int`: `char` is unsigned on ARM
+  Linux, where a `char` never equals `EOF` and the read loop never ends.
 - Fixed-size buffers: `T_MAX_FILE` (4096; input file names up to
   `T_MAX_FILE_INPUT`, checked by `Check_File_Name_Length`/`Check_Input_File`
   so that output names have room for their suffix and the run id),

@@ -9,6 +9,8 @@ the GNU public licence. See http://www.opensource.org for details.
 
 */
 
+#include <unistd.h>
+
 #include "utilities.h"
 #include "structure.h"
 #include "lg4.h"
@@ -8212,88 +8214,72 @@ phydbl Least_Square_Missing_Dist_XY(int x, int y, phydbl dxy, matrix *mat)
 
 void Check_Memory_Amount(t_tree *tree)
 {
-  /* Rough estimate of the amount of memory that has to be used */
+  /* Rough estimate of the amount of memory that has to be used. Computed in
+     double precision: products of ints overflowed on large data sets. */
 
-  long int nbytes;
-  int      n_otu;
-  t_mod   *mod;
+  double n_edges, n_inner, n_tips, n_pat, ns, n_catg, nbytes, mb;
+  t_mod *mod;
 
-  mod    = tree->mod;
-  n_otu  = tree->io->n_otu;
-  nbytes = 0;
+  mod     = tree->mod;
+  n_edges = 2.0 * tree->io->n_otu - 3.0;
+  n_tips  = (double)tree->n_otu;
+  n_inner = 2.0 * n_edges - n_tips;
+  n_pat   = (double)tree->data->n_pattern;
+  ns      = (double)mod->ns;
+  n_catg  = (double)mod->ras->n_catg;
+  nbytes  = 0.0;
 
-  /* Partial Pars */
-  /* pars_r */
-  nbytes += (2 * n_otu - 3) * 2 * tree->data->n_pattern * sizeof(int);
-  /* ui_r */
-  nbytes += (2 * n_otu - 3) * 2 * tree->data->n_pattern * sizeof(int);
-  /* p_pars_r */
-  nbytes +=
-      (2 * n_otu - 3) * 2 * tree->data->n_pattern * mod->ns * sizeof(int);
-  /* n_diff_states_r */
-  nbytes += (2 * n_otu - 3) * 2 * mod->ns * sizeof(int);
+  /* Partial Pars: pars_r, ui_r, p_pars_r, n_diff_states_r */
+  nbytes += n_edges * 2.0 * n_pat * sizeof(int) * 2.0;
+  nbytes += n_edges * 2.0 * n_pat * ns * sizeof(int);
+  nbytes += n_edges * 2.0 * ns * sizeof(int);
 
-  /* Pmat */
-  /* Pij_rr */
-  nbytes +=
-      (2 * n_otu - 3) * mod->ras->n_catg * mod->ns * mod->ns * sizeof(phydbl);
-  /* tPij_rr */
-  nbytes +=
-      (2 * n_otu - 3) * mod->ras->n_catg * mod->ns * mod->ns * sizeof(phydbl);
+  /* Pmat: Pij_rr, tPij_rr */
+  nbytes += n_edges * n_catg * ns * ns * sizeof(phydbl) * 2.0;
 
-  /* Partial Lk */
-  /* p_lk */
-  nbytes += ((2 * n_otu - 3) * 2 - tree->n_otu) * tree->data->n_pattern *
-            mod->ras->n_catg * mod->ns * sizeof(phydbl);
-  /* p_lk_tip */
-  nbytes += (tree->n_otu) * tree->data->n_pattern * mod->ns * sizeof(phydbl);
+  /* Partial Lk: p_lk, p_lk_tip */
+  nbytes += n_inner * n_pat * n_catg * ns * sizeof(phydbl);
+  nbytes += n_tips * n_pat * ns * sizeof(phydbl);
 
-  /* Scaling factors */
-  /* sum_scale */
-  nbytes += ((2 * n_otu - 3) * 2 - tree->n_otu) * tree->data->n_pattern *
-            mod->ras->n_catg * sizeof(int);
+  /* Scaling factors: sum_scale */
+  nbytes += n_inner * n_pat * n_catg * sizeof(int);
 
-  if (((phydbl)nbytes / (1.E+06)) > 256.)
-  /*   if(((phydbl)nbytes/(1.E+06)) > 0.) */
+  mb = nbytes / 1.E+06;
+
+  if (mb > 256.)
   {
     PhyML_Printf("\n\n. WARNING: this analysis requires at least %.0f MB of "
                  "memory space.\n",
-                 (phydbl)nbytes / (1.E+06));
+                 mb);
 #ifndef BATCH
-
-    char answer;
-    if ((!tree->io->quiet) && (tree->io->mem_question == YES))
+    // Only asked on a terminal: batch jobs (stdin redirected) go on
+    if ((!tree->io->quiet) && (tree->io->mem_question == YES) &&
+        isatty(fileno(stdin)))
     {
+      int answer;
+
       PhyML_Printf("\n. Do you really want to proceed? [Y/n] ");
-      if (scanf("%c", &answer))
-      {
-        if (answer == '\n')
-          answer = 'Y';
-        else if (answer == 'n' || answer == 'N')
-          Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
-        else
-          getchar();
-      }
-      else
-      {
-        Warn_And_Exit("\n\n");
-      }
+      fflush(NULL);
+      answer = getchar();
+      if (answer == EOF || answer == 'n' || answer == 'N')
+        Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
+      while (answer != '\n' && answer != EOF) answer = getchar();
     }
 #endif
   }
-  else if (((phydbl)nbytes / (1.E+06)) > 100.)
+  else if (mb > 100.)
   {
     if (!tree->io->quiet)
       PhyML_Printf("\n\n. WARNING: this analysis will use at least %.0f MB of "
                    "memory space...\n",
-                   (phydbl)nbytes / (1.E+06));
+                   mb);
   }
-  else if (((phydbl)nbytes / (1.E+06)) > 1.)
+  else if (mb > 1.)
   {
     if (!tree->io->quiet)
       PhyML_Printf(
           "\n\n. This analysis requires at least %.0f MB of memory space.\n",
-          (phydbl)nbytes / (1.E+06));
+          mb);
   }
 }
 

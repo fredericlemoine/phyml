@@ -1,6 +1,7 @@
 """Command-line behaviour: options, output files, reproducibility, errors."""
 
 import os
+import random
 import re
 import unittest
 
@@ -165,6 +166,32 @@ class OptionErrors(PhymlTestCase):
     def test_no_optimisation_with_explicit_model(self):
         res = self.run_phyml("-i", ALN, "-m", "HKY85", "-o", "n", "-b", "0")
         self.assertSuccess(res)
+
+
+class MemoryCheck(PhymlTestCase):
+
+    def write_large_alignment(self):
+        """40 random sequences of 10,000 sites: with 8 rate categories the
+        estimate is about 300 MB, above the 256 MB of the question."""
+        rng = random.Random(1)
+        path = os.path.join(self.tmp, "large.phy")
+        with open(path, "w") as fh:
+            fh.write("40 10000\n")
+            for i in range(40):
+                fh.write("s%-9d %s\n" % (i, "".join(rng.choice("ACGT") for _ in range(10000))))
+        return "large.phy"
+
+    def test_batch_run_does_not_ask(self):
+        """Above 256 MB PhyML asked whether to proceed, also when stdin is not
+        a terminal: a batch job waited on stdin, or stopped on its input."""
+        aln = self.write_large_alignment()
+        res = self.run_phyml("-i", aln, "-m", "JC69", "-c", "8", "-o", "n", "-b", "0",
+                             memcheck=True, stdin="n\n", timeout=300)
+        self.assertSuccess(res)
+        m = re.search(r"requires at least (\d+) MB", res.output)
+        self.assertIsNotNone(m, res.describe())
+        self.assertTrue(250 < int(m.group(1)) < 400, m.group(0))
+        self.assertNotIn("Do you really want to proceed", res.output)
 
 
 class MultipleDataSets(PhymlTestCase):

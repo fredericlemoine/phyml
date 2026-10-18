@@ -184,12 +184,27 @@ class MultipleDataSets(PhymlTestCase):
         lnls = res.stats("multi3.phy").all_lnl()
         self.assertEqual(len(set(lnls)), 3)
 
-    @known_bug("main.c:384-397 writes each data set's tree twice to *_phyml_tree.txt")
     def test_one_tree_per_data_set(self):
         res = self.run_multi()
         self.assertEqual(len(res.trees("multi3.phy_phyml_tree.txt")), 3)
 
-    @known_bug("main.c:333 random starts are switched off after the first data set")
+    def test_one_tree_per_data_set_with_supports(self):
+        """The tree written before the aLRT is replaced by the tree with
+        supports."""
+        self.stage("multi3.phy")
+        res = self.run_phyml("-i", "multi3.phy", "-q", "-n", "2", "-b", "-1", *FAST)
+        self.assertSuccess(res)
+        trees = res.trees("multi3.phy_phyml_tree.txt")
+        self.assertEqual(len(trees), 2)
+
+    def test_append_adds_one_tree_per_data_set(self):
+        self.stage("multi3.phy")
+        for n_runs in (1, 2):
+            res = self.run_phyml("-i", "multi3.phy", "-q", "-n", "3", "-b", "-1", *FAST,
+                                 "--append")
+            self.assertSuccess(res)
+            self.assertEqual(len(res.trees("multi3.phy_phyml_tree.txt")), 3 * n_runs)
+
     def test_random_starts_apply_to_every_data_set(self):
         self.stage("multi3.phy")
         res = self.run_phyml("-i", "multi3.phy", "-q", "-n", "2", "-b", "0", *FAST,
@@ -197,7 +212,10 @@ class MultipleDataSets(PhymlTestCase):
         self.assertSuccess(res)
         blocks = res.stdout.split("Data set [#2]")
         self.assertEqual(len(blocks), 2, res.describe())
-        self.assertIn("[Random start", blocks[1])
+        for block in blocks:
+            self.assertEqual(block.count("[Random start"), 2, res.describe())
+        # Each data set: two random starts and the start from BioNJ
+        self.assertEqual(len(res.trees("multi3.phy_phyml_rand_trees.txt")), 6)
 
 
 if __name__ == "__main__":

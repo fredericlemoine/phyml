@@ -87,9 +87,7 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Wrong results: with `-n`, random starts only on the
-  first data set and two trees per data set in the tree file; MPI silently
-  rounds the replicate count up;
+- Wrong results: MPI silently rounds the replicate count up;
   `Permutate()` is not a uniform shuffle; `-d aa -m LG` without `-f` uses
   the empirical amino-acid frequencies (LG+F).
 - Other: `--print_trace` writes an empty file; duplicate taxon names are accepted;

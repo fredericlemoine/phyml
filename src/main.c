@@ -84,6 +84,21 @@ static void Search_Or_Optimize(t_tree *tree)
   }
 }
 
+// Truncates the tree file to pos and writes from there (also in --append
+// mode, where every write goes to the end of the file)
+static void Truncate_Tree_File(FILE *fp, long pos)
+{
+  fflush(fp);
+  if (ftruncate(fileno(fp), (off_t)pos) != 0 || fseek(fp, pos, SEEK_SET) != 0)
+  {
+    PhyML_Fprintf(stderr, "\n. Err.: could not rewrite the tree file.");
+    Exit("\n");
+  }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 int main(int argc, char **argv)
 {
   calign *cdata;
@@ -96,7 +111,8 @@ int main(int argc, char **argv)
   phydbl  best_lnL;
   int     r_seed;
   char   *most_likely_tree = NULL;
-  int     orig_random_input_tree;
+  int     orig_random_input_tree, orig_n_rand_starts;
+  long    tree_file_start = 0, tree_pos = 0;
 
 #ifdef MPI
   int rc;
@@ -157,6 +173,15 @@ int main(int argc, char **argv)
     io->n_trees     = MIN(io->n_trees, io->n_data_sets);
   }
 
+  // The last random start of each data set switches random_input_tree off
+  // and adds one start from BioNJ: each data set starts from these values
+  orig_random_input_tree = io->mod->s_opt->random_input_tree;
+  orig_n_rand_starts     = io->mod->s_opt->n_rand_starts;
+
+  // Where this run's trees start in the tree file (its end with --append)
+  if (io->fp_out_tree && fseek(io->fp_out_tree, 0, SEEK_END) == 0)
+    tree_file_start = ftell(io->fp_out_tree);
+
   for (num_data_set = 0; num_data_set < io->n_data_sets; num_data_set++)
   {
     best_lnL = UNLIKELY;
@@ -191,8 +216,9 @@ int main(int argc, char **argv)
     Make_Model_Complete(io->mod);
     Set_Model_Name(io->mod);
     Print_Settings(io);
-    mod                    = io->mod;
-    orig_random_input_tree = io->mod->s_opt->random_input_tree;
+    mod                               = io->mod;
+    io->mod->s_opt->random_input_tree = orig_random_input_tree;
+    io->mod->s_opt->n_rand_starts     = orig_n_rand_starts;
 
     if (cdata && io->sms_only == YES)
     {
@@ -438,7 +464,17 @@ int main(int argc, char **argv)
           Free_Tree(tree);
         } // Tree done
 
-        if (io->n_data_sets == 1) rewind(io->fp_out_tree);
+        // The tree is written now, so that the file holds it during the
+        // bootstrap, and rewritten with its supports below. With one data
+        // set, the tree of each input tree replaces the previous one.
+        if (io->n_data_sets == 1)
+          tree_pos = tree_file_start;
+        else
+        {
+          fseek(io->fp_out_tree, 0, SEEK_END);
+          tree_pos = ftell(io->fp_out_tree);
+        }
+        Truncate_Tree_File(io->fp_out_tree, tree_pos);
         if (most_likely_tree)
           PhyML_Fprintf(io->fp_out_tree, "%s\n", most_likely_tree);
 
@@ -472,7 +508,7 @@ int main(int argc, char **argv)
         if (!io->quiet)
           PhyML_Printf("\n\n. Printing the most likely tree in file '%s'.",
                        Basename(io->out_tree_file));
-        if (io->n_data_sets == 1) rewind(io->fp_out_tree);
+        Truncate_Tree_File(io->fp_out_tree, tree_pos);
 
         t_tree *dum;
         dum       = Read_Tree(&most_likely_tree);

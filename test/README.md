@@ -87,9 +87,7 @@ lines.
 
 Known bugs covered at the time of writing:
 
-- Crashes: unbalanced or
-  unclosed Newick input; truncated or short sequences and fewer than three taxa
-  end in `assert()`.
+- Crashes: unbalanced or unclosed Newick input.
 - Memory errors found by ASan: `%1000s` taxon-name reads (`Read_Seq_Sequential`/`Read_Seq_Interleaved`),
   1000-character names,
   long input paths (`cl.c:1842`) and the "file name too long" message itself
@@ -99,8 +97,7 @@ Known bugs covered at the time of writing:
   rounds the replicate count up;
   `Permutate()` is not a uniform shuffle; `-d aa -m LG` without `-f` uses
   the empirical amino-acid frequencies (LG+F).
-- Other: `-DNDEBUG` builds hang on sequential files (reader inside `assert`);
-  `--print_trace` writes an empty file; duplicate taxon names are accepted;
+- Other: `--print_trace` writes an empty file; duplicate taxon names are accepted;
   `--version`/`--help` exit with status 1; stale `config.h` version; help text
   out of date (`-s NNI`, `-b` range).
 

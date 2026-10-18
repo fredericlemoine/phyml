@@ -6,7 +6,7 @@ are. The scalar build (phyml-generic) is compared in test_likelihood_oracle.
 
 import unittest
 
-from phymltest import PHYML_NDEBUG, PhymlTestCase, known_bug
+from phymltest import PHYML_NDEBUG, PhymlTestCase
 
 
 @unittest.skipIf(PHYML_NDEBUG is None, "NDEBUG build (phyml-ndebug) not available")
@@ -21,9 +21,9 @@ class NoAssertBuild(PhymlTestCase):
         self.assertSuccess(b)
         self.assertEqual(a.final_lnl(), b.final_lnl())
 
-    @known_bug("io.c:1504 the sequential reader is the argument of assert(), "
-               "so -DNDEBUG never reads the sequences and loops forever")
     def test_sequential_input(self):
+        """The sequential reader used to be the argument of assert(), so a
+        -DNDEBUG build never read the sequences and looped forever."""
         self.stage("oracle_dna.phy")
         res = self.run_phyml("-i", "oracle_dna.phy", "-q", "-m", "JC69", "-b", "0",
                              binary=PHYML_NDEBUG, timeout=20)

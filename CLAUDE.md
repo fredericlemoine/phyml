@@ -79,8 +79,8 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 - Allocate with `mCalloc` and free with `Free`; errors go through `Exit`,
   `Warn_And_Exit` or `assert`, which end the process (there is no error
   return path).
-- Never put side effects inside `assert()`: `io.c:1504` does, and `-DNDEBUG`
-  builds then hang.
+- Never put side effects inside `assert()`: `-DNDEBUG` builds skip them (the
+  sequential PHYLIP reader once hung that way).
 - Fixed-size buffers: `T_MAX_FILE` (200), `T_MAX_NAME` (1000), `T_MAX_LINE`
   (2 MB). Bound every copy into them.
 - `-t` is kappa (rate ratio), not the ts/tv ratio the help text describes.

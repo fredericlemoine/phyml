@@ -1121,7 +1121,7 @@ align **Get_Seq(option *io)
     PhyML_Fprintf(
         stderr,
         "\n. PhyML needs at least three sequences to perform an analysis.");
-    assert(FALSE);
+    Exit("\n");
   }
 
   return io->data;
@@ -1632,6 +1632,20 @@ void Read_Ntax_Len_Phylip(FILE *fp, int *n_otu, int *n_tax)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* The file ends before the n_otu sequences announced in the header. */
+
+static void Missing_Sequences(int found, int n_otu)
+{
+  PhyML_Fprintf(stderr,
+                "\n. Err.: the header announces %d sequences but the file ends "
+                "after %d.\n",
+                n_otu, found);
+  Exit("");
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 align **Read_Seq_Sequential(option *io)
 {
   int     i;
@@ -1660,12 +1674,16 @@ align **Read_Seq_Sequential(option *io)
     data[i]->is_ambigu = NULL;
     data[i]->len       = 0;
 
-    if (!fscanf(io->fp_in_align, format, data[i]->name)) Exit("\n");
+    if (fscanf(io->fp_in_align, format, data[i]->name) != 1)
+      Missing_Sequences(i, io->n_otu);
 
     Check_Sequence_Name(data[i]->name);
 
+    // Not inside assert(): -DNDEBUG builds would skip the read
     while (data[i]->len < io->init_len * io->state_len)
-      assert(Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align));
+      if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len,
+                             io->fp_in_align))
+        break; // end of file: the length is checked below
 
     if (data[i]->len != io->init_len * io->state_len)
     {
@@ -1722,7 +1740,8 @@ align **Read_Seq_Interleaved(option *io)
     data[i]->len       = 0;
     data[i]->is_ambigu = NULL;
 
-    if (!fscanf(io->fp_in_align, format, data[i]->name)) Exit("\n");
+    if (fscanf(io->fp_in_align, format, data[i]->name) != 1)
+      Missing_Sequences(i, io->n_otu);
 
     Check_Sequence_Name(data[i]->name);
 

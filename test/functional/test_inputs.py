@@ -228,18 +228,23 @@ class BadAlignments(PhymlTestCase):
                 self.assertCleanFailure(res)
                 self.assertIn("longer than", res.output)
 
-    @known_bug("io.c:1504 a short sequence trips assert(Read_One_Line_Seq(...))")
     def test_sequence_shorter_than_header(self):
-        self.assertCleanFailure(self.run_bad("bad_short_seq.phy"))
+        res = self.run_bad("bad_short_seq.phy")
+        self.assertCleanFailure(res)
+        self.assertIn("t5", res.output)
 
-    @known_bug("io.c:1504 a truncated file trips assert(Read_One_Line_Seq(...))")
     def test_truncated_file(self):
-        self.assertCleanFailure(self.run_bad("bad_truncated.phy"))
+        for opts in (("-q",), ()):  # sequential, interleaved
+            with self.subTest(opts=opts):
+                self.stage("bad_truncated.phy")
+                res = self.run_phyml("-i", "bad_truncated.phy", *opts)
+                self.assertCleanFailure(res)
+                self.assertIn("announces 5 sequences but the file ends after 3", res.output)
 
-    @known_bug("io.c:1105 fewer than three taxa ends in assert(FALSE)")
     def test_fewer_than_three_taxa(self):
         res = self.run_bad("bad_too_few_taxa.phy")
         self.assertCleanFailure(res)
+        self.assertIn("at least three sequences", res.output)
 
     @known_bug("duplicate taxon names are accepted silently")
     def test_duplicate_taxon_names(self):

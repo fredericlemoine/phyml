@@ -4172,10 +4172,50 @@ void Br_Len_Not_Involving_Invar(t_tree *tree)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void Getstring_Stdin(char *s)
+/* One line of standard input into s, a buffer of size bytes. */
+
+void Getstring_Stdin(char *s, int size)
 {
-  if (!fgets(s, T_MAX_LINE, stdin)) Exit("");
-  if (strchr(s, '\n') != NULL) *strchr(s, '\n') = '\0';
+  if (!fgets(s, size, stdin)) Exit("");
+  if (strchr(s, '\n') != NULL)
+    *strchr(s, '\n') = '\0';
+  else if (!feof(stdin))
+  {
+    PhyML_Fprintf(stderr, "\n. Input line longer than %d characters.\n",
+                  size - 2);
+    Exit("\n");
+  }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* Input file names are copied into T_MAX_FILE buffers, and output file
+   names add a suffix and the run id to them. */
+
+void Check_File_Name_Length(const char *name)
+{
+  if (strlen(name) > T_MAX_FILE_INPUT)
+  {
+    PhyML_Fprintf(stderr,
+                  "\n. The file name '%.60s...' is too long (more than %d "
+                  "characters).\n",
+                  name, T_MAX_FILE_INPUT);
+    Exit("\n");
+  }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+void Check_Input_File(const char *name)
+{
+  Check_File_Name_Length(name);
+  if (!Filexists((char *)name))
+  {
+    PhyML_Fprintf(stderr, "\n. The file '%s' does not exist.\n", name);
+    Exit("\n");
+  }
 }
 
 //////////////////////////////////////////////////////////////

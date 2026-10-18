@@ -4,11 +4,6 @@ build/phyml-asan is compiled with -fsanitize-recover, and these tests run it
 with halt_on_error=0, so PhyML keeps going after an error and every report
 of a run is collected. Each test then checks that no report points into
 PhyML's code.
-
-One defect shows up on every run: the taxon-name reads use fscanf("%1000s")
-on 1000-byte buffers (Read_Seq_Sequential/Interleaved in io.c), and ASan's scanf interceptor flags the
-possible 1001-byte write. It has its own known-bug test below and is ignored
-by the others so that they can catch new problems.
 """
 
 import os
@@ -16,9 +11,6 @@ import re
 import unittest
 
 from phymltest import PHYML_ASAN, PhymlTestCase, data, known_bug
-
-# Matched by function, not line number, so that edits elsewhere in io.c do not break it
-SCANF_NAME_READ = re.compile(r"Read_Seq_(Sequential|Interleaved) io\.c:\d+\b")
 
 # detect_stack_use_after_return (on by default with GCC >= 13) makes PhyML
 # about 40 times slower under ASan; leaks are out of scope here.
@@ -55,11 +47,11 @@ class MemorySafety(PhymlTestCase):
 
     binary = PHYML_ASAN
 
-    def run_asan(self, *args, timeout=300):
-        return self.run_phyml(*args, timeout=timeout, env=ASAN_ENV)
+    def run_asan(self, *args, timeout=300, stdin=None):
+        return self.run_phyml(*args, timeout=timeout, env=ASAN_ENV, stdin=stdin)
 
     def other_reports(self, res):
-        return [r for r in reports(res.output) if not SCANF_NAME_READ.search(r[1])]
+        return reports(res.output)
 
     def assertNoMemoryErrors(self, res):
         self.assertFalse(res.timed_out, res.describe())
@@ -110,18 +102,23 @@ class MemorySafety(PhymlTestCase):
         self.assertEqual(res.returncode, 0, res.describe())
 
     # --- known defects ---------------------------------------------------
-    @known_bug("io.c Read_Seq_* fscanf(\"%1000s\") into a 1000-byte name buffer")
     def test_taxon_name_read_is_bounded(self):
+        """The names were read with fscanf("%1000s") into 1000-byte buffers."""
         self.stage("sim_jc_8.phy")
-        res = self.run_asan("-i", "sim_jc_8.phy", "-m", "JC69", "-c", "1", "-b", "0")
-        self.assertEqual([r for r in reports(res.output) if SCANF_NAME_READ.search(r[1])], [])
+        for opts in ((), ("-q",)):
+            with self.subTest(opts=opts):
+                self.stage("sim_jc_8.phy")
+                res = self.run_asan("-i", "sim_jc_8.phy", *opts, "-m", "JC69", "-c", "1",
+                                    "-b", "0")
+                self.assertNoMemoryErrors(res)
 
-    @known_bug("io.c:1501 a 1000-character taxon name overflows its buffer")
     def test_thousand_character_taxon_name(self):
         name = "x" * 1000
         aln = self.write("long_name.phy", "4 10\n%s ACGTACGTAC\n" % name +
                          "".join("t%d ACGTACGTAC\n" % i for i in range(3)))
-        self.assertNoMemoryErrors(self.run_asan("-i", aln, "-q", "-m", "JC69"))
+        res = self.run_asan("-i", aln, "-q", "-m", "JC69")
+        self.assertNoMemoryErrors(res)
+        self.assertIn("longer than 999 characters", res.output)
 
     def test_sequence_longer_than_header(self):
         names, seqs = [], []
@@ -134,25 +131,41 @@ class MemorySafety(PhymlTestCase):
                          "".join("%s %s\n" % (n, s) for n, s in zip(names, seqs)))
         self.assertNoMemoryErrors(self.run_asan("-i", aln, "-q", "-m", "JC69"))
 
-    @known_bug("cl.c:1842 output names (input + '_phyml_...' + run id) overflow T_MAX_FILE")
     def test_long_input_path(self):
-        # 180 characters: accepted as input (limit 189), too long once suffixed.
+        """Output names add a suffix and the run id to the input name; with
+        200-byte buffers, a 180-character input path overflowed them."""
         rel = os.path.join("d" * 120, "a" * 55 + ".phy")
         self.assertEqual(len(rel), 180)
         os.makedirs(os.path.join(self.tmp, "d" * 120))
         with open(data("sim_jc_8.phy")) as src, open(os.path.join(self.tmp, rel), "w") as dst:
             dst.write(src.read())
-        self.assertNoMemoryErrors(self.run_asan("-i", rel, "-m", "JC69", "-c", "1", "-b", "2"))
-
-    @known_bug("cl.c:1415 the 'file name too long' message is built by overflowing strcat")
-    def test_too_long_input_path_is_reported_cleanly(self):
-        rel = os.path.join("d" * 120, "b" * 75 + ".phy")
-        os.makedirs(os.path.join(self.tmp, "d" * 120))
-        with open(data("sim_jc_8.phy")) as src, open(os.path.join(self.tmp, rel), "w") as dst:
-            dst.write(src.read())
-        res = self.run_asan("-i", rel)
-        self.assertIn("too long", res.output)
+        res = self.run_asan("-i", rel, "-m", "JC69", "-c", "1", "-b", "2", "--run_id", "r" * 99)
         self.assertNoMemoryErrors(res)
+        self.assertEqual(res.returncode, 0, res.describe())
+        self.assertTrue(os.path.exists(os.path.join(
+            self.tmp, rel + "_phyml_boot_trees_" + "r" * 99 + ".txt")))
+
+    def test_too_long_names_are_reported_cleanly(self):
+        """The 'too long' message used to be built by strcat into a 200-byte
+        buffer. Names up to 3840 characters are now accepted."""
+        for opts, msg in ((["-i", "x" * 4000], "too long"),
+                          (["-i", "missing.phy"], "does not exist"),
+                          (["-i", "sim_jc_8.phy", "--run_id", "r" * 100], "run ID is longer")):
+            with self.subTest(msg=msg):
+                self.stage("sim_jc_8.phy")
+                res = self.run_asan(*opts)
+                self.assertIn(msg, res.output)
+                self.assertNotEqual(res.returncode, 0)
+                self.assertNoMemoryErrors(res)
+
+    def test_long_line_in_the_menu(self):
+        """The PHYLIP-like menu read up to 2 MB into 50- to 1000-byte buffers."""
+        # No argument at all (memcheck=True: no --no_memory_check), so that
+        # PhyML opens the menu
+        res = self.run_phyml(stdin="y" * 5000 + "\n", timeout=60, env=ASAN_ENV,
+                             memcheck=True)
+        self.assertNoMemoryErrors(res)
+        self.assertIn("longer than", res.output)
 
     def test_user_tree_without_branch_lengths(self):
         self.stage("sim_jc_8.phy")
@@ -187,7 +200,6 @@ WRITE of size 1 at 0x1 thread T0
         got = reports(self.SAMPLE)
         self.assertEqual(got[0], ("heap-buffer-overflow", "Read_One_Line_Seq io.c:1721"))
         self.assertEqual(got[1], ("heap-buffer-overflow", "Read_Seq_Interleaved io.c:1561"))
-        self.assertTrue(SCANF_NAME_READ.search(got[1][1]))
         self.assertEqual(got[2][1], "/x/phyml/src/cl.c:1882:21")
         self.assertEqual(len(got), 3)
 

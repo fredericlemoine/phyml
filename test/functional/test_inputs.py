@@ -69,6 +69,23 @@ class AlignmentFormats(PhymlTestCase):
         self.assertSuccess(res)
         self.assertIn(long_name, res.tree(name).leaf_names())
 
+    def test_name_length_limit(self):
+        """Names up to 999 characters are read; longer ones are refused (they
+        used to overflow the 1000-byte name buffer)."""
+        for n, ok in ((999, True), (1000, False)):
+            for opts in (("-q",), ()):
+                with self.subTest(length=n, opts=opts):
+                    name = self.write("n.phy", "4 10\n%s ACGTACGTAC\n" % ("x" * n) +
+                                      "".join("t%d ACGTACGTAC\n" % i for i in range(3)))
+                    res = self.run_phyml("-i", name, *opts, "-m", "JC69", "-c", "1",
+                                         "-o", "n", "-b", "0")
+                    if ok:
+                        self.assertSuccess(res)
+                        self.assertIn("x" * n, res.tree(name).leaf_names())
+                    else:
+                        self.assertCleanFailure(res)
+                        self.assertIn("longer than 999 characters", res.output)
+
     def test_amino_acid_alignment(self):
         self.stage("aa_small.phy")
         res = self.run_phyml("-i", "aa_small.phy", "-d", "aa", "-b", "0")

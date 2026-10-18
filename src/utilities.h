@@ -328,7 +328,9 @@ static inline int isinf_ld(long double x) { return isnan(x - x); }
 
 #define NEXT_BLOCK_SIZE 50
 
-#define T_MAX_FILE 200
+#define T_MAX_FILE 4096
+/* Longest input file name: output names add a suffix and the run id */
+#define T_MAX_FILE_INPUT (T_MAX_FILE - 256)
 #define T_MAX_LINE 2000000
 #define T_MAX_NAME 1000
 #define T_MAX_ID 20
@@ -2628,7 +2630,9 @@ void    Clean_Tree_Connections(t_tree *tree);
 void    Bootstrap(t_tree *tree);
 void    Br_Len_Involving_Invar(t_tree *tree);
 void    Br_Len_Not_Involving_Invar(t_tree *tree);
-void    Getstring_Stdin(char *s);
+void    Getstring_Stdin(char *s, int size);
+void    Check_File_Name_Length(const char *name);
+void    Check_Input_File(const char *name);
 phydbl  Num_Derivatives_One_Param(phydbl (*func)(t_tree *tree), t_tree *tree,
                                   phydbl f0, phydbl *param, int which,
                                   int n_param, phydbl stepsize, short int logt,

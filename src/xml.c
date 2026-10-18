@@ -131,6 +131,12 @@ t_tree *XML_Process_Base(char *xml_filename)
   s = XML_Get_Attribute_Value(p_elem, "run.id");
   if (s && strlen(s) > 0)
   {
+    if (strlen(s) > T_MAX_OPTION - 1)
+    {
+      PhyML_Fprintf(stderr, "\n. The run ID is longer than %d characters.\n",
+                    T_MAX_OPTION - 1);
+      Exit("\n");
+    }
     io->append_run_ID = YES;
     strcpy(io->run_id_string, s);
   }
@@ -138,6 +144,7 @@ t_tree *XML_Process_Base(char *xml_filename)
   s = XML_Get_Attribute_Value(p_elem, "r.seed");
   if (s && strlen(s) > 0) io->r_seed = (int)atoi(s);
 
+  Check_File_Name_Length(outputfile);
   strcpy(io->out_file, outputfile);
   strcpy(io->out_tree_file, outputfile);
   strcpy(io->out_stats_file, outputfile);

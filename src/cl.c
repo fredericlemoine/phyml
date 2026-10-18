@@ -362,6 +362,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     case 79:
     {
       io->has_io_weights = YES;
+      Check_File_Name_Length(optarg);
       strcpy(io->weight_file, optarg);
       break;
     }
@@ -375,29 +376,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       char *tmp;
       tmp = (char *)mCalloc(T_MAX_FILE, sizeof(char));
 
-      if (strlen(optarg) > T_MAX_FILE - 11)
-      {
-        char choix;
-        strcpy(tmp, "\n. The file name'");
-        strcat(tmp, optarg);
-        strcat(tmp, "' is too long.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else if (!Filexists(optarg))
-      {
-        char choix;
-        strcpy(tmp, "\n. The file '");
-        strcat(tmp, optarg);
-        strcat(tmp, "' doesn't exist.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else
+      Check_Input_File(optarg);
       {
         strcpy(io->in_coord_file, optarg);
         io->fp_in_coord = Openfile(io->in_coord_file, READ);
@@ -425,6 +404,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 73:
     {
+      Check_File_Name_Length(optarg);
       strcpy(io->in_xml_file, optarg);
       io->fp_in_xml = Openfile(io->in_xml_file, READ);
 
@@ -489,29 +469,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       char *tmp;
       tmp = (char *)mCalloc(T_MAX_FILE, sizeof(char));
 
-      if (strlen(optarg) > T_MAX_FILE - 11)
-      {
-        char choix;
-        strcpy(tmp, "\n. The file name'");
-        strcat(tmp, optarg);
-        strcat(tmp, "' is too long.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else if (!Filexists(optarg))
-      {
-        char choix;
-        strcpy(tmp, "\n. The file '");
-        strcat(tmp, optarg);
-        strcat(tmp, "' doesn't exist.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else
+      Check_Input_File(optarg);
       {
         strcpy(io->in_constraint_tree_file, optarg);
         io->fp_in_constraint_tree = Openfile(io->in_constraint_tree_file, 0);
@@ -673,6 +631,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       opt_model = 1;
       char *s;
+      Check_File_Name_Length(optarg);
       s = (char *)mCalloc(T_MAX_FILE, sizeof(char));
       strcpy(s, optarg);
       io->mod->fp_aa_rate_mat = Openfile(s, 0);
@@ -696,6 +655,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 50:
     {
+      Check_File_Name_Length(optarg);
       strcpy(io->clade_list_file, optarg);
       break;
     }
@@ -720,6 +680,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if (strlen(optarg) > 0)
       {
+        if (strlen(optarg) > T_MAX_OPTION - 1)
+        {
+          PhyML_Fprintf(stderr,
+                        "\n. The run ID is longer than %d characters.\n",
+                        T_MAX_OPTION - 1);
+          Exit("\n");
+        }
         io->append_run_ID = YES;
         strcpy(io->run_id_string, optarg);
       }
@@ -1112,6 +1079,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
         // is JC69
         if (strchr(optarg, ',') == NULL)
         {
+          if (strlen(optarg) != 6)
+            Warn_And_Exit("\n. The string should be of length 6.\n");
           strcpy(io->mod->custom_mod_string->s, optarg);
           if (strlen(io->mod->custom_mod_string->s) != 6)
           {
@@ -1633,30 +1602,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       char *tmp;
       tmp = (char *)mCalloc(T_MAX_FILE, sizeof(char));
-      if (strlen(optarg) > T_MAX_FILE - 16)
-      {
-        char choix;
-        strcpy(tmp, "\n. The file name'");
-        strcat(tmp, optarg);
-        strcat(tmp, "' is too long.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-
-      else if (!Filexists(optarg))
-      {
-        char choix;
-        strcpy(tmp, "\n. The file '");
-        strcat(tmp, optarg);
-        strcat(tmp, "' does not exist.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else
+      Check_Input_File(optarg);
       {
         strcpy(io->in_align_file, optarg);
         io->fp_in_align = Openfile(io->in_align_file, 0);
@@ -1798,29 +1744,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       char *tmp;
       tmp = (char *)mCalloc(T_MAX_FILE, sizeof(char));
-      if (strlen(optarg) > T_MAX_FILE - 11)
-      {
-        char choix;
-        strcpy(tmp, "\n. The file name'");
-        strcat(tmp, optarg);
-        strcat(tmp, "' is too long.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else if (!Filexists(optarg))
-      {
-        char choix;
-        strcpy(tmp, "\n. The file '");
-        strcat(tmp, optarg);
-        strcat(tmp, "' doesn't exist.\n");
-        PhyML_Printf("%s", tmp);
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
-        Exit("\n");
-      }
-      else
+      Check_Input_File(optarg);
       {
         strcpy(io->in_tree_file, optarg);
         io->in_tree    = 2;

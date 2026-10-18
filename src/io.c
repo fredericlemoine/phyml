@@ -1646,6 +1646,31 @@ static void Missing_Sequences(int found, int n_otu)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Taxon name of sequence i into a T_MAX_NAME buffer: at most T_MAX_NAME - 1
+   characters, so that the name stays terminated. */
+
+static void Read_Taxon_Name(FILE *fp, char *name, int i, int n_otu)
+{
+  char format[32];
+  int  c;
+
+  snprintf(format, sizeof(format), "%%%ds", T_MAX_NAME - 1);
+  if (fscanf(fp, format, name) != 1) Missing_Sequences(i, n_otu);
+  c = fgetc(fp);
+  if (c != EOF && !isspace(c))
+  {
+    PhyML_Fprintf(stderr,
+                  "\n. Err.: the name of sequence %d is longer than %d "
+                  "characters.\n",
+                  i + 1, T_MAX_NAME - 1);
+    Exit("");
+  }
+  if (c != EOF) ungetc(c, fp);
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 align **Read_Seq_Sequential(option *io)
 {
   int     i;
@@ -1662,7 +1687,7 @@ align **Read_Seq_Sequential(option *io)
   /*  while(((c=fgetc(io->fp_in_align))!='\n') && (c != ' ') && (c != '\r') &&
    * (c != '\t')); */
 
-  sprintf(format, "%%%ds", T_MAX_NAME);
+  sprintf(format, "%%%ds", T_MAX_NAME - 1);
 
   for (i = 0; i < io->n_otu; i++)
   {
@@ -1674,8 +1699,7 @@ align **Read_Seq_Sequential(option *io)
     data[i]->is_ambigu = NULL;
     data[i]->len       = 0;
 
-    if (fscanf(io->fp_in_align, format, data[i]->name) != 1)
-      Missing_Sequences(i, io->n_otu);
+    Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu);
 
     Check_Sequence_Name(data[i]->name);
 
@@ -1727,7 +1751,7 @@ align **Read_Seq_Interleaved(option *io)
   /*   while(((c=fgetc(io->fp_in_align))!='\n') && (c != ' ') && (c != '\r') &&
    * (c != '\t')); */
 
-  sprintf(format, "%%%ds", T_MAX_NAME);
+  sprintf(format, "%%%ds", T_MAX_NAME - 1);
 
   end = 0;
   for (i = 0; i < io->n_otu; i++)
@@ -1740,8 +1764,7 @@ align **Read_Seq_Interleaved(option *io)
     data[i]->len       = 0;
     data[i]->is_ambigu = NULL;
 
-    if (fscanf(io->fp_in_align, format, data[i]->name) != 1)
-      Missing_Sequences(i, io->n_otu);
+    Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu);
 
     Check_Sequence_Name(data[i]->name);
 
@@ -2672,7 +2695,7 @@ FILE *Openfile(char *filename, int mode)
     while (!(fp = (FILE *)fopen(s, "r")) && ++open_test < 10)
     {
       PhyML_Printf("\n. Can't open file '%s', enter a new name : ", s);
-      Getstring_Stdin(s);
+      Getstring_Stdin(s, T_MAX_FILE_INPUT + 2);
     }
     break;
   }
@@ -5956,6 +5979,7 @@ void Make_Topology_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
     }
     else
     {
+      Check_File_Name_Length(starting_tree);
       strcpy(io->in_tree_file, starting_tree);
       io->in_tree    = 2;
       io->fp_in_tree = Openfile(io->in_tree_file, 0);

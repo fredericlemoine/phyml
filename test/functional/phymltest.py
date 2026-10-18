@@ -180,14 +180,17 @@ def stage_files(dest, *names):
     return [os.path.basename(n) for n in names]
 
 
-def run(args, cwd, exe=None, timeout=DEFAULT_TIMEOUT, memcheck=False, env=None):
-    """Run PhyML with stdin closed; never raises on failure or timeout."""
+def run(args, cwd, exe=None, timeout=DEFAULT_TIMEOUT, memcheck=False, env=None, stdin=None):
+    """Run PhyML with stdin closed, or reading the text `stdin`; never raises
+    on failure or timeout."""
     exe = exe or PHYML
     args = [str(a) for a in args]
     if not memcheck and "--no_memory_check" not in args:
         args.append("--no_memory_check")
     try:
-        proc = subprocess.run([exe] + args, cwd=cwd, stdin=subprocess.DEVNULL,
+        proc = subprocess.run([exe] + args, cwd=cwd,
+                              stdin=subprocess.DEVNULL if stdin is None else None,
+                              input=stdin,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               universal_newlines=True, errors="replace",
                               timeout=timeout, env=env)
@@ -241,8 +244,9 @@ class PhymlTestCase(unittest.TestCase):
         return stage_files(self.tmp, *names)
 
     def run_phyml(self, *args, binary=None, timeout=DEFAULT_TIMEOUT, cwd=None,
-                  memcheck=False, env=None):
-        return run(args, cwd or self.tmp, binary or self.binary, timeout, memcheck, env)
+                  memcheck=False, env=None, stdin=None):
+        return run(args, cwd or self.tmp, binary or self.binary, timeout, memcheck, env,
+                   stdin)
 
     def assertSuccess(self, res):
         self.assertFalse(res.timed_out, res.describe())

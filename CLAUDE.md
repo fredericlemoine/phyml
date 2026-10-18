@@ -81,8 +81,11 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   return path).
 - Never put side effects inside `assert()`: `-DNDEBUG` builds skip them (the
   sequential PHYLIP reader once hung that way).
-- Fixed-size buffers: `T_MAX_FILE` (200), `T_MAX_NAME` (1000), `T_MAX_LINE`
-  (2 MB). Bound every copy into them.
+- Fixed-size buffers: `T_MAX_FILE` (4096; input file names up to
+  `T_MAX_FILE_INPUT`, checked by `Check_File_Name_Length`/`Check_Input_File`
+  so that output names have room for their suffix and the run id),
+  `T_MAX_NAME` (1000), `T_MAX_OPTION` (100, run id), `T_MAX_LINE` (2 MB). Bound
+  every copy into them; `Getstring_Stdin` takes the buffer size.
 - `-t` is kappa (rate ratio), not the ts/tv ratio the help text describes.
 - Bootstrap replicates share `s_opt`, `io` and likelihood buffers with the
   main tree; writing to them during a replicate changes the main analysis.

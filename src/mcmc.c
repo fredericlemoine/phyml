@@ -3067,7 +3067,7 @@ void MCMC_Pause(t_mcmc *mcmc)
 	  {	    
 	    len = 1E+4;
 	    PhyML_Printf("\n. How many extra generations is required [default: 1E+4] ");
-	    Getstring_Stdin(s);
+	    Getstring_Stdin(s, 100);
 	    if(s[0] == '\0') len = 1E+4; 
 	    else len = (int)atof(s); 
 

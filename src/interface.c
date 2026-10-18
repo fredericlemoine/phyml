@@ -57,7 +57,7 @@ void Launch_Interface(option *io)
   if (io->in_tree == 2)
   {
     PhyML_Printf("\n. Enter the name of the input tree file > ");
-    Getstring_Stdin(io->in_tree_file);
+    Getstring_Stdin(io->in_tree_file, T_MAX_FILE_INPUT + 2);
     io->fp_in_tree = Openfile(io->in_tree_file, 0);
   }
 
@@ -71,7 +71,7 @@ void Launch_Interface(option *io)
     PhyML_Printf("\n");
     PhyML_Printf("\n. Enter the rate matrix file name > ");
     fflush(NULL);
-    Getstring_Stdin(filename);
+    Getstring_Stdin(filename, T_MAX_NAME);
     io->mod->fp_aa_rate_mat = Openfile(filename, 0);
     strcpy(io->mod->aa_rate_mat_file->s, filename);
     PhyML_Printf("\n");
@@ -244,19 +244,19 @@ void Launch_Interface_Input(option *io)
   PhyML_Printf("\n\n");
   PhyML_Printf("\n. Enter the tree file name > ");
   fflush(NULL);
-  Getstring_Stdin(io->in_tree_file);
+  Getstring_Stdin(io->in_tree_file, T_MAX_FILE_INPUT + 2);
   io->fp_in_tree = Openfile(io->in_tree_file, 0);
   PhyML_Printf("\n");
 
   PhyML_Printf("\n. Enter the reference sequence file name > ");
   fflush(NULL);
-  Getstring_Stdin(io->in_align_file);
+  Getstring_Stdin(io->in_align_file, T_MAX_FILE_INPUT + 2);
   io->fp_in_align = Openfile(io->in_align_file, 0);
   PhyML_Printf("\n");
 
   PhyML_Printf("\n. Number of data sets > ");
   n_data_sets = (char *)mCalloc(10000, sizeof(char));
-  Getstring_Stdin(n_data_sets);
+  Getstring_Stdin(n_data_sets, 10000);
   n_trial = 0;
   while ((!atoi(n_data_sets)) || (atoi(n_data_sets) < 0))
   {
@@ -264,7 +264,7 @@ void Launch_Interface_Input(option *io)
       Exit("\n== Err : the number of sets must be a positive integer");
     PhyML_Printf("\n. The number of sets must be a positive integer");
     PhyML_Printf("\n. Enter a new value > ");
-    Getstring_Stdin(n_data_sets);
+    Getstring_Stdin(n_data_sets, 10000);
   }
   io->n_data_set_asked = atoi(n_data_sets);
   Free(n_data_sets);
@@ -273,13 +273,13 @@ void Launch_Interface_Input(option *io)
 
   PhyML_Printf("\n. Enter the tree file name > ");
   fflush(NULL);
-  Getstring_Stdin(io->in_tree_file);
+  Getstring_Stdin(io->in_tree_file, T_MAX_FILE_INPUT + 2);
   io->fp_in_tree = Openfile(io->in_tree_file, 0);
   PhyML_Printf("\n");
 
   PhyML_Printf("\n. Enter the reference sequence file name > ");
   fflush(NULL);
-  Getstring_Stdin(io->in_align_file);
+  Getstring_Stdin(io->in_align_file, T_MAX_FILE_INPUT + 2);
   io->fp_in_align = Openfile(io->in_align_file, 0);
   PhyML_Printf("\n");
 
@@ -287,7 +287,7 @@ void Launch_Interface_Input(option *io)
 
   PhyML_Printf("\n. Enter the sequence file name > ");
   fflush(NULL);
-  Getstring_Stdin(io->in_align_file);
+  Getstring_Stdin(io->in_align_file, T_MAX_FILE_INPUT + 2);
   io->fp_in_align = Openfile(io->in_align_file, 0);
 
 #endif
@@ -475,7 +475,7 @@ void Launch_Interface_Data_Type(option *io)
   {
     io->append_run_ID = (io->append_run_ID) ? (0) : (1);
     PhyML_Printf("\n. Enter a run ID (any string of characters) > ");
-    Getstring_Stdin(io->run_id_string);
+    Getstring_Stdin(io->run_id_string, T_MAX_OPTION);
     break;
   }
 
@@ -486,7 +486,7 @@ void Launch_Interface_Data_Type(option *io)
 
     PhyML_Printf("\n. How many data sets > ");
     c = (char *)mCalloc(100, sizeof(char));
-    Getstring_Stdin(c);
+    Getstring_Stdin(c, 100);
     n_trial = 0;
     while ((!atoi(c)) || (atoi(c) < 0))
     {
@@ -494,7 +494,7 @@ void Launch_Interface_Data_Type(option *io)
         Exit("\n== Err : The number of data sets must be a positive integer");
       PhyML_Printf("\n. The number of data sets must be a positive integer");
       PhyML_Printf("\n. Enter a new value > ");
-      Getstring_Stdin(c);
+      Getstring_Stdin(c, 100);
     }
     io->n_data_sets = atoi(c);
 
@@ -861,7 +861,7 @@ void Launch_Interface_Model(option *io)
       do
       {
         PhyML_Printf("\n. Enter a new custom model > ");
-        Getstring_Stdin(io->mod->custom_mod_string->s);
+        Getstring_Stdin(io->mod->custom_mod_string->s, T_MAX_NAME);
         if (strlen(io->mod->custom_mod_string->s) == 6)
         {
           for (i = 0; i < 6; i++)
@@ -872,7 +872,7 @@ void Launch_Interface_Model(option *io)
                 Exit("\n== Err : this string is not valid !\n");
               PhyML_Printf("\n. This string is not valid\n");
               PhyML_Printf("\n. Enter a new model > ");
-              Getstring_Stdin(io->mod->custom_mod_string->s);
+              Getstring_Stdin(io->mod->custom_mod_string->s, T_MAX_NAME);
             }
           }
           if (i == 6) break;
@@ -923,7 +923,7 @@ void Launch_Interface_Model(option *io)
 
         PhyML_Printf("  (current=%.2f) > ", io->mod->r_mat->rr_val->v[i]);
 
-        Getstring_Stdin(rr);
+        Getstring_Stdin(rr, 50);
 
         if (rr[0] != '\0')
         {
@@ -936,7 +936,7 @@ void Launch_Interface_Model(option *io)
             PhyML_Printf(
                 "\n. The value of this parameter must be a positive number\n");
             PhyML_Printf("\n. Enter a new value > ");
-            Getstring_Stdin(rr);
+            Getstring_Stdin(rr, 50);
           }
           io->mod->r_mat->rr_val->v[i] = (phydbl)atof(rr);
         }
@@ -983,7 +983,7 @@ void Launch_Interface_Model(option *io)
         for (i = 0; i < 4; i++)
         {
           PhyML_Printf("%s", bases[i]);
-          Getstring_Stdin(bs);
+          Getstring_Stdin(bs, 100);
           n_trial = 0;
 
           while ((atof(bs) < .0001) || (bs[0] == '\0'))
@@ -994,7 +994,7 @@ void Launch_Interface_Model(option *io)
             PhyML_Printf(
                 "\n. The value of this parameter must be a positive number\n");
             PhyML_Printf("\n. Enter a new value > ");
-            Getstring_Stdin(bs);
+            Getstring_Stdin(bs, 100);
           }
           io->mod->e_frq->user_b_freq->v[i] = (phydbl)atof(bs);
           sum += io->mod->e_frq->user_b_freq->v[i];
@@ -1086,14 +1086,14 @@ void Launch_Interface_Model(option *io)
       io->mod->ras->alpha->v   = 10.0;
       io->mod->ras->alpha->optimize = NO;
       PhyML_Printf("\n. Enter your value of alpha > ");
-      Getstring_Stdin(a);
+      Getstring_Stdin(a, 100);
       n_trial = 0;
       while (atof(a) < 1.E-10)
       {
         if (++n_trial > 10) Exit("\n== Err : alpha must be > 1.E-10\n");
         PhyML_Printf("\n. Alpha must be 1.E-10\n");
         PhyML_Printf("\n. Enter a new value > ");
-        Getstring_Stdin(a);
+        Getstring_Stdin(a, 100);
       }
       io->mod->ras->alpha->v = (phydbl)atof(a);
       Free(a);
@@ -1111,7 +1111,7 @@ void Launch_Interface_Model(option *io)
 
     PhyML_Printf("\n. Enter your number of categories > ");
     c = (char *)mCalloc(100, sizeof(char));
-    Getstring_Stdin(c);
+    Getstring_Stdin(c, 100);
     n_trial = 0;
     while ((!atoi(c)) || (atoi(c) < 0))
     {
@@ -1120,7 +1120,7 @@ void Launch_Interface_Model(option *io)
             "\n== Err : the number of categories must be a positive integer\n");
       PhyML_Printf("\n. The number of categories must be a positive integer\n");
       PhyML_Printf("\n. Enter a new value > ");
-      Getstring_Stdin(c);
+      Getstring_Stdin(c, 100);
     }
     io->mod->ras->n_catg = atoi(c);
     Free(c);
@@ -1190,7 +1190,7 @@ void Launch_Interface_Model(option *io)
       char *p;
       p = (char *)mCalloc(100, sizeof(char));
       PhyML_Printf("\n. Enter your value of p-invar > ");
-      Getstring_Stdin(p);
+      Getstring_Stdin(p, 100);
       n_trial = 0;
       while ((atof(p) < 0.0) || (atof(p) > 1.0))
       {
@@ -1200,7 +1200,7 @@ void Launch_Interface_Model(option *io)
         PhyML_Printf("\n. The proportion must be a positive number between 0.0 "
                      "and 1.0\n");
         PhyML_Printf("\n. Enter a new value > ");
-        Getstring_Stdin(p);
+        Getstring_Stdin(p, 100);
       }
       io->mod->ras->pinvar->v = (phydbl)atof(p);
 
@@ -1284,7 +1284,7 @@ else    {
       t                        = (char *)mCalloc(100, sizeof(char));
       io->mod->kappa->optimize = 0;
       PhyML_Printf("\n. Enter your value of the ts/tv ratio > ");
-      Getstring_Stdin(t);
+      Getstring_Stdin(t, 100);
       n_trial = 0;
       while (atof(t) < .0)
       {
@@ -1292,7 +1292,7 @@ else    {
           Exit("\n== Err : the ts/tv ratio must be a positive number\n");
         PhyML_Printf("\n. The ratio must be a positive number");
         PhyML_Printf("\n. Enter a new value > ");
-        Getstring_Stdin(t);
+        Getstring_Stdin(t, 100);
       }
       io->mod->kappa->v         = (phydbl)atof(t);
       io->mod->kappa->optimize  = 0;
@@ -1661,7 +1661,7 @@ void Launch_Interface_Topo_Search(option *io)
 
     PhyML_Printf("\n. Enter your number of starting trees > ");
     n = (char *)mCalloc(100, sizeof(char));
-    Getstring_Stdin(n);
+    Getstring_Stdin(n, 100);
     n_trial = 0;
     while (atoi(n) < 1)
     {
@@ -1671,7 +1671,7 @@ void Launch_Interface_Topo_Search(option *io)
       PhyML_Printf(
           "\n. The number of starting trees must be a positive integer\n");
       PhyML_Printf("\n. Enter a new value > ");
-      Getstring_Stdin(n);
+      Getstring_Stdin(n, 100);
     }
     io->mod->s_opt->n_rand_starts = atoi(n);
     io->n_trees                   = 1;
@@ -1863,7 +1863,7 @@ void Launch_Interface_Branch_Support(option *io)
 
       PhyML_Printf("\n. Number of replicates > ");
       r = (char *)mCalloc(T_MAX_OPTION, sizeof(char));
-      Getstring_Stdin(r);
+      Getstring_Stdin(r, T_MAX_OPTION);
       n_trial = 0;
       while ((!atoi(r)) || (atoi(r) < 0))
       {
@@ -1872,7 +1872,7 @@ void Launch_Interface_Branch_Support(option *io)
                "integer\n");
         PhyML_Printf("\n. The number of replicates must be a positive integer");
         PhyML_Printf("\n. Enter a new value > ");
-        Getstring_Stdin(r);
+        Getstring_Stdin(r, T_MAX_OPTION);
       }
       io->n_boot_replicates = atoi(r);
 
@@ -2068,7 +2068,7 @@ void Launch_Interface_Multigene(option *io)
       PhyML_Printf("\n. Enter the sequence file name [data set %2d] > ",
                    set + 1);
       fflush(NULL);
-      Getstring_Stdin(io->st->optionlist[set]->in_align_file);
+      Getstring_Stdin(io->st->optionlist[set]->in_align_file, T_MAX_FILE_INPUT + 2);
       io->st->optionlist[set]->fp_in_align =
           Openfile(io->st->optionlist[set]->in_align_file, 0);
     }
@@ -2098,7 +2098,7 @@ void Launch_Interface_Multigene(option *io)
     {
       io->in_tree = 2;
       PhyML_Printf("\n. Enter the name of the tree file > ");
-      Getstring_Stdin(io->in_tree_file);
+      Getstring_Stdin(io->in_tree_file, T_MAX_FILE_INPUT + 2);
       io->fp_in_tree = Openfile(io->in_tree_file, 0);
       break;
     }

@@ -944,7 +944,8 @@ void R_wtree(t_node *pere, t_node *fils, t_edge *b, int *available,
       if (tree->print_labels == YES)
         Print_Labels(NULL, *s_tree + (int)strlen(*s_tree), fils->label);
 
-      if (tree->io && tree->io->print_support_val == YES)
+      if (tree->io && tree->io->print_support_val == YES &&
+          fils->b[p]->support_val > NO_SUPPORT)
       {
         if (tree->io->do_boot == YES || tree->io->do_bayesboot == YES)
         {

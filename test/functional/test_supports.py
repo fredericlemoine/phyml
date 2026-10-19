@@ -1,7 +1,9 @@
 """Branch supports: aLRT family, aBayes, bootstrap, TBE, Bayesian bootstrap."""
 
+import os
 import unittest
 
+import oracle
 from newick import Newick, transfer_support
 from phymltest import PhymlTestCase, data, stage_files
 
@@ -175,6 +177,57 @@ class Bootstrap(PhymlTestCase):
         self.stage("multi3.phy")
         res = self.run_phyml("-i", "multi3.phy", "-q", "-n", "3", "-b", "5")
         self.assertNotEqual(res.returncode, 0)
+
+
+class Duplicates(PhymlTestCase):
+    """Duplicate sequences are removed before the analysis and put back in
+    the final tree: the edge grouping a sequence with its copy gets no
+    support (it was written as -1), the other edges keep theirs."""
+
+    N = 3
+    PAIRS = (frozenset(["t1", "t9"]), frozenset(["t3", "t10"]))
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        wd = cls.class_workdir()
+        names, seqs = oracle.read_phylip(data(ALN))
+        seq = dict(zip(names, seqs))
+        seq["t9"], seq["t10"] = seq["t1"], seq["t3"]
+        with open(os.path.join(wd, "dup.phy"), "w") as fh:
+            fh.write("%d %d\n" % (len(seq), len(seqs[0])))
+            fh.writelines("%-10s %s\n" % kv for kv in seq.items())
+        n = str(cls.N)
+        cls.runs = {}
+        for name, opts in (("fbp", ["-b", n]), ("bb", ["-b", n, "--bayesian_bootstrap"]),
+                           ("tbe", ["-b", n, "--tbe"]), ("alrt", ["-b", "-1"]),
+                           ("chi2", ["-b", "-2"]), ("sh", ["-b", "-4"]),
+                           ("abayes", ["-b", "-5"])):
+            cls.runs[name] = cls.class_run(wd, "-i", "dup.phy", *FAST, *opts,
+                                           "--r_seed", "1", "--run_id", name)
+
+    def test_no_support_on_the_duplicate_edges(self):
+        for name, res in self.runs.items():
+            with self.subTest(support=name):
+                self.assertSuccess(res)
+                tree = res.tree("dup.phy")
+                self.assertEqual(len(tree.leaf_names()), 10)
+                self.assertNotIn(")-1", tree.to_string())
+                splits, full = tree.splits(), frozenset(tree.leaf_names())
+                for pair in self.PAIRS:
+                    # splits() keys each split by the side without the first taxon
+                    side = pair if min(full) not in pair else full - pair
+                    self.assertIn(side, splits, tree.to_string())
+                    self.assertIsNone(splits[side].label, tree.to_string())
+                values = tree.supports()
+                self.assertEqual(len(values), N_INTERNAL, tree.to_string())
+                if name in ("fbp", "bb"):
+                    self.assertTrue(all(0 <= v <= self.N and v == int(v)
+                                        for v in values.values()), values)
+                elif name != "alrt":
+                    self.assertTrue(all(0.0 <= v <= 1.0 for v in values.values()), values)
+                else:
+                    self.assertTrue(all(v >= 0.0 for v in values.values()), values)
 
 
 if __name__ == "__main__":

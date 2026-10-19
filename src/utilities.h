@@ -352,6 +352,9 @@ static inline int isinf_ld(long double x) { return isnan(x - x); }
 #define N_MAX_INSERT 20
 #define N_MAX_OTU 4000
 #define UNLIKELY -1.e20
+/* support_val of an edge with no support computed (the edges added when
+   duplicate sequences are put back in the tree): no label is written */
+#define NO_SUPPORT -1.0
 #define NJ_SEUIL 0.1
 #define ROUND_MAX 100
 #define DIST_MAX 2.00

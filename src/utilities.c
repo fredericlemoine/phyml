@@ -2930,7 +2930,9 @@ void Insert_Duplicates(t_tree *tree)
                       tree->a_nodes[j], tree);
         Set_Scalar_Dbl(tree->a_nodes[j]->b[0]->l->v, residual->l);
         Set_Scalar_Dbl(tree->mod->l_min, tree->a_nodes[j]->b[0]->l);
-        residual->support_val = -1.;
+        // {D, D'} | rest reduces to D's terminal edge on the unique taxa
+        // the supports were computed on: no support for it
+        residual->support_val = NO_SUPPORT;
 
         break;
       }

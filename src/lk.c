@@ -635,11 +635,17 @@ phydbl Lk(t_edge *b, t_tree *tree)
 
     /* Sites are independent: each one writes only its own entries of the
        per-site arrays and uses its own scratch vectors. */
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static) reduction(|:warn)
+    /* The scratch vectors are declared once per thread, not once per site
+       (a variable-length array in the loop body costs a stack adjustment,
+       and a stack probe on macOS, at every site). */
+#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn)
+    {
+    phydbl site_lk_cat[ncatg];
+    int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
+
+#pragma omp for schedule(static)
     for(s=0;s<(int)npatterns;++s)
       {
-        phydbl site_lk_cat[ncatg];
-        int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
         int s_state = -1;
         int s_ambiguity_check = -1;
 
@@ -663,6 +669,7 @@ phydbl Lk(t_edge *b, t_tree *tree)
                        b->Pij_rr,b->tPij_rr,b,tree,
                        site_lk_cat,sum_scale_left_cat,sum_scale_rght_cat,&warn);
       }
+    }
 
     if(warn == YES) tree->numerical_warning = YES;
 
@@ -766,12 +773,16 @@ phydbl dLk(phydbl *l, t_edge *b, t_tree *tree)
     int warn = NO;
     int s;
 
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static) reduction(|:warn)
+    /* Scratch vectors once per thread, as in Lk */
+#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn)
+    {
+    phydbl site_lk_cat[ncatg];
+    int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
+
+#pragma omp for schedule(static)
     for(s=0;s<(int)npattern;++s)
       {
         phydbl s_lk,s_dlk;
-        phydbl site_lk_cat[ncatg];
-        int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
 
         if(tree->data->wght[s] <= SMALL) continue;
 
@@ -783,6 +794,7 @@ phydbl dLk(phydbl *l, t_edge *b, t_tree *tree)
         site_dlnl[2*s]   = s_dlk / s_lk;
         site_dlnl[2*s+1] = log(s_lk) - (phydbl)LOG2 * tree->fact_sum_scale[s];
       }
+    }
 
     if(warn == YES) tree->numerical_warning = YES;
 
@@ -828,6 +840,7 @@ phydbl Lk_Core(int state, int ambiguity_check,
 
   res = Lk_Core_Site(site,state,ambiguity_check,p_lk_left,p_lk_rght,Pij_rr,tPij_rr,b,tree,
                      tree->site_lk_cat,b->sum_scale_left_cat,b->sum_scale_rght_cat,&warn);
+  if(tree->apply_lk_scaling == YES) res /= pow(2,tree->fact_sum_scale[site]);
   if(warn == YES) tree->numerical_warning = YES;
   tree->c_lnL += tree->data->wght[site] * tree->c_lnL_sorted[site];
   return res;
@@ -839,7 +852,9 @@ phydbl Lk_Core(int state, int ambiguity_check,
 /* Lk_Core for a given site. Safe to call for different sites in parallel:
    besides the entries of the per-site arrays for 'site', it only writes to
    the scratch vectors (one element per rate class) passed as arguments. Does
-   not add the site log-likelihood to tree->c_lnL. */
+   not add the site log-likelihood to tree->c_lnL. Returns the site
+   likelihood still scaled by 2^fact_sum_scale[site]: Lk_Core unscales it
+   (Lk does not use it, and pow() at every site was a measurable cost). */
 phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
                     phydbl *p_lk_left, phydbl *p_lk_rght,
                     phydbl *Pij_rr, phydbl *tPij_rr,
@@ -861,11 +876,13 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
   
   if(tree->mod->s_opt->skip_tree_traversal == NO)
     {
+      // Structure models, LG4M, LG4X: each category has its own matrix and
+      // frequencies (tested here, not looked up for every site and class)
+      const int cat_pi = (tree->mod->lg4 != NULL || tree->mod->smod != NULL);
+
       for(catg=0;catg<ncatg;++catg)
         {
-          // Structure models, LG4M, LG4X: each category has its own matrix
-          // and frequencies
-          pi = Cat_Pi(tree->mod,catg);
+          if(cat_pi) pi = Cat_Pi(tree->mod,catg);
 
           if(ns == 4 || ns == 20)
             {
@@ -923,8 +940,7 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
 
     }
 
-  if(tree->apply_lk_scaling == YES) res = site_lk / pow(2,tree->fact_sum_scale[site]);
-  else                              res = site_lk;
+  res = site_lk;
 
   if(site_lk < SMALL)
     {

@@ -99,7 +99,11 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   take scratch vectors instead of `tree->site_lk_cat`, `b->sum_scale_*_cat`
   and `tree->curr_site`. Sums over sites are done afterwards in site order,
   so results do not depend on the number of threads. Mixture models (`mixt.c`)
-  still run serially.
+  still run serially. These loops run hundreds of millions of times per
+  search: declare scratch arrays once per thread (`omp parallel` around
+  `omp for`, as in `Lk` and `dLk`), not as variable-length arrays in the
+  loop body, and keep per-site work to what the caller uses (a `pow()` per
+  site in `Lk_Core_Site` cost 3%).
 - SMS (`sms.c`) fits each candidate model in-process on a fixed tree, like
   a `phyml -o lr -u tree --r_seed N` run of the SMS 2.1.1 scripts: it swaps
   `io->mod` for the candidate (some routines read `io->mod`), reseeds `rand()`

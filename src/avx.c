@@ -13,18 +13,25 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "assert.h"
 #include "avx.h"
 
+/* Always inlined: used to specialise loops for ns = 4 and 20 */
+#if defined(__GNUC__)
+#define LK_INLINE static inline __attribute__((always_inline))
+#else
+#define LK_INLINE static inline
+#endif
+
 #if ((defined(__AVX__) || defined(__AVX2__)) && !defined(DISABLE_NATIVE))
 
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void AVX_Update_Eigen_Lr(t_edge *b, t_tree *tree)
+LK_INLINE void AVX_Update_Eigen_Lr_Ns(t_edge *b, t_tree *tree, const unsigned int ns_c)
 {
   unsigned int i,j;
   
   unsigned const int npattern = tree->data->n_pattern;
   unsigned const int ncatg = tree->mod->ras->n_catg;
-  unsigned const int ns = tree->mod->ns;
+  const unsigned int ns = ns_c;
   unsigned const int sz = (int)BYTE_ALIGN / 8;
   unsigned const int nblocks = ns / sz;
   unsigned const int ncatgns = ncatg*ns;
@@ -110,10 +117,18 @@ void AVX_Update_Eigen_Lr(t_edge *b, t_tree *tree)
   }
 }
 
+void AVX_Update_Eigen_Lr(t_edge *b, t_tree *tree)
+{
+  // Constant ns for DNA and proteins (loops unrolled)
+  if(tree->mod->ns == 4)  { AVX_Update_Eigen_Lr_Ns(b,tree,4); return; }
+  if(tree->mod->ns == 20) { AVX_Update_Eigen_Lr_Ns(b,tree,20); return; }
+  AVX_Update_Eigen_Lr_Ns(b,tree,tree->mod->ns);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-phydbl AVX_Lk_Core_One_Class_No_Eigen_Lr(const phydbl *p_lk_left, const phydbl *p_lk_rght, const phydbl *Pij, const phydbl *tPij, const phydbl *pi, const int ns, const int ambiguity_check, const int observed_state)
+LK_INLINE phydbl AVX_Lk_Core_One_Class_No_Eigen_Lr_Inl(const phydbl *p_lk_left, const phydbl *p_lk_rght, const phydbl *Pij, const phydbl *tPij, const phydbl *pi, const int ns, const int ambiguity_check, const int observed_state)
 {
   const unsigned int sz = (int)BYTE_ALIGN / 8;
   const unsigned nblocks = ns/sz;
@@ -220,10 +235,18 @@ phydbl AVX_Lk_Core_One_Class_No_Eigen_Lr(const phydbl *p_lk_left, const phydbl *
     }
 }
 
+phydbl AVX_Lk_Core_One_Class_No_Eigen_Lr(const phydbl *p_lk_left, const phydbl *p_lk_rght, const phydbl *Pij, const phydbl *tPij, const phydbl *pi, const int ns, const int ambiguity_check, const int observed_state)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { return AVX_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,4,ambiguity_check,observed_state); }
+  if(ns == 20) { return AVX_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,20,ambiguity_check,observed_state); }
+  return AVX_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,ns,ambiguity_check,observed_state);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-phydbl AVX_Lk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns)
+LK_INLINE phydbl AVX_Lk_Core_One_Class_Eigen_Lr_Inl(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns)
 {
   unsigned int l;
   const unsigned int sz = (int)BYTE_ALIGN / 8;
@@ -249,11 +272,19 @@ phydbl AVX_Lk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *expl
   
   return AVX_Vect_Norm(_x);
 }
+
+phydbl AVX_Lk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { return AVX_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,4); }
+  if(ns == 20) { return AVX_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,20); }
+  return AVX_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,ns);
+}
  
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void AVX_Lk_dLk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns, phydbl *lk, phydbl *dlk)
+LK_INLINE void AVX_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns, phydbl *lk, phydbl *dlk)
 {
   unsigned int i;
   const unsigned int sz = (int)BYTE_ALIGN / 8;
@@ -279,6 +310,14 @@ void AVX_Lk_dLk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *ex
   *lk = ((double *)&_z)[0] + ((double *)&_z)[2];
   *dlk = ((double *)&_z)[1] + ((double *)&_z)[3];
 
+}
+
+void AVX_Lk_dLk_Core_One_Class_Eigen_Lr(const phydbl *dot_prod, const phydbl *expl, const unsigned int ns, phydbl *lk, phydbl *dlk)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { AVX_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,4,lk,dlk); return; }
+  if(ns == 20) { AVX_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,20,lk,dlk); return; }
+  AVX_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,ns,lk,dlk);
 }
  
 //////////////////////////////////////////////////////////////
@@ -307,11 +346,6 @@ phydbl AVX_Vect_Norm(__m256d _z)
 /* Inlined copies of the kernels below, so that AVX_Update_Partial_Lk can be
    specialised for ns = 4 and ns = 20: same operations in the same order,
    with constant loop bounds. */
-#if defined(__GNUC__)
-#define LK_INLINE static inline __attribute__((always_inline))
-#else
-#define LK_INLINE static inline
-#endif
 
 LK_INLINE void AVX_Matrix_Vect_Prod_Inl(const __m256d *_m_transpose, const phydbl *_v, const int ns, __m256d *_u)
 {

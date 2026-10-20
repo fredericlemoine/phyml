@@ -16,18 +16,25 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "sse2neon.h"
 #endif
 
+/* Always inlined: used to specialise loops for ns = 4 and 20 */
+#if defined(__GNUC__)
+#define LK_INLINE static inline __attribute__((always_inline))
+#else
+#define LK_INLINE static inline
+#endif
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
 #if (((defined(__SSE__) || defined(__SSE2__) || defined(__SSE3__) || defined(__ARM_NEON)) && !((defined __AVX__ || defined __AVX2__))) && !defined(DISABLE_NATIVE))
 
-void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
+LK_INLINE void SSE_Update_Eigen_Lr_Ns(t_edge *b, t_tree *tree, const unsigned int ns_c)
 {
   unsigned int i,j;
   
   unsigned const int npattern = tree->data->n_pattern;
   unsigned const int ncatg = tree->mod->ras->n_catg;
-  unsigned const int ns = tree->mod->ns;
+  const unsigned int ns = ns_c;
   unsigned const int sz = (int)BYTE_ALIGN / 8;
   unsigned const int nblocks = ns / sz;
   unsigned const int ncatgns = ncatg*ns;
@@ -113,10 +120,18 @@ void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
   }
 }
 
+void SSE_Update_Eigen_Lr(t_edge *b, t_tree *tree)
+{
+  // Constant ns for DNA and proteins (loops unrolled)
+  if(tree->mod->ns == 4)  { SSE_Update_Eigen_Lr_Ns(b,tree,4); return; }
+  if(tree->mod->ns == 20) { SSE_Update_Eigen_Lr_Ns(b,tree,20); return; }
+  SSE_Update_Eigen_Lr_Ns(b,tree,tree->mod->ns);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-phydbl SSE_Lk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, int ns)
+LK_INLINE phydbl SSE_Lk_Core_One_Class_Eigen_Lr_Inl(phydbl *dot_prod, phydbl *expl, int ns)
 {
   phydbl lk;
   unsigned int l;
@@ -141,10 +156,18 @@ phydbl SSE_Lk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, int ns)
   return lk;
 }
 
+phydbl SSE_Lk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, int ns)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { return SSE_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,4); }
+  if(ns == 20) { return SSE_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,20); }
+  return SSE_Lk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,ns);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void SSE_Lk_dLk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, unsigned int ns, phydbl *lk, phydbl *dlk)
+LK_INLINE void SSE_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(phydbl *dot_prod, phydbl *expl, unsigned int ns, phydbl *lk, phydbl *dlk)
 {
   unsigned int i;
   __m128d _x,_y,_z;
@@ -163,10 +186,18 @@ void SSE_Lk_dLk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, unsigned
   *dlk = ((double *)&_z)[1];
 }
 
+void SSE_Lk_dLk_Core_One_Class_Eigen_Lr(phydbl *dot_prod, phydbl *expl, unsigned int ns, phydbl *lk, phydbl *dlk)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { SSE_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,4,lk,dlk); return; }
+  if(ns == 20) { SSE_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,20,lk,dlk); return; }
+  SSE_Lk_dLk_Core_One_Class_Eigen_Lr_Inl(dot_prod,expl,ns,lk,dlk);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-phydbl SSE_Lk_Core_One_Class_No_Eigen_Lr(phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij, phydbl *tPij, phydbl *pi, int ns, int ambiguity_check, int state)
+LK_INLINE phydbl SSE_Lk_Core_One_Class_No_Eigen_Lr_Inl(phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij, phydbl *tPij, phydbl *pi, int ns, int ambiguity_check, int state)
 {
   phydbl lk,dum;
   const unsigned int sz = (int)BYTE_ALIGN / 8;
@@ -254,17 +285,20 @@ phydbl SSE_Lk_Core_One_Class_No_Eigen_Lr(phydbl *p_lk_left, phydbl *p_lk_rght, p
   return UNLIKELY;
 }
 
+phydbl SSE_Lk_Core_One_Class_No_Eigen_Lr(phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij, phydbl *tPij, phydbl *pi, int ns, int ambiguity_check, int state)
+{
+  // Constant ns for DNA and proteins (loops unrolled, no variable-length arrays)
+  if(ns == 4)  { return SSE_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,4,ambiguity_check,state); }
+  if(ns == 20) { return SSE_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,20,ambiguity_check,state); }
+  return SSE_Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij,tPij,pi,ns,ambiguity_check,state);
+}
+
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
 /* Inlined copies of the kernels below, so that SSE_Update_Partial_Lk can be
    specialised for ns = 4 and ns = 20: same operations in the same order,
    with constant loop bounds. */
-#if defined(__GNUC__)
-#define LK_INLINE static inline __attribute__((always_inline))
-#else
-#define LK_INLINE static inline
-#endif
 
 LK_INLINE void SSE_Matrix_Vect_Prod_Inl(const __m128d *_m_transpose, const phydbl *_v, const int ns, __m128d *_u)
 {

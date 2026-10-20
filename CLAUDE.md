@@ -106,7 +106,8 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   site in `Lk_Core_Site` cost 3%). The partial- and site-likelihood kernels
   (generic, `sse.c`, `avx.c`) are always-inlined copies (`LK_INLINE`,
   `*_Inl`, `*_Ns`) called with ns = 4 or 20 so the compiler unrolls them;
-  keep the extern versions and the inlined copies in step, keep the order of
+  the per-class site functions of `sse.c`/`avx.c` dispatch the same way to
+  `*_Inl` copies; keep the extern versions and the inlined copies in step, keep the order of
   operations (results are byte-identical), and store SIMD results straight
   into the partials (GCC turns a copy loop from a local array into a
   `memcpy` call).

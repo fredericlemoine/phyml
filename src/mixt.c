@@ -3150,10 +3150,10 @@ phydbl MIXT_dLk(phydbl *l, t_edge *mixt_b, t_tree *mixt_tree)
 
           if (tree->mod->io->datatype == NT || tree->mod->io->datatype == AA)
           {
-#if (defined(__AVX__))
+#if (defined(__AVX__) && !defined(DISABLE_NATIVE))
             AVX_Lk_dLk_Core_One_Class_Eigen_Lr(dot_prod, expl ? expl : NULL, ns,
                                                lk + class, dlk + class);
-#elif (defined(__SSE3__))
+#elif (defined(__SSE3__) && !defined(DISABLE_NATIVE))
             SSE_Lk_dLk_Core_One_Class_Eigen_Lr(dot_prod, expl ? expl : NULL, ns,
                                                lk + class, dlk + class);
 #else

@@ -257,7 +257,92 @@ phydbl SSE_Lk_Core_One_Class_No_Eigen_Lr(phydbl *p_lk_left, phydbl *p_lk_rght, p
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
+/* Inlined copies of the kernels below, so that SSE_Update_Partial_Lk can be
+   specialised for ns = 4 and ns = 20: same operations in the same order,
+   with constant loop bounds. */
+#if defined(__GNUC__)
+#define LK_INLINE static inline __attribute__((always_inline))
+#else
+#define LK_INLINE static inline
+#endif
+
+LK_INLINE void SSE_Matrix_Vect_Prod_Inl(const __m128d *_m_transpose, const phydbl *_v, const int ns, __m128d *_u)
+{
+  unsigned const int sz = (int)BYTE_ALIGN / 8;
+  unsigned const int nblocks = ns / sz;  
+  unsigned int i,j;  
+  __m128d _x;
+
+
+  _x = _mm_set1_pd(_v[0]);
+  for(j=0;j<nblocks;++j) _u[j] = _mm_mul_pd(_m_transpose[j],_x);
+  _m_transpose = _m_transpose + nblocks;
+  
+  for(i=1;i<ns;++i)
+    {
+      _x = _mm_set1_pd(_v[i]);
+      for(j=0;j<nblocks;++j)
+        {
+          _u[j] = _mm_add_pd(_u[j],_mm_mul_pd(_m_transpose[j],_x));
+        }
+      _m_transpose = _m_transpose + nblocks;
+    }
+
+  /* for(i=0;i<nblocks;++i) _u[i] = _mm_setzero_pd(); */
+
+  /* for(i=0;i<ns;++i) */
+  /*   { */
+  /*     _x = _mm_set1_pd(_v[i]); */
+  /*     for(j=0;j<nblocks;++j) _u[j] = _mm_add_pd(_u[j],_mm_mul_pd(_m_transpose[j],_x)); */
+  /*     _m_transpose = _m_transpose + nblocks; */
+  /*   } */
+}
+
+LK_INLINE void SSE_Partial_Lk_Exex_Inl(const __m128d *_tPij1, const int state1, const __m128d *_tPij2, const int state2, const int ns, phydbl *plk0)
+{
+  unsigned const int sz = (int)BYTE_ALIGN / 8;
+  unsigned const int nblocks = ns / sz;
+  unsigned int i;
+
+  _tPij1 = _tPij1 + state1 * nblocks;
+  _tPij2 = _tPij2 + state2 * nblocks;
+  for(i=0;i<nblocks;++i) _mm_store_pd(plk0+sz*i,_mm_mul_pd(_tPij1[i],_tPij2[i]));
+}
+
+LK_INLINE void SSE_Partial_Lk_Exin_Inl(const __m128d *_tPij1, const int state1, const __m128d *_tPij2, const phydbl *_plk2, __m128d *_pmat2plk2, const int ns, phydbl *_plk0)
+{
+  unsigned const int sz = (int)BYTE_ALIGN / 8;
+  unsigned const int nblocks = ns / sz;
+  unsigned int i;
+  
+  _tPij1 = _tPij1 + state1 * nblocks;
+  SSE_Matrix_Vect_Prod_Inl(_tPij2,_plk2,ns,_pmat2plk2);
+  
+  for(i=0;i<nblocks;++i) _mm_store_pd(_plk0+sz*i,_mm_mul_pd(_tPij1[i],_pmat2plk2[i]));
+}
+
+LK_INLINE void SSE_Partial_Lk_Inin_Inl(const __m128d *_tPij1, const phydbl *plk1, __m128d *_pmat1plk1, const __m128d *_tPij2, const phydbl *plk2, __m128d *_pmat2plk2, const int ns, phydbl *_plk0)
+{
+  unsigned int i;
+  unsigned const int sz = (int)BYTE_ALIGN / 8;
+  unsigned const int nblocks = ns / sz;
+  
+  for(i=0;i<ns;++i) if(plk1[i] > 1.0 || plk1[i] < 1.0 || plk2[i] > 1.0 || plk2[i] < 1.0) break; 
+
+  if(i != ns)
+    {     
+      SSE_Matrix_Vect_Prod_Inl(_tPij1,plk1,ns,_pmat1plk1);
+      SSE_Matrix_Vect_Prod_Inl(_tPij2,plk2,ns,_pmat2plk2);
+      
+      for(i=0;i<nblocks;++i) _mm_store_pd(_plk0+sz*i,_mm_mul_pd(_pmat1plk1[i],_pmat2plk2[i]));
+    }
+  else
+    {
+      for(i=0;i<nblocks;++i) _mm_store_pd(_plk0+sz*i,_mm_set1_pd(1.0));      
+    }
+}
+
+LK_INLINE void SSE_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, const unsigned int ns_c)
 {
 /*
            |
@@ -278,7 +363,7 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
   int *p_lk_loc;
   
   const unsigned int npattern = tree->data->n_pattern;
-  const unsigned int ns = tree->mod->ns;
+  const unsigned int ns = ns_c;
   const unsigned int ncatg = tree->mod->ras->n_catg;
 
   const unsigned int ncatgns =  ncatg * ns;
@@ -345,7 +430,7 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
 #pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
     for(s=0;s<(int)npattern;++s)
       {
-        __m128d _pmat1plk1[LK_SIMD_MAX_NS],_pmat2plk2[LK_SIMD_MAX_NS],_plk0[LK_SIMD_MAX_NS];
+        __m128d _pmat1plk1[LK_SIMD_MAX_NS],_pmat2plk2[LK_SIMD_MAX_NS];
         const __m128d *s_tPij1,*s_tPij2;
         const phydbl *s_plk1,*s_plk2;
         phydbl *s_plk0,*site_plk0;
@@ -383,30 +468,31 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
           {
             if(s_ambiguity_check_v1 == NO && s_ambiguity_check_v2 == NO)
               {
-                SSE_Partial_Lk_Exex(s_tPij1,s_state_v1,
+                SSE_Partial_Lk_Exex_Inl(s_tPij1,s_state_v1,
                                     s_tPij2,s_state_v2,
-                                    ns,_plk0);
+                                    ns,s_plk0);
               }
             else if(s_ambiguity_check_v1 == YES && s_ambiguity_check_v2 == NO)
               {
-                SSE_Partial_Lk_Exin(s_tPij2,s_state_v2,
+                SSE_Partial_Lk_Exin_Inl(s_tPij2,s_state_v2,
                                     s_tPij1,s_plk1,_pmat1plk1,
-                                    ns,_plk0);
+                                    ns,s_plk0);
               }
             else if(s_ambiguity_check_v1 == NO && s_ambiguity_check_v2 == YES)
               {
-                SSE_Partial_Lk_Exin(s_tPij1,s_state_v1,
+                SSE_Partial_Lk_Exin_Inl(s_tPij1,s_state_v1,
                                     s_tPij2,s_plk2,_pmat2plk2,
-                                    ns,_plk0);
+                                    ns,s_plk0);
               }
             else
               {
-                SSE_Partial_Lk_Inin(s_tPij1,s_plk1,_pmat1plk1,
+                SSE_Partial_Lk_Inin_Inl(s_tPij1,s_plk1,_pmat1plk1,
                                     s_tPij2,s_plk2,_pmat2plk2,
-                                    ns,_plk0);
+                                    ns,s_plk0);
               }
 
-            for(k=0;k<nblocks;++k) _mm_store_pd(s_plk0+sz*k,_plk0[k]);
+            // The kernels store straight into the partial likelihoods (a copy
+            // from a local array became a memcpy call per site and class)
 
             s_tPij1 += nsns / sz;
             s_tPij2 += nsns / sz;
@@ -436,6 +522,17 @@ void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
           }
       }
   }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+void SSE_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
+{
+  // Constant ns for DNA and proteins: the loops over states are unrolled
+  if(tree->mod->ns == 4)       SSE_Update_Partial_Lk_Ns(tree,b,d,4);
+  else if(tree->mod->ns == 20) SSE_Update_Partial_Lk_Ns(tree,b,d,20);
+  else                         SSE_Update_Partial_Lk_Ns(tree,b,d,tree->mod->ns);
 }
 
 //////////////////////////////////////////////////////////////

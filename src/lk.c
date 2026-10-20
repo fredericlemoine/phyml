@@ -19,6 +19,13 @@ the GNU public licence. See http://www.opensource.org for details.
 #endif
 #include <stdint.h>
 
+/* Always inlined: used to specialise the site loops for ns = 4 and 20 */
+#if defined(__GNUC__)
+#define LK_INLINE static inline __attribute__((always_inline))
+#else
+#define LK_INLINE static inline
+#endif
+
 /* Below this many site patterns per thread, waking the threads costs more
    than the work they share. */
 #define LK_MIN_PATTERNS_PER_THREAD 128
@@ -855,17 +862,52 @@ phydbl Lk_Core(int state, int ambiguity_check,
    not add the site log-likelihood to tree->c_lnL. Returns the site
    likelihood still scaled by 2^fact_sum_scale[site]: Lk_Core unscales it
    (Lk does not use it, and pow() at every site was a measurable cost). */
-phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
+LK_INLINE phydbl Lk_Core_One_Class_No_Eigen_Lr_Inl(phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij, phydbl *pi, int ns, int ambiguity_check, int state)
+{
+  unsigned int l,k;
+  phydbl lk = 0.0;
+  phydbl sum;
+
+    
+  if(ambiguity_check == NO)/* tip case */
+    {      
+     assert(state >= 0);
+      sum = .0;
+      Pij += state*ns;
+      for(l=0;l<ns;++l) sum += Pij[l] * p_lk_left[l];
+      lk += sum * pi[state];
+    }
+  else /* If the character observed at the tip is ambiguous: ns x ns terms to consider */
+    {
+      for(k=0;k<ns;++k)
+        {
+          if(p_lk_rght[k] > .0) /* Only bother ascending into the subtrees if the likelihood of state k, at site "site*dim2" is > 0 */
+            {
+              sum = .0;
+              for(l=0;l<ns;l++)
+                {
+                  sum += Pij[l] * p_lk_left[l];
+                }
+              lk += sum * pi[k] * p_lk_rght[k];
+            }
+          Pij += ns;
+        }
+    } 
+
+  return lk;
+}
+
+LK_INLINE phydbl Lk_Core_Site_Ns(unsigned int site, int state, int ambiguity_check,
                     phydbl *p_lk_left, phydbl *p_lk_rght,
                     phydbl *Pij_rr, phydbl *tPij_rr,
                     t_edge *b, t_tree *tree,
                     phydbl *site_lk_cat_buf, int *sum_scale_left_cat, int *sum_scale_rght_cat,
-                    int *numerical_warning)
+                    int *numerical_warning, const unsigned int ns_c)
 {
   phydbl site_lk,res,*pi,*site_lk_cat,log_site_lk;
   unsigned int catg;
   
-  const unsigned int ns    = tree->mod->ns;
+  const unsigned int ns    = ns_c;
   const unsigned int ncatg = tree->mod->ras->n_catg;
   const unsigned nsns      = ns*ns;
 
@@ -891,12 +933,12 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
 #elif ((defined(__SSE__) || defined(__SSE2__) || defined(__SSE3__)) && !defined(DISABLE_NATIVE))
               site_lk_cat_buf[catg] = SSE_Lk_Core_One_Class_No_Eigen_Lr(p_lk_left,p_lk_rght,Pij_rr,tPij_rr,pi,ns,ambiguity_check,state);
 #else
-              site_lk_cat_buf[catg] = Lk_Core_One_Class_No_Eigen_Lr(p_lk_left,p_lk_rght,Pij_rr,pi,ns,ambiguity_check,state);
+              site_lk_cat_buf[catg] = Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij_rr,pi,ns,ambiguity_check,state);
 #endif
             }
           else
             {
-              site_lk_cat_buf[catg] = Lk_Core_One_Class_No_Eigen_Lr(p_lk_left,p_lk_rght,Pij_rr,pi,ns, ambiguity_check, state);
+              site_lk_cat_buf[catg] = Lk_Core_One_Class_No_Eigen_Lr_Inl(p_lk_left,p_lk_rght,Pij_rr,pi,ns, ambiguity_check, state);
             }
           
           Pij_rr += nsns;
@@ -955,6 +997,19 @@ phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
     
   /* printf("\n. clnL: %f",tree->c_lnL); */
   return res;
+}
+
+phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
+                    phydbl *p_lk_left, phydbl *p_lk_rght,
+                    phydbl *Pij_rr, phydbl *tPij_rr,
+                    t_edge *b, t_tree *tree,
+                    phydbl *site_lk_cat_buf, int *sum_scale_left_cat, int *sum_scale_rght_cat,
+                    int *numerical_warning)
+{
+  // Constant ns for DNA and proteins (loops unrolled)
+  if(tree->mod->ns == 4)  return Lk_Core_Site_Ns(site,state,ambiguity_check,p_lk_left,p_lk_rght,Pij_rr,tPij_rr,b,tree,site_lk_cat_buf,sum_scale_left_cat,sum_scale_rght_cat,numerical_warning,4);
+  if(tree->mod->ns == 20) return Lk_Core_Site_Ns(site,state,ambiguity_check,p_lk_left,p_lk_rght,Pij_rr,tPij_rr,b,tree,site_lk_cat_buf,sum_scale_left_cat,sum_scale_rght_cat,numerical_warning,20);
+  return Lk_Core_Site_Ns(site,state,ambiguity_check,p_lk_left,p_lk_rght,Pij_rr,tPij_rr,b,tree,site_lk_cat_buf,sum_scale_left_cat,sum_scale_rght_cat,numerical_warning,tree->mod->ns);
 }
 
 //////////////////////////////////////////////////////////////
@@ -1804,7 +1859,55 @@ void Default_Update_Partial_Lk(t_tree *tree, t_edge *b, t_node *d)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
+
+/* Kernels of Core_Default_Update_Partial_Lk, inlined so that the compiler
+   can specialise them for ns = 4 and ns = 20 (same operations in the same
+   order as the extern versions below, hence the same results). */
+
+LK_INLINE void Partial_Lk_Exex_Inl(const phydbl *Pij1, const int state1, const phydbl *Pij2, const int state2, const int ns, phydbl *plk0)
+{
+  int i;
+  for(i=0;i<ns;++i) plk0[i] = Pij1[i*ns+state1]*Pij2[i*ns+state2];
+}
+
+LK_INLINE void Partial_Lk_Exin_Inl(const phydbl *Pij1, const int state1, const phydbl *Pij2, const phydbl *plk2, const int ns, phydbl *plk0)
+{
+  int i,j;
+  for(i=0;i<ns;++i)
+    {
+      phydbl u2 = 0.0;
+      for(j=0;j<ns;++j) u2 += Pij2[i*ns+j] * plk2[j];
+      plk0[i] = Pij1[i*ns+state1]*u2;
+    }
+}
+
+LK_INLINE void Partial_Lk_Inin_Inl(const phydbl *Pij1, const phydbl *plk1, const phydbl *Pij2, const phydbl *plk2, const int ns, phydbl *plk0)
+{
+  int i,j;
+
+  for(i=0;i<ns;++i) if(plk1[i] > 1.0 || plk1[i] < 1.0 || plk2[i] > 1.0 || plk2[i] < 1.0) break;
+
+  if(i != ns)
+    {
+      for(i=0;i<ns;++i)
+        {
+          phydbl u1 = 0.0;
+          phydbl u2 = 0.0;
+          for(j=0;j<ns;++j)
+            {
+              u1 += Pij1[i*ns+j] * plk1[j];
+              u2 += Pij2[i*ns+j] * plk2[j];
+            }
+          plk0[i] = u1*u2;
+        }
+    }
+  else
+    {
+      for(i=0;i<ns;++i) plk0[i] = 1.0;
+    }
+}
+
+LK_INLINE void Default_Update_Partial_Lk_Sites(const t_node *n_v1, const t_node *n_v2,
                                     phydbl *plk0, const phydbl *plk1, const phydbl *plk2,
                                     const phydbl *Pij1, const phydbl *Pij2,
                                     int *sum_scale0, const int *sum_scale1, const int *sum_scale2,
@@ -1860,25 +1963,25 @@ void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
         {
           if(ambiguity_check_v1 == NO && ambiguity_check_v2 == NO)
             {
-              Partial_Lk_Exex(s_Pij1,state_v1,
+              Partial_Lk_Exex_Inl(s_Pij1,state_v1,
                               s_Pij2,state_v2,
                               ns,s_plk0);
             }
           else if(ambiguity_check_v1 == YES && ambiguity_check_v2 == NO)
             {
-              Partial_Lk_Exin(s_Pij2,state_v2,
+              Partial_Lk_Exin_Inl(s_Pij2,state_v2,
                               s_Pij1,s_plk1,
                               ns,s_plk0);
             }
           else if(ambiguity_check_v1 == NO && ambiguity_check_v2 == YES)
             {
-              Partial_Lk_Exin(s_Pij1,state_v1,
+              Partial_Lk_Exin_Inl(s_Pij1,state_v1,
                               s_Pij2,s_plk2,
                               ns,s_plk0);
             }
           else
             {
-              Partial_Lk_Inin(s_Pij1,s_plk1,
+              Partial_Lk_Inin_Inl(s_Pij1,s_plk1,
                               s_Pij2,s_plk2,
                               ns,s_plk0);
             }
@@ -1907,6 +2010,25 @@ void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
           sum_scale0[site] += LARGE;
         }
     }
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
+                                    phydbl *plk0, const phydbl *plk1, const phydbl *plk2,
+                                    const phydbl *Pij1, const phydbl *Pij2,
+                                    int *sum_scale0, const int *sum_scale1, const int *sum_scale2,
+                                    const int ns, const int ncatg, const int npatterns, const int apply_scaling,
+                                    const phydbl *wght, const int n_threads)
+{
+  // Constant ns for DNA and proteins: the loops are unrolled and vectorised
+  if(ns == 4)
+    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,4,ncatg,npatterns,apply_scaling,wght,n_threads);
+  else if(ns == 20)
+    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,20,ncatg,npatterns,apply_scaling,wght,n_threads);
+  else
+    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,ns,ncatg,npatterns,apply_scaling,wght,n_threads);
 }
 #endif
 

@@ -103,7 +103,13 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   search: declare scratch arrays once per thread (`omp parallel` around
   `omp for`, as in `Lk` and `dLk`), not as variable-length arrays in the
   loop body, and keep per-site work to what the caller uses (a `pow()` per
-  site in `Lk_Core_Site` cost 3%).
+  site in `Lk_Core_Site` cost 3%). The partial- and site-likelihood kernels
+  (generic, `sse.c`, `avx.c`) are always-inlined copies (`LK_INLINE`,
+  `*_Inl`, `*_Ns`) called with ns = 4 or 20 so the compiler unrolls them;
+  keep the extern versions and the inlined copies in step, keep the order of
+  operations (results are byte-identical), and store SIMD results straight
+  into the partials (GCC turns a copy loop from a local array into a
+  `memcpy` call).
 - SMS (`sms.c`) fits each candidate model in-process on a fixed tree, like
   a `phyml -o lr -u tree --r_seed N` run of the SMS 2.1.1 scripts: it swaps
   `io->mod` for the candidate (some routines read `io->mod`), reseeds `rand()`

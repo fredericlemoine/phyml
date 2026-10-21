@@ -18,6 +18,9 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "beagle_utils.h"
 #endif
 #include <stdint.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 /* Always inlined: used to specialise the site loops for ns = 4 and 20 */
 #if defined(__GNUC__)
@@ -47,6 +50,25 @@ int Lk_Site_Threads(const t_tree *tree, unsigned int n_patterns)
 
 
 
+
+/* The sites [*beg, *end) of the calling thread: contiguous blocks, as
+   schedule(static); all n sites outside a parallel region. The kernels
+   specialised for ns = 4 and 20 are called inside the parallel region with
+   a literal ns: a '#pragma omp parallel for' around their loop would move
+   the loop into an outlined function where ns is no longer a constant (the
+   OpenMP build then ran twice as many instructions, even on one thread). */
+void Lk_Thread_Range(int n, int *beg, int *end)
+{
+#ifdef _OPENMP
+  int t = omp_get_thread_num(), nt = omp_get_num_threads();
+  int q = n / nt, r = n % nt;
+  *beg = t * q + (t < r ? t : r);
+  *end = *beg + q + (t < r ? 1 : 0);
+#else
+  *beg = 0;
+  *end = n;
+#endif
+}
 
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -1912,7 +1934,7 @@ LK_INLINE void Default_Update_Partial_Lk_Sites(const t_node *n_v1, const t_node 
                                     const phydbl *Pij1, const phydbl *Pij2,
                                     int *sum_scale0, const int *sum_scale1, const int *sum_scale2,
                                     const int ns, const int ncatg, const int npatterns, const int apply_scaling,
-                                    const phydbl *wght, const int n_threads)
+                                    const phydbl *wght, const int site_beg, const int site_end)
 {
   const unsigned int ncatgns = ncatg*ns;
   const unsigned int nsns = ns*ns;
@@ -1920,9 +1942,8 @@ LK_INLINE void Default_Update_Partial_Lk_Sites(const t_node *n_v1, const t_node 
   const unsigned int stride2 = (n_v2->tax) ? ns : ncatgns;
   int site;
   
-  /* For every site in the alignment */
-#pragma omp parallel for if(n_threads > 1) num_threads(n_threads) schedule(static)
-  for(site=0;site<npatterns;site++)
+  /* For the sites [site_beg, site_end) */
+  for(site=site_beg;site<site_end;site++)
     {
       unsigned int i,catg;
       int state_v1,state_v2;
@@ -2022,13 +2043,24 @@ void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
                                     const int ns, const int ncatg, const int npatterns, const int apply_scaling,
                                     const phydbl *wght, const int n_threads)
 {
-  // Constant ns for DNA and proteins: the loops are unrolled and vectorised
-  if(ns == 4)
-    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,4,ncatg,npatterns,apply_scaling,wght,n_threads);
-  else if(ns == 20)
-    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,20,ncatg,npatterns,apply_scaling,wght,n_threads);
+  // Constant ns for DNA and proteins: the loops are unrolled and vectorised.
+  // Threads: each one runs the specialised loop on its block of sites.
+#define LK_DEFAULT_SITES(beg,end) \
+  do { if(ns == 4)       Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,4,ncatg,npatterns,apply_scaling,wght,beg,end); \
+       else if(ns == 20) Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,20,ncatg,npatterns,apply_scaling,wght,beg,end); \
+       else              Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,ns,ncatg,npatterns,apply_scaling,wght,beg,end); } while(0)
+  if(n_threads > 1)
+    {
+#pragma omp parallel num_threads(n_threads)
+      {
+        int beg,end;
+        Lk_Thread_Range(npatterns,&beg,&end);
+        LK_DEFAULT_SITES(beg,end);
+      }
+    }
   else
-    Default_Update_Partial_Lk_Sites(n_v1,n_v2,plk0,plk1,plk2,Pij1,Pij2,sum_scale0,sum_scale1,sum_scale2,ns,ncatg,npatterns,apply_scaling,wght,n_threads);
+    LK_DEFAULT_SITES(0,npatterns);
+#undef LK_DEFAULT_SITES
 }
 #endif
 

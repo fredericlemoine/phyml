@@ -25,6 +25,53 @@ the GNU public licence. See http://www.opensource.org for details.
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* The sites [site_beg, site_end) of AVX_Update_Eigen_Lr, for a given ns
+   (called with ns = 4 or 20). Each thread uses its own scratch vectors and
+   writes only the dot products of its sites. */
+LK_INLINE void AVX_Eigen_Lr_Sites(t_tree *tree, const t_edge *b, const __m256d *_r_ev, const __m256d *_l_ev,
+                                  const phydbl *p_lk_left, const phydbl *p_lk_rght, const phydbl *pi,
+                                  phydbl *dot_prod, const unsigned int ns, const int site_beg, const int site_end)
+{
+  const unsigned int ncatg       = tree->mod->ras->n_catg;
+  const unsigned int ncatgns     = ncatg * ns;
+  const unsigned int sz          = (int)BYTE_ALIGN / 8;
+  const unsigned int nblocks     = ns / sz;
+  const unsigned int stride_left = (b->left->tax == YES) ? ns : ncatgns;
+  const unsigned int stride_rght = (b->rght->tax == YES) ? ns : ncatgns;
+  const unsigned int step_left   = (b->left->tax == YES) ? 0 : ns;
+  const unsigned int step_rght   = (b->rght->tax == YES) ? 0 : ns;
+  int s;
+
+  for(s=site_beg;s<site_end;++s)
+      {
+        __m256d _prod_left[LK_SIMD_MAX_NS],_prod_rght[LK_SIMD_MAX_NS];
+        phydbl p_lk_left_pi[LK_SIMD_MAX_NS];
+        const phydbl *s_lk_left,*s_lk_rght;
+        phydbl *s_dot_prod;
+        unsigned int c,k;
+
+        if(tree->data->wght[s] <= SMALL) continue;
+
+        s_lk_left  = p_lk_left + (size_t)s*stride_left;
+        s_lk_rght  = p_lk_rght + (size_t)s*stride_rght;
+        s_dot_prod = dot_prod + (size_t)s*ncatgns;
+
+        for(c=0;c<ncatg;++c)
+          {
+            for(k=0;k<ns;++k) p_lk_left_pi[k] = s_lk_left[k] * pi[k];
+
+            AVX_Matrix_Vect_Prod(_r_ev,p_lk_left_pi,ns,_prod_left);
+            AVX_Matrix_Vect_Prod(_l_ev,s_lk_rght,ns,_prod_rght);
+
+            for(k=0;k<nblocks;++k) _mm256_store_pd(s_dot_prod + k*sz,_mm256_mul_pd(_prod_left[k],_prod_rght[k]));
+
+            s_dot_prod += ns;
+            s_lk_left  += step_left;
+            s_lk_rght  += step_rght;
+          }
+      }
+}
+
 LK_INLINE void AVX_Update_Eigen_Lr_Ns(t_edge *b, t_tree *tree, const unsigned int ns_c)
 {
   unsigned int i,j;
@@ -76,44 +123,25 @@ LK_INLINE void AVX_Update_Eigen_Lr_Ns(t_edge *b, t_tree *tree, const unsigned in
   assert(nblocks <= LK_SIMD_MAX_NS);
 
   {
-    const unsigned int stride_left = (b->left->tax == YES) ? ns : ncatgns;
-    const unsigned int stride_rght = (b->rght->tax == YES) ? ns : ncatgns;
-    const unsigned int step_left   = (b->left->tax == YES) ? 0 : ns;
-    const unsigned int step_rght   = (b->rght->tax == YES) ? 0 : ns;
     const int nt = Lk_Site_Threads(tree,npattern);
-    int s;
 
-    /* Each thread uses its own scratch vectors (_prod_left, _prod_rght,
-       p_lk_left_pi) and writes only the dot products of its sites. */
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
-    for(s=0;s<(int)npattern;++s)
+    // Threads: each one runs the loop specialised for ns on its block of sites
+#define LK_SIMD_SITES(beg,end) \
+    do { if(ns == 4)       AVX_Eigen_Lr_Sites(tree,b,_r_ev,_l_ev,p_lk_left,p_lk_rght,pi,dot_prod,4,beg,end); \
+         else if(ns == 20) AVX_Eigen_Lr_Sites(tree,b,_r_ev,_l_ev,p_lk_left,p_lk_rght,pi,dot_prod,20,beg,end); \
+         else              AVX_Eigen_Lr_Sites(tree,b,_r_ev,_l_ev,p_lk_left,p_lk_rght,pi,dot_prod,ns,beg,end); } while(0)
+    if(nt > 1)
       {
-        __m256d _prod_left[LK_SIMD_MAX_NS],_prod_rght[LK_SIMD_MAX_NS];
-        phydbl p_lk_left_pi[LK_SIMD_MAX_NS];
-        const phydbl *s_lk_left,*s_lk_rght;
-        phydbl *s_dot_prod;
-        unsigned int c,k;
-
-        if(tree->data->wght[s] <= SMALL) continue;
-
-        s_lk_left  = p_lk_left + (size_t)s*stride_left;
-        s_lk_rght  = p_lk_rght + (size_t)s*stride_rght;
-        s_dot_prod = dot_prod + (size_t)s*ncatgns;
-
-        for(c=0;c<ncatg;++c)
-          {
-            for(k=0;k<ns;++k) p_lk_left_pi[k] = s_lk_left[k] * pi[k];
-
-            AVX_Matrix_Vect_Prod(_r_ev,p_lk_left_pi,ns,_prod_left);
-            AVX_Matrix_Vect_Prod(_l_ev,s_lk_rght,ns,_prod_rght);
-
-            for(k=0;k<nblocks;++k) _mm256_store_pd(s_dot_prod + k*sz,_mm256_mul_pd(_prod_left[k],_prod_rght[k]));
-
-            s_dot_prod += ns;
-            s_lk_left  += step_left;
-            s_lk_rght  += step_rght;
-          }
+#pragma omp parallel num_threads(nt)
+        {
+          int beg,end;
+          Lk_Thread_Range((int)npattern,&beg,&end);
+          LK_SIMD_SITES(beg,end);
+        }
       }
+    else
+      LK_SIMD_SITES(0,(int)npattern);
+#undef LK_SIMD_SITES
   }
 }
 
@@ -447,102 +475,25 @@ LK_INLINE void AVX_Partial_Lk_Inin_Inl(const __m256d *_tPij1, const phydbl *plk1
     }
 }
 
-LK_INLINE void AVX_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, const unsigned int ns_c)
+/* The sites [site_beg, site_end) of AVX_Update_Partial_Lk, for a given ns
+   (called with ns = 4 or 20 so that the loops are unrolled). Each thread
+   uses its own scratch vectors and writes only the partial likelihoods of
+   its sites. */
+LK_INLINE void AVX_Partial_Lk_Sites(t_tree *tree, const t_node *n_v1, const t_node *n_v2,
+                                    phydbl *plk0, const phydbl *plk1, const phydbl *plk2,
+                                    const __m256d *_tPij1, const __m256d *_tPij2,
+                                    int *sum_scale, const int *sum_scale_v1, const int *sum_scale_v2,
+                                    const unsigned int ns, const int site_beg, const int site_end)
 {
-/*
-           |
-           |<- b
-           |
-           d
-          / \
-         /   \
-        /     \
-    n_v1   n_v2
-*/
-  t_node *n_v1, *n_v2;
-  phydbl *plk0,*plk1,*plk2;
-  phydbl *Pij1,*Pij2;
-  phydbl *tPij1,*tPij2;
-  int *sum_scale, *sum_scale_v1, *sum_scale_v2;
-  unsigned int i,j,k;
-  int *p_lk_loc;
-  
-  const unsigned int npattern = tree->data->n_pattern;
-  const unsigned int ns = ns_c;
-  const unsigned int ncatg = tree->mod->ras->n_catg;
+  const unsigned int ncatg   = tree->mod->ras->n_catg;
+  const unsigned int ncatgns = ncatg * ns;
+  const unsigned int nsns    = ns * ns;
+  const unsigned int sz      = (int)BYTE_ALIGN / 8;
+  const unsigned int stride1 = (n_v1->tax) ? ns : ncatgns;
+  const unsigned int stride2 = (n_v2->tax) ? ns : ncatgns;
+  int s;
 
-  const unsigned int ncatgns =  ncatg * ns;
-  const unsigned int nsns =  ns * ns;
-  
-  const unsigned int sz = (int)BYTE_ALIGN / 8;
-  const unsigned nblocks = ns/sz;
-
-  __m256d *_tPij1,*_tPij2;
-
-  _tPij1     = tree->_tPij1;
-  _tPij2     = tree->_tPij2;
-    
-  n_v1 = n_v2                 = NULL;
-  plk0 = plk1 = plk2          = NULL;
-  Pij1 = Pij2                 = NULL;
-  tPij1 = tPij2               = NULL;
-  sum_scale_v1 = sum_scale_v2 = NULL;
-  p_lk_loc                    = NULL;
-
-  
-  Set_All_Partial_Lk(&n_v1,&n_v2,
-                     &plk0,&sum_scale,&p_lk_loc,
-                     &Pij1,&tPij1,&plk1,&sum_scale_v1,
-                     &Pij2,&tPij2,&plk2,&sum_scale_v2,
-                     d,b,tree);
-
-
-  /* PhyML_Printf("\n. b: %d b->left:%d b->rght:%d d:%d [%p,%p]", */
-  /*              b->num, */
-  /*              b->left->num, */
-  /*              b->rght->num, */
-  /*              d->num, */
-  /*              plk0, */
-  /*              b->p_lk_rght); */
-  
-  // Copy transpose of transition matrices into AVX registers
-  for(i=0;i<ncatg;++i)
-    {
-      for(j=0;j<ns;++j)
-        {
-          for(k=0;k<nblocks;++k)
-            {
-              _tPij1[k] = _mm256_load_pd(tPij1);
-              _tPij2[k] = _mm256_load_pd(tPij2);
-              tPij1 += sz;
-              tPij2 += sz;
-            }
-          _tPij1 += nblocks;
-          _tPij2 += nblocks;
-        }
-    }
-  _tPij1 -= ncatg*ns*nblocks;
-  _tPij2 -= ncatg*ns*nblocks;
-
-  if(tree->mod->augmented == YES)
-    {
-      PhyML_Printf("\n== AVX version of the Update_Partial_Lk function does not");
-      PhyML_Printf("\n== allow augmented data.");
-      assert(FALSE);
-    }
-    
-  assert(nblocks <= LK_SIMD_MAX_NS);
-
-  {
-    const unsigned int stride1 = (n_v1->tax) ? ns : ncatgns;
-    const unsigned int stride2 = (n_v2->tax) ? ns : ncatgns;
-    const int nt = Lk_Site_Threads(tree,npattern);
-    int s;
-
-    /* For every site in the alignment. Each thread uses its own scratch
-       vectors and writes only the partial likelihoods of its sites. */
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
-    for(s=0;s<(int)npattern;++s)
+  for(s=site_beg;s<site_end;++s)
       {
         __m256d _pmat1plk1[LK_SIMD_MAX_NS],_pmat2plk2[LK_SIMD_MAX_NS];
         const __m256d *s_tPij1,*s_tPij2;
@@ -635,6 +586,115 @@ LK_INLINE void AVX_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, cons
               }
           }
       }
+}
+
+LK_INLINE void AVX_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, const unsigned int ns_c)
+{
+/*
+           |
+           |<- b
+           |
+           d
+          / \
+         /   \
+        /     \
+    n_v1   n_v2
+*/
+  t_node *n_v1, *n_v2;
+  phydbl *plk0,*plk1,*plk2;
+  phydbl *Pij1,*Pij2;
+  phydbl *tPij1,*tPij2;
+  int *sum_scale, *sum_scale_v1, *sum_scale_v2;
+  unsigned int i,j,k;
+  int *p_lk_loc;
+  
+  const unsigned int npattern = tree->data->n_pattern;
+  const unsigned int ns = ns_c;
+  const unsigned int ncatg = tree->mod->ras->n_catg;
+
+  const unsigned int ncatgns =  ncatg * ns;
+  const unsigned int nsns =  ns * ns;
+  
+  const unsigned int sz = (int)BYTE_ALIGN / 8;
+  const unsigned nblocks = ns/sz;
+
+  __m256d *_tPij1,*_tPij2;
+
+  _tPij1     = tree->_tPij1;
+  _tPij2     = tree->_tPij2;
+    
+  n_v1 = n_v2                 = NULL;
+  plk0 = plk1 = plk2          = NULL;
+  Pij1 = Pij2                 = NULL;
+  tPij1 = tPij2               = NULL;
+  sum_scale_v1 = sum_scale_v2 = NULL;
+  p_lk_loc                    = NULL;
+
+  
+  Set_All_Partial_Lk(&n_v1,&n_v2,
+                     &plk0,&sum_scale,&p_lk_loc,
+                     &Pij1,&tPij1,&plk1,&sum_scale_v1,
+                     &Pij2,&tPij2,&plk2,&sum_scale_v2,
+                     d,b,tree);
+
+
+  /* PhyML_Printf("\n. b: %d b->left:%d b->rght:%d d:%d [%p,%p]", */
+  /*              b->num, */
+  /*              b->left->num, */
+  /*              b->rght->num, */
+  /*              d->num, */
+  /*              plk0, */
+  /*              b->p_lk_rght); */
+  
+  // Copy transpose of transition matrices into AVX registers
+  for(i=0;i<ncatg;++i)
+    {
+      for(j=0;j<ns;++j)
+        {
+          for(k=0;k<nblocks;++k)
+            {
+              _tPij1[k] = _mm256_load_pd(tPij1);
+              _tPij2[k] = _mm256_load_pd(tPij2);
+              tPij1 += sz;
+              tPij2 += sz;
+            }
+          _tPij1 += nblocks;
+          _tPij2 += nblocks;
+        }
+    }
+  _tPij1 -= ncatg*ns*nblocks;
+  _tPij2 -= ncatg*ns*nblocks;
+
+  if(tree->mod->augmented == YES)
+    {
+      PhyML_Printf("\n== AVX version of the Update_Partial_Lk function does not");
+      PhyML_Printf("\n== allow augmented data.");
+      assert(FALSE);
+    }
+    
+  assert(nblocks <= LK_SIMD_MAX_NS);
+
+  {
+    const int nt = Lk_Site_Threads(tree,npattern);
+
+    // Threads: each one runs the loop specialised for ns on its block of
+    // sites (a parallel for here would lose the constant ns)
+#define LK_SIMD_SITES(beg,end) \
+    do { if(ns == 4)       AVX_Partial_Lk_Sites(tree,n_v1,n_v2,plk0,plk1,plk2,_tPij1,_tPij2,sum_scale,sum_scale_v1,sum_scale_v2,4,beg,end); \
+         else if(ns == 20) AVX_Partial_Lk_Sites(tree,n_v1,n_v2,plk0,plk1,plk2,_tPij1,_tPij2,sum_scale,sum_scale_v1,sum_scale_v2,20,beg,end); \
+         else              AVX_Partial_Lk_Sites(tree,n_v1,n_v2,plk0,plk1,plk2,_tPij1,_tPij2,sum_scale,sum_scale_v1,sum_scale_v2,ns,beg,end); } while(0)
+    if(nt > 1)
+      {
+#pragma omp parallel num_threads(nt)
+        {
+          int beg,end;
+          Lk_Thread_Range((int)npattern,&beg,&end);
+          LK_SIMD_SITES(beg,end);
+        }
+      }
+    else
+      LK_SIMD_SITES(0,(int)npattern);
+#undef LK_SIMD_SITES
   }
 }
 

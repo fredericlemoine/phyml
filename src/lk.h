@@ -128,6 +128,7 @@ void Pull_Scaling_Factors_Site(int site, t_edge *b, t_tree *tree,
                                phydbl *site_lk_cat, int *sum_scale_left_cat,
                                int *sum_scale_rght_cat);
 int  Lk_Site_Threads(const t_tree *tree, unsigned int n_patterns);
+void Lk_Thread_Range(int n, int *beg, int *end);
 phydbl Lk_Core_Site(unsigned int site, int state, int ambiguity_check,
                     phydbl *p_lk_left, phydbl *p_lk_rght, phydbl *Pij_rr,
                     phydbl *tPij_rr, t_edge *b, t_tree *tree,

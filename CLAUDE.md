@@ -110,7 +110,13 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   `*_Inl` copies; keep the extern versions and the inlined copies in step, keep the order of
   operations (results are byte-identical), and store SIMD results straight
   into the partials (GCC turns a copy loop from a local array into a
-  `memcpy` call).
+  `memcpy` call). Never put `#pragma omp parallel for` around a specialised
+  loop: the compiler moves the loop into an outlined function where ns is
+  no longer a constant, even when the `if()` clause is false (the OpenMP
+  build then ran twice the instructions on one thread). Instead, open
+  `#pragma omp parallel` only when nt > 1, and in it call the `*_Sites`
+  function with a literal ns on the block given by `Lk_Thread_Range`; call
+  it directly on all sites otherwise.
 - SMS (`sms.c`) fits each candidate model in-process on a fixed tree, like
   a `phyml -o lr -u tree --r_seed N` run of the SMS 2.1.1 scripts: it swaps
   `io->mod` for the candidate (some routines read `io->mod`), reseeds `rand()`

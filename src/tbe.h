@@ -15,17 +15,9 @@ the GNU public licence. See http://www.opensource.org for details.
 
 #include "utilities.h"
 
-/* Functions to compute Transfer distances, used in transfert bootstrap */
-void Update_All_IC_Ref_Tree(t_tree* ref_tree, t_tree* boot_tree,
-			    short unsigned** i_matrix, short unsigned** c_matrix, int* cluster_sizes);
-void Update_IC_Ref_Tree(t_tree *ref_tree, t_node * orig, t_node* target, t_edge *my_br, t_tree *boot_tree,
-			short unsigned** i_matrix, short unsigned** c_matrix, int* cluster_sizes);
-void Update_IC_Boot_Tree(t_tree* ref_tree, t_tree* boot_tree, t_node* orig, t_node* target,
-			 t_edge *my_br, short unsigned** i_matrix, short unsigned** c_matrix,
-			 short unsigned** hamming, short unsigned* min_dist,
-			 short unsigned* min_dist_edge, int* cluster_sizes);
-void Update_All_IC_Boot_Tree(t_tree* ref_tree, t_tree* boot_tree,
-			     short unsigned** i_matrix, short unsigned** c_matrix,
-			     short unsigned** hamming, short unsigned* min_dist,
-			     short unsigned* min_dist_edge, int* cluster_sizes);
+#include <stdint.h>
+
+/* Adds to the tdist_score of each branch of ref_tree its transfer index in
+   boot_tree (Match_Tip_Numbers first). O(n) memory. */
+void TBE_Add_Transfer_Index(t_tree *ref_tree, t_tree *boot_tree);
 #endif

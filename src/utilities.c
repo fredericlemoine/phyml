@@ -5196,41 +5196,36 @@ return -1.;
 */
 void Compare_Bip_Distance(t_tree *tree1, t_tree *tree2)
 {
-  int              i;
-  t_edge          *cur_edge;
-  short unsigned **i_matrix;
-  short unsigned **c_matrix;
-  short unsigned **hamming;
-  short unsigned  *min_dist;
-  short unsigned  *min_dist_edge;
-  int             *cluster_sizes;
-
-  Alloc_TBE_Matrices(tree1->n_otu, &i_matrix, &c_matrix, &hamming, &min_dist,
-                     &min_dist_edge, &cluster_sizes);
-
-  Update_All_IC_Ref_Tree(tree1, tree2, i_matrix, c_matrix, cluster_sizes);
-  Update_All_IC_Boot_Tree(tree1, tree2, i_matrix, c_matrix, hamming, min_dist,
-                          min_dist_edge, cluster_sizes);
-
-  for (i = 0; i < 2 * tree1->n_otu - 3; i++)
-  {
-    cur_edge = tree1->a_edges[i];
-    cur_edge->tdist_score += min_dist[cur_edge->num];
-  }
-
-  Free_TBE_Matrices(tree1->n_otu, &i_matrix, &c_matrix, &hamming, &min_dist,
-                    &min_dist_edge, &cluster_sizes);
+  TBE_Add_Transfer_Index(tree1, tree2);
 }
 
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Tips of a tree sorted by name, then by index (for Match_Tip_Numbers) */
+typedef struct
+{
+  const char *name;
+  int         idx;
+} tip_name;
+
+static int Tip_Name_Cmp(const void *x, const void *y)
+{
+  const tip_name *u = (const tip_name *)x, *v = (const tip_name *)y;
+  int             c = strcmp(u->name, v->name);
+  if (c != 0) return c;
+  return (u->idx > v->idx) - (u->idx < v->idx);
+}
+
 /* Modifiy the tip numbering in tree2 so that tips in
    tree1 and tree2 corresponding to the same taxon name
-   also have the same tip numbering */
+   also have the same tip numbering. Both name lists are sorted, so this
+   takes O(n log n) instead of n^2 string comparisons; as before, a name
+   found several times in tree2 is matched to its first tip. */
 void Match_Tip_Numbers(t_tree *tree1, t_tree *tree2)
 {
-  int i, j;
+  int       i, j, n;
+  tip_name *t1, *t2;
 
   if (tree1->n_otu != tree2->n_otu)
   {
@@ -5241,17 +5236,31 @@ void Match_Tip_Numbers(t_tree *tree1, t_tree *tree2)
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
-  for (i = 0; i < tree1->n_otu; i++)
+  n  = tree1->n_otu;
+  t1 = (tip_name *)mCalloc(n, sizeof(tip_name));
+  t2 = (tip_name *)mCalloc(n, sizeof(tip_name));
+  for (i = 0; i < n; i++)
   {
-    for (j = 0; j < tree2->n_otu; j++)
-    {
-      if (!strcmp(tree1->a_nodes[i]->name, tree2->a_nodes[j]->name))
-      {
-        tree2->a_nodes[j]->num = tree1->a_nodes[i]->num;
-        break;
-      }
-    }
+    t1[i].name = tree1->a_nodes[i]->name;
+    t1[i].idx  = i;
+    t2[i].name = tree2->a_nodes[i]->name;
+    t2[i].idx  = i;
   }
+  qsort(t1, n, sizeof(tip_name), Tip_Name_Cmp);
+  qsort(t2, n, sizeof(tip_name), Tip_Name_Cmp);
+
+  /* walk both lists; the first tip of tree2 with a name gets the number */
+  j = 0;
+  for (i = 0; i < n; i++)
+  {
+    int c = 1;
+    while (j < n && (c = strcmp(t2[j].name, t1[i].name)) < 0) j++;
+    if (j < n && c == 0)
+      tree2->a_nodes[t2[j].idx]->num = tree1->a_nodes[t1[i].idx]->num;
+  }
+
+  Free(t1);
+  Free(t2);
 }
 
 //////////////////////////////////////////////////////////////

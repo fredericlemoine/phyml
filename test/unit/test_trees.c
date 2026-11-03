@@ -280,6 +280,122 @@ TEST(tbe, transfer_distance_bounded_by_split_size)
   }
 }
 
+/* Random binary tree on taxa T0..T(n-1), as Newick, from a small LCG:
+   repeatedly joins two random subtrees. With `swaps` > 0, the tree is
+   `base` with that many random pairs of taxa exchanged. */
+static unsigned tt_seed;
+static unsigned tt_rand(unsigned m)
+{
+  tt_seed = tt_seed * 1103515245u + 12345u;
+  return (tt_seed >> 8) % m;
+}
+
+static char *random_newick(int n, const int *perm)
+{
+  char **sub = malloc(n * sizeof(char *));
+  int    k   = n;
+  for (int i = 0; i < n; i++)
+  {
+    sub[i] = malloc(16);
+    snprintf(sub[i], 16, "T%d:1", perm ? perm[i] : i);
+  }
+  while (k > 3)
+  {
+    int a = tt_rand(k), b = tt_rand(k - 1);
+    if (b >= a) b++;
+    char *j = malloc(strlen(sub[a]) + strlen(sub[b]) + 8);
+    sprintf(j, "(%s,%s):1", sub[a], sub[b]);
+    free(sub[a]);
+    free(sub[b]);
+    int hi = a > b ? a : b, lo = a < b ? a : b;
+    sub[hi] = sub[k - 1];
+    sub[lo] = j;
+    k--;
+  }
+  char *t = malloc(strlen(sub[0]) + strlen(sub[1]) + strlen(sub[2]) + 8);
+  sprintf(t, "(%s,%s,%s);", sub[0], sub[1], sub[2]);
+  for (int i = 0; i < 3; i++) free(sub[i]);
+  free(sub);
+  return t;
+}
+
+/* Tips below each edge of t (seen from `from`), as bit sets over tip nums */
+static void clade_bits(t_node *a, t_node *from, unsigned char *bits, int n)
+{
+  if (a->tax) bits[a->num] = 1;
+  for (int i = 0; i < 3; i++)
+    if (a->v[i] && a->v[i] != from) clade_bits(a->v[i], a, bits, n);
+}
+
+/* Brute-force transfer index of ref edge e in tree b */
+static int brute_transfer_index(t_edge *e, t_tree *b, int n)
+{
+  unsigned char *L = calloc(n, 1), *C = calloc(n, 1);
+  clade_bits(e->rght, e->left, L, n);
+  int best = n;
+  for (int j = 0; j < 2 * n - 3; j++)
+  {
+    memset(C, 0, n);
+    clade_bits(b->a_edges[j]->rght, b->a_edges[j]->left, C, n);
+    int h = 0;
+    for (int t = 0; t < n; t++) h += L[t] != C[t];
+    if (h > n - h) h = n - h;
+    if (h < best) best = h;
+  }
+  free(L);
+  free(C);
+  return best;
+}
+
+/* The O(n)-memory transfer index (tbe.c) against a brute-force one, on
+   random pairs of trees: unrelated, or a few taxa apart (so that exact
+   matches, distances 1, 2, ... all occur). */
+TEST(tbe, matches_brute_force_on_random_trees)
+{
+  tt_seed = 12345u;
+  for (int it = 0; it < 200; it++)
+  {
+    int  n = 4 + tt_rand(77);
+    int *perm = malloc(n * sizeof(int));
+    for (int i = 0; i < n; i++) perm[i] = i;
+    char *a = random_newick(n, NULL), *b;
+    if (it % 2)
+    {
+      /* same shape as a, a few taxa exchanged */
+      int swaps = 1 + tt_rand(3);
+      for (int k = 0; k < swaps; k++)
+      {
+        int x = tt_rand(n), y = tt_rand(n), tmp = perm[x];
+        perm[x] = perm[y];
+        perm[y] = tmp;
+      }
+      b = malloc(strlen(a) + 64 * n);
+      /* rename T<i> in a into T<perm[i]> */
+      char *o = b;
+      for (const char *c = a; *c;)
+        if (*c == 'T')
+        {
+          int v = (int)strtol(c + 1, (char **)&c, 10);
+          o += sprintf(o, "T%d", perm[v]);
+        }
+        else *o++ = *c++;
+      *o = 0;
+    }
+    else b = random_newick(n, NULL);
+
+    t_tree *t1 = parse(a), *t2 = parse(b);
+    Match_Tip_Numbers(t1, t2);
+    for (int i = 0; i < 2 * n - 3; i++) t1->a_edges[i]->tdist_score = 0.0;
+    Compare_Bip_Distance(t1, t2);
+    for (int i = 0; i < 2 * n - 3; i++)
+      CHECK_EQ_INT((int)t1->a_edges[i]->tdist_score,
+                   brute_transfer_index(t1->a_edges[i], t2, n));
+    free(a);
+    free(b);
+    free(perm);
+  }
+}
+
 /* ------------------------------------------------------------ BioNJ */
 
 /* Path lengths from `from` to every node, by depth-first search. */

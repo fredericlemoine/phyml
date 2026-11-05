@@ -66,7 +66,7 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 | `lk.c`, `sse.c`, `avx.c`, `eigen.c`, `models.c` | Likelihood engine and substitution models |
 | `optimiz.c` | Branch-length and parameter optimisation |
 | `spr.c`, `pars.c`, `bionj.c` | Tree search, parsimony, BioNJ |
-| `alrt.c`, `tbe.c`, `mpi_boot.c` | Branch supports (aLRT, aBayes, SH), TBE, MPI bootstrap |
+| `alrt.c`, `tbe.c`, `mpi_boot.c` | Branch supports (aLRT, aBayes, SH), TBE (transfer index in O(n) memory: hashed exact splits, then the light side's paths in the rooted replicate; `Match_Tip_Numbers` first), MPI bootstrap |
 | `sms.c` | SMS model selection (`--sms`), run from `main()` before the analysis |
 | `structure.c` | Structure models of Le & Gascuel 2010 (`-m EX\|EHO\|EX_EHO`, `--struct_model`, `--struct_file`) |
 | `lg4.c` | LG4M and LG4X (Le, Dang & Gascuel 2012): one matrix per rate category |

@@ -1,5 +1,5 @@
 
-[![Build Status](https://travis-ci.org/stephaneguindon/phyml.svg?branch=master)](https://travis-ci.org/stephaneguindon/phyml)
+[![Tests](https://github.com/fredericlemoine/phyml/actions/workflows/tests.yaml/badge.svg?branch=dev_fred_struct)](https://github.com/fredericlemoine/phyml/actions/workflows/tests.yaml)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/phyml/README.html) 
 
 
@@ -57,3 +57,25 @@ autoreconf -i;
 make;
 ```
 
+### Multithreading
+
+`configure` enables OpenMP when the compiler supports it (`--disable-openmp` turns it off), and
+`phyml --threads N` then computes the likelihood with N threads. The results are the same for any
+number of threads. GCC supports OpenMP out of the box; with Apple's clang, install `libomp`
+(`brew install libomp`) and configure with:
+
+```bash
+./configure --enable-phyml \
+  CPPFLAGS="-Xpreprocessor -fopenmp -I$(brew --prefix libomp)/include" \
+  LIBS="-L$(brew --prefix libomp)/lib -lomp"
+```
+
+### Tests
+
+`make -C test check` builds its own binaries and runs the C unit tests and the Python functional
+tests (a few minutes; only a C compiler and Python 3 are needed). `make -C test check-mpi` tests the
+MPI bootstrap. See `test/README.md`. GitHub Actions and GitLab CI run them on every push.
+
+### Documentation
+
+The user manual is `doc/phyml-manual.pdf`; `phyml --help` lists all the options.

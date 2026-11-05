@@ -543,6 +543,25 @@ is absent and when tree topology modifications are to be done.
 \item \x{int} = -4: SH-like branch supports alone.
 \item \x{int} = -5: (default) approximate Bayes branch supports.
 \end{itemize}
+With \x{int} $>$ 0, the support of each branch is written in the output tree as the number of
+replicates (out of \x{int}) whose tree contains it, unless \x{--tbe} is set. The branch joining a
+sequence to an identical copy (duplicate sequences are removed before the analysis and put back in
+the final tree, see \x{--leave\_duplicates}) has no support label: the supports are computed on the
+other sequences, where this branch does not exist.
+
+\item \x{--tbe}\index{command-line options!\x{--tbe}}\index{bootstrap!transfer}\\
+With \x{-b int} ($>$ 0), computes the transfer bootstrap expectation (TBE,
+\cite{lemoine2018}) instead of the standard bootstrap proportions. A branch whose smaller side
+holds $p$ taxa gets $1 - \bar{\phi}/(p-1)$, where $\bar{\phi}$ is the average over replicates of its
+transfer index, the number of taxa to move to find it in the replicate tree. TBE values lie between
+0 and 1 and are less severe than bootstrap proportions for deep branches of large trees. The
+transfer index is computed in linear memory and takes milliseconds per replicate for thousands of
+taxa \cite{lutteropp2020}.
+
+\item \x{--bayesian\_bootstrap}\index{command-line options!\x{--bayesian\_bootstrap}}\index{bootstrap!Bayesian}\\
+With \x{-b int} ($>$ 0), each replicate reweights the sites with Dirichlet weights (Bayesian
+bootstrap) instead of resampling them. A branch counts as present in a replicate tree only if it is
+longer than 0.1 divided by the number of sites. Supports are written as counts, as for \x{-b}.
 
 \item \x{-m} (or \x{--model}) \x{model\_name}\index{substitution models!DNA}\index{substitution models!amino acids}\index{command-line options!\x{--model}} \\
 \x{model\_name} : substitution model name.
@@ -760,10 +779,9 @@ running simulations involving PhyML. It can also be used to `tag' multiple analy
 set with various program settings.
 
 \item \x{--no\_memory\_check} \index{command-line options!\x{--no\_memory\_check}}\\
-By default, when processing a large data set, PhyML will pause and ask the user to confirm that
-she/he wants to continue with the execution of the analysis despite the large amount of memory
-required. The \x{--no\_memory\_check}  skips this question. It is especially useful when running
-PhyML in batch mode.
+When the analysis needs more than 256~MB of memory and PhyML runs in a terminal, it asks the user to
+confirm that she/he wants to continue. The \x{--no\_memory\_check} option skips this question. When the
+standard input is not a terminal (batch jobs, pipes), PhyML only prints the estimate and goes on.
 
 \item \x{--no\_colalias} \index{command-line options!\x{--no\_colalias}}\\
 By default, PhyML preprocesses each alignment by putting together (or aliasing) the columns that are
@@ -837,6 +855,10 @@ per thread). The output files are identical whatever the number of threads, so a
 reproducible. Multithreading speeds up long alignments; for bootstrap analyses, the parallel
 version based on MPI (Section \ref{sec:parallel_bootstrap}) distributes the replicates instead, and
 the two can be combined. Mixture and partition models defined in XML still run on one thread.
+A build with OpenMP runs as fast on one thread as a build without it. On alignments of about a
+thousand site patterns, the gain flattens beyond four threads (about 2.8 to 3 times faster with
+eight threads on an AMD EPYC node), because each thread then has little work per likelihood
+evaluation; with more site patterns, each thread gets more work.
 
 \begin{verbatim}
 phyml -i seqfile -d aa -m LG --threads 8

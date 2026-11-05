@@ -1,6 +1,6 @@
 # PhyML: Software Report and Code Assessment
 
-2026-10-14 · Frederic Lemoine (section 3 updated with test-suite results; multithreading and SMS model selection added 2026-10-15; structure models added 2026-10-16)
+2026-10-14 · Frederic Lemoine (section 3 updated with test-suite results; multithreading and SMS model selection added 2026-10-15; structure models added 2026-10-16; section 3 last updated 2026-11-05)
 
 ## 1. Introduction
 
@@ -167,7 +167,7 @@ The history shows the cost of fixes without tests: 361 of about 2,100 commits me
 
 ### 3.4 Build, packaging and testing
 
-- **Tests: now a first suite, run in CI.** The repository had no tests, and GitHub Actions built on three platforms without running an analysis. `test/` now holds 58 C unit tests and 243 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 8 known-bug tests (7 in `make check`, 1 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. GitHub Actions (`.github/workflows/tests.yaml`) runs `make -C test check` on Linux x86-64, Linux ARM64 and macOS ARM64 and `check-mpi` on every push and pull request, and the full sanitizer suite weekly; `.gitlab-ci.yml` does the same on GitLab (Debian x86-64, ARM64 when `ARM64_RUNNER_TAG` names a runner). The README still shows a Travis badge (travis-ci.org closed in 2021).
+- **Tests: now a first suite, run in CI.** The repository had no tests, and GitHub Actions built on three platforms without running an analysis. `test/` now holds 59 C unit tests and 243 Python functional tests (`make -C test check`, about 1 to 2.5 minutes). They compare likelihoods with an independent Python implementation, check search, support and optimisation properties on simulated data, and run sanitizer, `-DNDEBUG`, OpenMP and MPI builds. The 9 known-bug tests (8 in `make check`, 1 more in `make check-mpi`) are reported as expected failures, so the suite passes on the current code and flags each fix. GitHub Actions (`.github/workflows/tests.yaml`) runs `make -C test check` on Linux x86-64, Linux ARM64 and macOS ARM64 and `check-mpi` on every push and pull request, and the full sanitizer suite weekly; `.gitlab-ci.yml` does the same on GitLab (Debian x86-64, ARM64 when `ARM64_RUNNER_TAG` names a runner). The README badge shows the GitHub Actions status.
 - **Generated files in git.** `config.h`, `config.log`, `config.status`, the generated `Makefile`s and LaTeX `.aux`/`.log` files are tracked; each commit carries about 1,000 lines of build noise, which hides real changes in review.
 - **Configure quirks.** `AC_DEFINE([DEBUG],[1])` is unconditional; the compiler-specific `-mcpu=native` choice is overwritten a few lines later; one binary per configure run, chosen by ten mutually exclusive flags. The unconditional `-march=native` also hides that the x86-64 SSE code needs SSE3 (section 3.1).
 - **Sanitizer cost.** Under GCC 13's AddressSanitizer, PhyML runs about 40 times slower unless `detect_stack_use_after_return=0` is set; the test suite sets it.
@@ -180,7 +180,7 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Done: `test/` holds unit, functional, sanitizer, `-DNDEBUG` and MPI tests, run by `make -C test check` (section 3.4). It passes on macOS arm64, Linux aarch64 and Linux x86-64.
     - Done: GitHub Actions (`tests.yaml`) and GitLab CI (`.gitlab-ci.yml`) run `check` and `check-mpi`; GitHub covers Linux x86-64, Linux ARM64 and macOS ARM64. Next: Windows.
     - Add a fuzzing target for the PHYLIP, FASTA (read since 2026-10-17), NEXUS, Newick and XML parsers; most of the crashes in section 3.1 are in these readers.
-    - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git and drop the Travis badge.
+    - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git.
 2. **Fix the high-severity bugs (days).**
     - Constraints: done (kept during SPR moves, and constraints on a subset of the taxa work).
     - MPI: run the ML search on rank 0 only (the other ranks currently redo it and discard it); keep the user's replicate count and give the remainder to the first ranks.

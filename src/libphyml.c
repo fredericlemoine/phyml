@@ -620,6 +620,10 @@ int PhyML_Run(int argc, char **argv)
   PhyML_Error_Clear();
   optind = 1; // getopt starts again from the first argument
 
+  // What the run allocates and opens is recorded from here on, and released
+  // below: nothing is left of a run, whether it fails or not
+  PhyML_Track_Begin();
+
   code = setjmp(env);
   if (code == 0)
   {
@@ -633,6 +637,7 @@ int PhyML_Run(int argc, char **argv)
   PhyML_Error_Set_Recovery(NULL);
   PhyML_Error_Scope(PHYML_ERR);
   fflush(NULL);
+  PhyML_Track_End(NULL, NULL);
 
   return code;
 }

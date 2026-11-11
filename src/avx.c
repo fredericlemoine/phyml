@@ -10,7 +10,6 @@ the GNU public licence. See http://www.opensource.org for details.
 
 */
 
-#include "assert.h"
 #include "avx.h"
 
 /* Always inlined: used to specialise loops for ns = 4 and 20 */

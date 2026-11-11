@@ -15,7 +15,6 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "error.h"
 #include "structure.h"
 #include "lg4.h"
-#include "assert.h"
 #include "tbe.h"
 
 #ifdef BEAGLE
@@ -8365,8 +8364,7 @@ void Warn_And_Exit(const char *s)
   PhyML_Fprintf(stderr, "%s", s);
   fflush(NULL);
 #ifndef BATCH
-  PhyML_Fprintf(stderr, "\n. Type enter to exit.\n");
-  Exit("");
+  Exit("\n");
 #endif
   Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
 }

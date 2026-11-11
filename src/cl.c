@@ -484,10 +484,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->codpos = (int)pos;
       if (io->codpos < 1 || io->codpos > 3)
       {
-        char choix;
         PhyML_Printf("\n. Coding position must be set to 1, 2 or 3.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -587,11 +584,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->chain_len_burnin = (int)len;
       if (io->mcmc->chain_len_burnin < 1)
       {
-        char choix;
         PhyML_Printf(
             "\n. chain_len_burnin must be an integer greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -603,11 +597,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->sample_interval = (int)len;
       if (io->mcmc->sample_interval < 1)
       {
-        char choix;
         PhyML_Printf(
             "\n. sample_interval must be an integer greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -619,10 +610,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->chain_len = (int)len;
       if (io->mcmc->chain_len < 1)
       {
-        char choix;
         PhyML_Printf("\n. chain_len must be an integer greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -644,11 +632,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->boot_prog_every = atoi(optarg);
       if (io->boot_prog_every < 1)
       {
-        char choix;
         PhyML_Printf(
             "\n. boot_progress_every must be an integer greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -707,10 +692,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mod->s_opt->min_diff_lk_move = atof(optarg);
       if (io->mod->s_opt->min_diff_lk_move < 0)
       {
-        char choix;
         PhyML_Printf("\n. Min_diff_lk_move must be a double greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -722,7 +704,6 @@ int Read_Command_Line(option *io, int argc, char **argv)
       {
         PhyML_Printf(
             "\n. The parsimony threshold must be an integer greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
         Exit("\n");
       }
       break;
@@ -782,10 +763,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
       if (io->mod->m4mod->n_h < 1)
       {
-        char choix;
         PhyML_Printf("\n. The number of classes must be greater than 0.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
 #endif
@@ -816,10 +794,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
         if (io->mod->m4mod->alpha < 1.E-5)
         {
-          char choix;
           PhyML_Printf("\n. The value of alpha must be greater than 1.E-5.\n");
-          PhyML_Printf("\n. Type any key to exit.\n");
-          if (!scanf("%c", &choix)) Exit("\n");
           Exit("\n");
         }
       }
@@ -848,10 +823,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
         if (atof(optarg) < 1.E-10)
         {
-          char choix;
           PhyML_Printf("\n. The value of delta must be larger than 1.E-10.\n");
-          PhyML_Printf("\n. Type any key to exit.\n");
-          if (!scanf("%c", &choix)) Exit("\n");
           Exit("\n");
         }
       }
@@ -1048,11 +1020,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else
       {
-        char choix;
         PhyML_Printf("\n. Unknown argument to -d option: please use `nt' for "
                      "DNA or `aa' for Amino-Acids\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
 
@@ -1375,10 +1344,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else if (atof(optarg) < 1.E-10)
       {
-        char choix;
         PhyML_Printf("\n. Alpha must be > 1.E-10.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       else
@@ -1393,11 +1359,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((int)String_To_Dbl(optarg) < -5)
       {
-        char choix;
         PhyML_Printf("\n. Branch test value must be a positive integer for "
                      "bootstrap, or between -1 and -4 for aLRT branch test\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       else
@@ -1411,11 +1374,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
           if (io->n_data_sets > 1)
           {
-            char choix;
             PhyML_Printf("\n. Bootstrap option is not allowed with multiple "
                          "data sets\n");
-            PhyML_Printf("\n. Type any key to exit.\n");
-            if (!scanf("%c", &choix)) Exit("\n");
             Exit("\n");
           }
         }
@@ -1443,11 +1403,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((!atoi(optarg)) || (atoi(optarg) < 0))
       {
-        char choix;
         PhyML_Printf("\n. Unknown argument to -c option: the number of rate "
                      "categories must be a positive integer\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       else
@@ -1702,10 +1659,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
             // -- End TN93 rates for purines & pyrimidines
             if (atof(optarg) < .0)
             {
-              char choix;
               PhyML_Printf("\n. The ts/tv ratio must be a positive number\n");
-              PhyML_Printf("\n. Type any key to exit.\n");
-              if (!scanf("%c", &choix)) Exit("\n");
               Exit("\n");
             }
             else
@@ -1722,11 +1676,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((!atoi(optarg)) || (atoi(optarg) < 0))
       {
-        char choix;
         PhyML_Printf(
             "\n. The number of alignments must be a positive integer\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       else
@@ -1769,11 +1720,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
       else if ((atof(optarg) < 0.0) || (atof(optarg) > 1.0))
       {
-        char choix;
         PhyML_Printf("\n. The proportion of invariable site must be a number "
                      "between 0.0 and 1.0\n");
-        PhyML_Printf("\n. Type any key to exit.");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       else
@@ -1835,11 +1783,8 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else
       {
-        char choix;
         PhyML_Printf("\n. The optimization parameter must be 'tlr' or 'tl' or "
                      "'lr' or 'l' or 'r' or 'n'.");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
       break;
@@ -1978,22 +1923,16 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
   if ((io->datatype == NT) && (io->mod->whichmodel > 10))
   {
-    char choix;
     PhyML_Printf("\n. Err.: model incompatible with the data type. Please use "
                  "JC69, K80, F81, HKY, F84, TN93 or GTR\n");
-    PhyML_Printf("\n. Type any key to exit.\n");
-    if (!scanf("%c", &choix)) Exit("\n");
     Warn_And_Exit("\n");
   }
   else if ((io->datatype == AA) && (io->mod->whichmodel < 11))
   {
-    char choix;
     PhyML_Printf("\n. Err.: model incompatible with the data type. Please use "
                  "LG, Dayhoff, JTT, MtREV, WAG, DCMut, RtREV, CpREV, VT, "
                  "Blosum62, MtMam, MtArt, HIVw, HIVb, AB, FLU, Q.pfam, Q.bird, "
                  "Q.insect, Q.mammal, Q.plant, Q.yeast or MtZoa.\n");
-    PhyML_Printf("\n. Type any key to exit.\n");
-    if (!scanf("%c", &choix)) Exit("\n");
     Exit("\n");
   }
 

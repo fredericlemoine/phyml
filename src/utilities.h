@@ -45,6 +45,34 @@ the GNU public licence. See http://www.opensource.org for details.
 #include <pmmintrin.h>
 #endif
 
+#include "error.h"
+
+/* assert() of libphyml: a failed assert ends the run with an error code
+   when PhyML is called as a library, and aborts the process otherwise, as
+   <assert.h> does (error.h). Do not include <assert.h> after this header:
+   it would bring the standard macro back. */
+#undef assert
+#ifdef NDEBUG
+#define assert(e) ((void)0)
+#else
+#define assert(e)                                                          \
+  ((e) ? (void)0 : PhyML_Assert_Failed(#e, __FILE__, __LINE__, __func__))
+#endif
+
+/* The blocks and files of a run are recorded, to be released when the run
+   ends or fails (error.h). The standard names are mapped here so that every
+   allocation is seen, whichever function made it. On Windows blocks are
+   released by _aligned_free and are not recorded. */
+#ifndef WIN32
+#define malloc(size) PhyML_Malloc(size)
+#define calloc(n, size) PhyML_Calloc(n, size)
+#define realloc(p, size) PhyML_Realloc(p, size)
+#define posix_memalign(p, alignment, size) PhyML_Memalign(p, alignment, size)
+#define free(p) PhyML_Free_Block(p)
+#endif
+#define fopen(name, mode) PhyML_Fopen(name, mode)
+#define fclose(fp) PhyML_Fclose(fp)
+
 extern int n_sec1;
 extern int n_sec2;
 

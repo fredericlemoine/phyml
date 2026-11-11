@@ -81,12 +81,21 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   `Warn_And_Exit`, `Generic_Exit` or `assert`. The first three end in
   `PhyML_Raise` (`error.c`): it exits with status 1 in the `phyml` program,
   and returns an error code to `PhyML_Run` when PhyML is called as a library
-  (`longjmp` to its recovery point; the failed run's memory and files leak).
-  So never call `exit()` directly: use `Exit`, `PhyML_Raise(code)`, or
-  `PhyML_Stop` to end a run without error. `Exit` raises the code of the
-  current scope (`PhyML_Error_Scope`: usage while reading the command line,
-  input while reading files). `assert` still aborts the process. There is no
-  error return path in the functions themselves yet.
+  (`longjmp` to its recovery point). So never call `exit()` directly: use
+  `Exit`, `PhyML_Raise(code)`, or `PhyML_Stop` to end a run without error.
+  `Exit` raises the code of the current scope (`PhyML_Error_Scope`: usage
+  while reading the command line, input while reading files). `assert` is
+  defined in `utilities.h` and goes the same way (`PHYML_ERR_INTERNAL`; it
+  aborts in the program): do not include `<assert.h>` in source files, it
+  would bring the standard macro back. There is no error return path in the
+  functions themselves yet, and no prompt before an error exit ("Type any
+  key to exit" is gone: do not add one).
+- `PhyML_Run` releases what its run allocated and opened, also after an
+  error: `utilities.h` maps `malloc`, `calloc`, `realloc`, `posix_memalign`,
+  `free`, `fopen` and `fclose` to recording versions (`error.c`,
+  `PhyML_Track_Begin`/`_End`; plain calls outside a run). So nothing may
+  outlive a run: no pointer kept in a `static` or global for the next run,
+  and `error.c` itself must not include `utilities.h`.
 - The autotools build of `phyml` makes `libphyml.a` (everything but
   `main.c`, installed with `phyml.h`) and links the program to it. New source
   files go in every list of `src/Makefile.am` and in `LIB_SRCS` of

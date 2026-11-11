@@ -89,21 +89,15 @@ void Launch_Interface(option *io)
 
   if ((io->datatype == NT) && (io->mod->whichmodel > 10))
   {
-    char choix;
     PhyML_Printf("\n== Err: model incompatible with the data type. Please use "
                  "JC69, K80, F81, HKY, F84, TN93 or GTR\n");
-    PhyML_Printf("\n. Type any key to exit.\n");
-    if (!scanf("%c", &choix)) Exit("\n");
     Warn_And_Exit("\n");
   }
   else if ((io->datatype == AA) && (io->mod->whichmodel < 11))
   {
-    char choix;
     PhyML_Printf("\n== Err: model incompatible with the data type. Please use "
                  "LG, Dayhoff, JTT, MtREV, WAG, DCMut, RtREV, CpREV, VT, "
                  "Blosum62, MtMam, MtArt, HIVw, HIVb or AB.\n");
-    PhyML_Printf("\n. Type any key to exit.\n");
-    if (!scanf("%c", &choix)) Exit("\n");
     Exit("\n");
   }
 
@@ -509,8 +503,6 @@ void Launch_Interface_Data_Type(option *io)
     {
       PhyML_Printf(
           "\n. Bootstrap option is not allowed with multiple data sets !\n");
-      PhyML_Printf("\n. Type any key to exit.");
-      if (!scanf("%c", &choix)) Exit("\n");
       Exit("\n");
     }
 
@@ -1230,8 +1222,6 @@ void Launch_Interface_Model(option *io)
         (io->mod->whichmodel == CUSTOM))
     {
       PhyML_Printf("\n. 'K' is not a valid choice for this model\n");
-      PhyML_Printf("\n. Type any key to exit.\n");
-      if (!scanf("%c", &choix)) Exit("\n");
       Exit("\n");
     }
 
@@ -1856,8 +1846,6 @@ void Launch_Interface_Branch_Support(option *io)
       {
         PhyML_Printf(
             "\n. Bootstrap option is not allowed with multiple data sets.\n");
-        PhyML_Printf("\n. Type any key to exit.\n");
-        if (!scanf("%c", &choix)) Exit("\n");
         Exit("\n");
       }
 

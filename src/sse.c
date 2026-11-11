@@ -10,7 +10,6 @@ the GNU public licence. See http://www.opensource.org for details.
 
 */
 
-#include "assert.h"
 #include "sse.h"
 #ifdef __ARM_NEON
 #include "sse2neon.h"

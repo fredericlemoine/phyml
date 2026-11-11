@@ -14,7 +14,6 @@ the GNU public licence. See http://www.opensource.org for details.
 #include "error.h"
 #include "structure.h"
 #include "lg4.h"
-#include "assert.h"
 
 #ifdef BEAGLE
 #include "libhmsbeagle/beagle.h"

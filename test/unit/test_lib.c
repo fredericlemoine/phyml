@@ -222,3 +222,94 @@ TEST(lib, empty_allocation_is_not_a_failure)
   CHECK(p != NULL);
   Free(p);
 }
+
+TEST(lib, failed_assert_comes_back_as_internal_error)
+{
+  jmp_buf      env;
+  volatile int code;
+  int          zero = 0;
+
+  Silence();
+  PhyML_Error_Clear();
+  code = setjmp(env);
+  if (code == 0)
+  {
+    PhyML_Error_Set_Recovery(&env);
+    assert(zero == 1);
+    CHECK(0); // not reached
+  }
+  PhyML_Error_Set_Recovery(NULL);
+  CHECK_EQ_INT(code, PHYML_ERR_INTERNAL);
+  CHECK(strstr(PhyML_Error_Message(), "Assertion failed: (zero == 1)") != NULL);
+}
+
+/* What a run that fails had allocated and opened is released. */
+TEST(lib, failed_run_releases_its_blocks_and_files)
+{
+  jmp_buf      env;
+  volatile int code;
+  long         n_blocks = -1, n_files = -1;
+  char        *argv[]   = {"phyml", "-i", NULL, "-b", "0", NULL};
+
+  Silence();
+  argv[2] = strdup(Stage("bad_short_seq.phy"));
+  optind  = 1;
+  PhyML_Error_Clear();
+  PhyML_Track_Begin();
+  code = setjmp(env);
+  if (code == 0)
+  {
+    PhyML_Error_Set_Recovery(&env);
+    PhyML_Main(5, argv);
+  }
+  PhyML_Error_Set_Recovery(NULL);
+  CHECK_EQ_INT(code, PHYML_ERR_INPUT);
+  PhyML_Track_End(&n_blocks, &n_files);
+  CHECK(n_blocks > 10); // the options, the model, the sequences read so far
+  CHECK(n_files >= 3);  // the alignment, the tree and the statistics files
+
+  // Nothing is recorded outside a run
+  PhyML_Track_Begin();
+  PhyML_Track_End(&n_blocks, &n_files);
+  CHECK_EQ_INT(n_blocks, 0);
+  CHECK_EQ_INT(n_files, 0);
+}
+
+/* 400 failed runs would exhaust the file descriptors (256 by default on
+   macOS, 1,024 on Linux with 3 files per run) if their files stayed open. */
+TEST(lib, many_failed_runs_do_not_use_up_file_descriptors)
+{
+  int   i, fd_before, fd_after;
+  char *aln;
+
+  Silence();
+  aln       = strdup(Stage("bad_short_seq.phy"));
+  fd_before = dup(0);
+  close(fd_before);
+  for (i = 0; i < 400; i++) CHECK_EQ_INT(Run(aln, NULL), PHYML_ERR_INPUT);
+  fd_after = dup(0);
+  close(fd_after);
+  CHECK_EQ_INT(fd_after, fd_before);
+  CHECK_EQ_INT(Run(Stage("dna_small.phy"), NULL), PHYML_OK);
+}
+
+/* Blocks freed or reallocated during a run are no longer recorded. */
+TEST(lib, tracking_follows_free_and_realloc)
+{
+  long  n_blocks = -1, n_files = -1;
+  int   i;
+  void *p[2000];
+  FILE *fp;
+
+  PhyML_Track_Begin();
+  for (i = 0; i < 2000; i++) p[i] = mCalloc(1 + i % 7, sizeof(int));
+  for (i = 0; i < 2000; i += 2) Free(p[i]);
+  for (i = 1; i < 2000; i += 4) p[i] = mRealloc(p[i], 5000, sizeof(int));
+  fp = fopen("/dev/null", "r");
+  CHECK(fp != NULL);
+  fclose(fp);
+  fp = fopen("/dev/null", "r");
+  PhyML_Track_End(&n_blocks, &n_files);
+  CHECK_EQ_INT(n_blocks, 1000);
+  CHECK_EQ_INT(n_files, 1);
+}

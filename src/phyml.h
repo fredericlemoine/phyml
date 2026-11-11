@@ -54,11 +54,13 @@ enum
    error that stopped the run; the process is not terminated. Output files
    are written as by the phyml program. Not reentrant: one run at a time.
 
-   Limits of this first version: the memory and the files held by a run
-   that fails are not released; an error raised inside an OpenMP parallel
-   region, and a failed assert(), still end the process; some errors wait
-   for a key on stdin ("Type any key to exit") before they come back; the
-   MPI build initialises and finalises MPI in each run, so it can run once. */
+   The memory and the files of the run are released when it returns, also
+   after an error, and a failed internal check (assert) comes back as
+   PHYML_ERR_INTERNAL.
+
+   Limits: an error raised inside an OpenMP parallel region still ends the
+   process; the MPI build initialises and finalises MPI in each run, so it
+   can run once; on Windows the memory of a run that fails is not released. */
 int PhyML_Run(int argc, char **argv);
 
 /* The same analysis without the recovery point: an error ends the process

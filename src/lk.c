@@ -10,7 +10,6 @@ the GNU public licence. See http://www.opensource.org for details.
 
 */
 
-#include "assert.h"
 #include "lk.h"
 #include "structure.h"
 #include "lg4.h"

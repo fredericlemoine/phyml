@@ -184,15 +184,16 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
 
 1. **Regression tests and CI (started).**
     - Done: `test/` holds unit, functional, sanitizer, `-DNDEBUG` and MPI tests, run by `make -C test check` (section 3.4). It passes on macOS arm64, Linux aarch64 and Linux x86-64.
-    - Done: GitHub Actions (`tests.yaml`) and GitLab CI (`.gitlab-ci.yml`) run `check` and `check-mpi`; GitHub covers Linux x86-64, Linux ARM64 and macOS ARM64. Next: Windows.
+    - Done: GitHub Actions (`tests.yaml`) and GitLab CI (`.gitlab-ci.yml`) run `check` and `check-mpi`, and `check-asan` on a schedule; GitHub covers Linux x86-64, Linux ARM64 and macOS ARM64. Next: Windows.
     - Add a fuzzing target for the PHYLIP, FASTA (read since 2026-10-17), NEXUS, Newick and XML parsers; most of the crashes in section 3.1 are in these readers.
-    - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git.
+    - Remove generated files (`config.*`, `Makefile`s, LaTeX outputs) from git. Until then, `test_version_matches_configure_ac` expects the stale committed `config.h` and reports an unexpected success after `./configure`: compare the version with `configure.ac` only when `config.h` is the committed one, or drop the test with the file.
+    - Add tests for the combinations found by hand on 2026-11-11 (section 3.1): `--constraint_file` with random starts, `--sms` with several data sets, and the tree file of `phyml-mpi` with many ranks.
 2. **Fix the high-severity bugs (days).**
-    - Constraints: done (kept during SPR moves, and constraints on a subset of the taxa work).
-    - MPI: run the ML search on rank 0 only (the other ranks currently redo it and discard it); keep the user's replicate count and give the remainder to the first ranks.
+    - Constraints: kept during SPR moves, and constraints on a subset of the taxa work. Left: `--constraint_file` with `--rand_start` or `--n_rand_starts` crashes at the second start; the constraint block of `main()` must not set `io->in_tree`, and must read the constraint file once for all the starts.
+    - MPI: truncate the tree file on rank 0 only (`Truncate_Tree_File` runs on every rank and can empty the file rank 0 wrote); run the ML search on rank 0 only (the other ranks currently redo it and discard it); keep the user's replicate count and give the remainder to the first ranks.
     - Replace `rand()` with a seeded 64-bit generator (PCG or xoshiro), one stream per MPI rank, and a `Uni()` on the open interval (0, 1) (bounded integers are already unbiased).
     - Sequence readers: done (bounds and `int` for `fgetc` in `Read_One_Line_Seq`, no side effects inside `assert`, error messages for short or truncated files and fewer than three taxa, names bounded to 999 characters).
-    - Replace fixed `T_MAX_*` buffers and `strcpy`/`strcat`/`sprintf` with sized allocations (`snprintf`, `asprintf`); widen size arithmetic to `size_t`.
+    - Buffers (started): file names, run ids, taxon names and menu input are bounded. Left: `Openfile` reads a new file name into a buffer whose size it does not know (1,000 bytes for the rate matrix file of the menu); give it the size. Then replace the fixed `T_MAX_*` buffers and `strcpy`/`strcat`/`sprintf` with sized allocations (`snprintf`, `asprintf`), and widen size arithmetic to `size_t`.
     - Make PhyML non-interactive by default when stdin is not a terminal (done for the memory question); align the help text with the actual search.
 3. **Performance and scale (months).**
     - Threads (started): the site loops of the likelihood engine run on OpenMP threads (`--threads`, section 3.2). Next: mixture and partition models, parsimony and distance matrices, aLRT/aBayes branch tests in parallel, and bootstrap replicates on threads once replicates stop sharing `io` and `s_opt` with the main tree.
@@ -206,9 +207,10 @@ Build a regression safety net first, then fix the correctness bugs, then invest 
     - Delete dead modules and commented-out code (git keeps history), break up the 1,000+ line functions, and turn on `-Wextra -Werror` for new code.
     - Replace autotools mode flags with CMake or Meson targets that build all binaries in one pass.
 5. **Scientific features to stay competitive.**
-    - Model selection (started): SMS is built in (`--sms`). Next: run the independent SMS fits on threads, offer AICc and the FreeRate category count, and add codon models.
+    - Model selection (started): SMS is built in (`--sms`). Next: one `*_phyml_sms.csv` per data set (with `-n`, each data set overwrites the file), run the independent SMS fits on threads, offer AICc and the FreeRate category count, and add codon models.
+    - Site-heterogeneous protein models (started): LG4M, LG4X and the structure models of Le & Gascuel (EX, EHO, EX_EHO) are built in. Next: write the bootstrap trees of the structure models in the same units as the final tree (multiplied by the mean rate).
     - Port the covarion (M4) model to the current data structures and build it, or remove it; validate it against a reference implementation.
     - Profile mixture models (C20 to C60, PMSF) and partition-wise models from a simple NEXUS partition file, not only XML.
     - Checkpoint and restart for long searches and bootstraps (`checkpoint.c` is a start), and a ultrafast-style bootstrap or parametric alternative to make TBE affordable on large trees.
 
-The quickest wins with the highest impact were the Newick reader, the random number generator and the sequence readers; the Newick reader and the sequence readers are now fixed. Replacing `rand()` (item 2) is the main quick win left. The known-bug tests in `test/` show when each one is fixed.
+The quickest wins with the highest impact were the Newick reader, the random number generator and the sequence readers; the Newick reader and the sequence readers are now fixed. The quick wins left are the two Medium problems found on 2026-11-11, both in `main()` (the constraint tree with random starts, and the tree file truncated by every MPI rank), and replacing `rand()` (item 2). The known-bug tests in `test/` show when each one is fixed.

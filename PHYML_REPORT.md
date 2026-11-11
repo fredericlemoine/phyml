@@ -65,7 +65,7 @@ Parsimony-guided SPR (`Spr_Pars`), random starting trees and multiple random sta
 | --- | --- | --- | --- |
 | Non-parametric bootstrap (Felsenstein) | `-b N` | N full searches | MPI parallel over replicates |
 | Transfer Bootstrap Expectation | `--tbe -b N` | N full searches | Lemoine et al., Nature 2018; better for deep branches of large trees |
-| Bayesian bootstrap | `--bayesian_bootstrap -b N` | N full searches | Dirichlet site weights |
+| Bayesian bootstrap | `--bayesian_bootstrap -b N` | N full searches | Lemoine & Gascuel, Mol. Biol. Evol. 2024 ([doi:10.1093/molbev/msae238](https://doi.org/10.1093/molbev/msae238)); Dirichlet site weights |
 | aLRT statistic, chi2-based aLRT | `-b -1`, `-b -2` | One NNI pass | Anisimova & Gascuel 2006 |
 | min(chi2, SH-like) | `-b -3` | One NNI pass + RELL | Conservative combination |
 | SH-like aLRT | `-b -4` | One NNI pass + 10,000 RELL resamples per branch | Guindon et al. 2010 |

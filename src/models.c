@@ -11,6 +11,7 @@ the GNU public licence.  See http://www.opensource.org for details.
 */
 
 #include "models.h"
+#include "error.h"
 #include "structure.h"
 #include "lg4.h"
 #include <stdint.h>
@@ -521,8 +522,8 @@ int GetDaa(phydbl *daa, phydbl *pi, char *file_name)
   for (i = 0; i < naa; ++i) sum += pi[i];
   if (FABS(1. - sum) > 1e-4)
   {
-    PhyML_Printf("\nSum of freq. = %.6f != 1 in aaRateFile\n", sum);
-    exit(-1);
+    PhyML_Fprintf(stderr, "\nSum of freq. = %.6f != 1 in aaRateFile\n", sum);
+    PhyML_Raise(PHYML_ERR_INPUT);
   }
 
   fclose(fdaa);

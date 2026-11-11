@@ -65,6 +65,7 @@ lk.c lk.h\
 bionj.c bionj.h\
 models.c models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c free.h\
 help.c help.h\
@@ -137,6 +138,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -176,6 +178,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -196,6 +199,7 @@ xml.c xml.h\
 mixt.c mixt.h\
 tbe.c tbe.h \
 sms.c sms.h \
+libphyml.c \
 sse.c sse.h\
 avx.c avx.h\
 m4.c m4.h\
@@ -216,6 +220,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -229,6 +234,7 @@ spr.c spr.h\
 draw.c  draw.h\
 tbe.c tbe.h \
 sms.c sms.h \
+libphyml.c \
 stats.c stats.h\
 rates.c rates.h\
 mcmc.c mcmc.h\
@@ -254,6 +260,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -300,6 +307,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -338,6 +346,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -386,6 +395,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -431,6 +441,7 @@ lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -457,13 +468,17 @@ mixt.c mixt.h\
 date.c date.h
 # date_LDADD = -lm
 else
-phyml_SOURCES = main.c \
-utilities.c  utilities.h\
+# The phyml program is main() linked to libphyml, which holds everything
+# else and is installed with its public header (phyml.h).
+lib_LIBRARIES = libphyml.a
+include_HEADERS = phyml.h
+libphyml_a_SOURCES = utilities.c  utilities.h\
 optimiz.c  optimiz.h\
 lk.c  lk.h\
 bionj.c bionj.h\
 models.c  models.h\
 structure.c structure.h\
+error.c error.h phyml.h\
 lg4.c lg4.h\
 free.c  free.h\
 help.c  help.h\
@@ -485,6 +500,7 @@ sse.c sse.h\
 avx.c avx.h\
 tbe.c tbe.h \
 sms.c sms.h \
+libphyml.c \
 ancestral.c ancestral.h \
 mixt.c mixt.h \
 evolve.c evolve.h\
@@ -493,7 +509,8 @@ date.c date.h\
 times.c times.h\
 m4.c m4.h\
 cv.c cv.h
-# phyml_LDADD = -lm
+phyml_SOURCES = main.c
+phyml_LDADD = libphyml.a
 endif
 endif
 endif

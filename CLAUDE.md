@@ -60,7 +60,8 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 
 | File | Role |
 | --- | --- |
-| `main.c` | `main()` for each program, selected by `PHYML`, `PHYTIME`, ... |
+| `main.c` | `main()` for each program, selected by `PHYML`, `PHYTIME`, ... For PhyML it only calls `PhyML_Main` |
+| `libphyml.c`, `phyml.h`, `error.c/.h` | Library entry points: `PhyML_Main` (the analysis, formerly `main()`), `PhyML_Run` (same, returns an error code instead of exiting), and the error layer behind `Exit` |
 | `cl.c`, `interface.c`, `help.c` | Command line, PHYLIP-style menu, help text |
 | `io.c`, `nexus.c`, `xml.c` | Alignment (PHYLIP, FASTA, NEXUS), Newick and XML input; output files |
 | `lk.c`, `sse.c`, `avx.c`, `eigen.c`, `models.c` | Likelihood engine and substitution models |
@@ -77,8 +78,19 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
 ## Conventions and gotchas
 
 - Allocate with `mCalloc` and free with `Free`; errors go through `Exit`,
-  `Warn_And_Exit` or `assert`, which end the process (there is no error
-  return path).
+  `Warn_And_Exit`, `Generic_Exit` or `assert`. The first three end in
+  `PhyML_Raise` (`error.c`): it exits with status 1 in the `phyml` program,
+  and returns an error code to `PhyML_Run` when PhyML is called as a library
+  (`longjmp` to its recovery point; the failed run's memory and files leak).
+  So never call `exit()` directly: use `Exit`, `PhyML_Raise(code)`, or
+  `PhyML_Stop` to end a run without error. `Exit` raises the code of the
+  current scope (`PhyML_Error_Scope`: usage while reading the command line,
+  input while reading files). `assert` still aborts the process. There is no
+  error return path in the functions themselves yet.
+- The autotools build of `phyml` makes `libphyml.a` (everything but
+  `main.c`, installed with `phyml.h`) and links the program to it. New source
+  files go in every list of `src/Makefile.am` and in `LIB_SRCS` of
+  `test/Makefile`.
 - Never put side effects inside `assert()`: `-DNDEBUG` builds skip them (the
   sequential PHYLIP reader once hung that way).
 - Store `fgetc`/`getc` results in an `int`: `char` is unsigned on ARM

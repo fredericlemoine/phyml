@@ -12,6 +12,9 @@ AC_DEFINE([DEBUG],[1],[Debug tag on])
 AC_CANONICAL_HOST
 
 AC_PROG_CC([gcc clang mpicc])
+dnl libphyml.a (static library behind the phyml program)
+AC_PROG_RANLIB
+AM_PROG_AR
 
 AS_IF([test "$CC" = "gcc"],[DEFAULT_VECTOR_FLAG="-march=native"])
 AS_IF([test "$CC" = "clang"],[DEFAULT_VECTOR_FLAG="-mcpu=native"])

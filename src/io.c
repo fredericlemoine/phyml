@@ -11,6 +11,7 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "io.h"
+#include "error.h"
 #include "structure.h"
 #include "lg4.h"
 #include "assert.h"
@@ -4490,6 +4491,14 @@ void PhyML_Fprintf(FILE *fp, char *format, ...)
   va_end(ptr);
 #endif
 
+  // Kept as the text of the error for the callers of the library
+  if (fp == stderr)
+  {
+    va_start(ptr, format);
+    PhyML_Error_Capture(format, ptr);
+    va_end(ptr);
+  }
+
   fflush(NULL);
 }
 
@@ -6387,7 +6396,8 @@ void Generic_Exit(const char *file, int line, const char *function)
   PhyML_Fprintf(stderr, "\n. The execution finished prematurely.");
 #endif
 
-  Exit("\n");
+  PhyML_Fprintf(stderr, "\n");
+  PhyML_Raise(PHYML_ERR_INTERNAL);
 }
 
 /*////////////////////////////////////////////////////////////

@@ -1,4 +1,5 @@
 #include "xml.h"
+#include "error.h"
 
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
@@ -26,6 +27,10 @@ t_tree *XML_Process_Base(char *xml_filename)
   int   first;
   int  *class_num;
   int   n_partitionelem;
+
+  // The XML file holds the whole analysis: its errors are input errors,
+  // not errors of the command line that names it (error.h)
+  PhyML_Error_Scope(PHYML_ERR_INPUT);
 
   fp = fopen(xml_filename, "r");
   if (!fp)

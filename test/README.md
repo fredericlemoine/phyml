@@ -57,6 +57,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Random numbers, distributions, discrete Gamma, aLRT conversion | `test_stats.c` | |
 | Newick reading and writing, bipartitions, RF, transfer distance, BioNJ | `test_trees.c` | |
 | State encoding, strings, matrix inverse | `test_misc.c` | |
+| libphyml: `PhyML_Run` returns error codes (usage, input, internal) and their text, runs again after an error, repeated runs agree | `test_lib.c` | |
 | Likelihood vs. the reference implementation (JC69, K80, F81, HKY85, GTR, +G mean and median, +I, +I+G, ambiguities, custom AA matrix, the protein matrices added for SMS, per-site values, SIMD vs scalar) | | `test_likelihood_oracle.py` |
 | Models and optimisation (nesting, parameter recovery on simulated data, `-o` levels, fixed values, FreeRate, invariance to taxon and site order) | | `test_models.py` |
 | Tree search (true topology recovered, optimality, starting trees, random starts, constraints) | | `test_search.py` |

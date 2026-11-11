@@ -12,6 +12,7 @@ the GNU public licence. See http://www.opensource.org for details.
 #include <unistd.h>
 
 #include "utilities.h"
+#include "error.h"
 #include "structure.h"
 #include "lg4.h"
 #include "assert.h"
@@ -1110,7 +1111,9 @@ void Exit(char *message)
 {
   fflush(NULL);
   PhyML_Fprintf(stderr, "%s", message);
-  exit(1);
+  // Back to the caller of the library with the code of the current scope,
+  // or exit(1) in the phyml program (error.h)
+  PhyML_Raise(PhyML_Error_Scope_Code());
 }
 
 //////////////////////////////////////////////////////////////
@@ -1120,15 +1123,16 @@ void *mCalloc(int nb, size_t size)
 {
   void *allocated;
 
-  if ((allocated = calloc((size_t)nb, size)) != NULL)
+  if ((allocated = calloc((size_t)nb, size)) != NULL) return allocated;
+
+  // calloc may return NULL for an empty block: not a failure
+  if ((nb == 0 || size == 0) && (allocated = calloc(1, 1)) != NULL)
     return allocated;
-  else
-  {
-    PhyML_Fprintf(stderr,
-                  "\n. Problem encountered in allocating block of size %d", nb);
-    assert(false);
-    /* Generic_Exit(__FILE__,__LINE__,__FUNCTION__);     */
-  }
+
+  // Not an assert: with -DNDEBUG the caller got NULL and crashed later
+  PhyML_Fprintf(stderr,
+                "\n. Problem encountered in allocating block of size %d\n", nb);
+  PhyML_Raise(PHYML_ERR_MEMORY);
 
   return NULL;
 }

@@ -687,14 +687,14 @@ int DATE_Is_Split_Accessible(t_node *d, int which, phydbl *splitted_cal, t_tree 
           splitted_cal[which+1] < tree->times->t_prior_min[d->num])                return -1; // splitted interval is older than [t_prior_min,t_prior_max]
   else
     {
-      PhyML_Printf("\n. d->num: %d d->tax: %d",d->num,d->tax);
-      PhyML_Printf("\n. t_prior_min: %f t_prior_max: %f",
+      PhyML_Fprintf(stderr, "\n. d->num: %d d->tax: %d",d->num,d->tax);
+      PhyML_Fprintf(stderr, "\n. t_prior_min: %f t_prior_max: %f",
                    tree->times->t_prior_min[d->num],
                    tree->times->t_prior_max[d->num]);
-      PhyML_Printf("\n. splitted_cal_min: %f splitted_cal_max: %f",
+      PhyML_Fprintf(stderr, "\n. splitted_cal_min: %f splitted_cal_max: %f",
                    splitted_cal[which],
                    splitted_cal[which+1]);      
-      PhyML_Printf("\n");
+      PhyML_Fprintf(stderr, "\n");
       assert(FALSE); // splitted interval cannot be partially overlapping [t_prior_min,t_prior_max]
     }
   return(0);
@@ -976,7 +976,7 @@ phydbl *DATE_MCMC(t_tree *tree)
 
       if(tree->c_lnL < UNLIKELY + 0.1 && tree->eval_alnL == YES)
         {
-          PhyML_Printf("\n. Move '%s' failed\n",tree->mcmc->move_name[move]);
+          PhyML_Fprintf(stderr, "\n. Move '%s' failed\n",tree->mcmc->move_name[move]);
           assert(FALSE);
         }
 
@@ -1013,8 +1013,8 @@ phydbl *DATE_MCMC(t_tree *tree)
       phydbl new_lk = Lk(NULL,tree);
       if(Are_Equal(cur_lk,new_lk,1.E-5) == NO)
         {
-          PhyML_Printf("\n. move: %s",tree->mcmc->move_name[move]);
-          PhyML_Printf("\n. new: %f cur: %f",new_lk,cur_lk);
+          PhyML_Fprintf(stderr, "\n. move: %s",tree->mcmc->move_name[move]);
+          PhyML_Fprintf(stderr, "\n. new: %f cur: %f",new_lk,cur_lk);
           assert(FALSE);
         }
 

@@ -298,7 +298,7 @@ void PHYREX_XML(char *xml_filename)
           mixt_tree->rates->autocor_rate_prior = String_To_Dbl(autocor_prior);
           if(mixt_tree->rates->autocor_rate_prior < 0.0)
             {
-              PhyML_Printf("\n. Autocorrelation prior needs to be stricly positive.");
+              PhyML_Fprintf(stderr, "\n. Autocorrelation prior needs to be stricly positive.");
               assert(false);
             }
         } 
@@ -330,7 +330,7 @@ void PHYREX_XML(char *xml_filename)
           else if(!strcmp(modname,"iou")) mixt_tree->mmod->model_id = IOU;
           else
             {
-              PhyML_Printf("\n. Unknown spatial model name '%s'. Aborting. ",modname);
+              PhyML_Fprintf(stderr, "\n. Unknown spatial model name '%s'. Aborting. ",modname);
               assert(FALSE);
             }
         }
@@ -348,7 +348,7 @@ void PHYREX_XML(char *xml_filename)
           else if(!strcmp(dist_type,"euclidean")) mixt_tree->mmod->dist_type = EUCLIDEAN;
           else
             {
-              PhyML_Printf("\n. Unknown distance type '%s'. Aborting. ",dist_type);
+              PhyML_Fprintf(stderr, "\n. Unknown distance type '%s'. Aborting. ",dist_type);
               assert(FALSE);
             }
         }
@@ -363,7 +363,7 @@ void PHYREX_XML(char *xml_filename)
           else if(!strcmp(sampling,"survey")) mixt_tree->mmod->sampling_scheme = SPATIAL_SAMPLING_SURVEY;
           else
             {
-              PhyML_Printf("\n. Unknown sampling scheme '%s'. Aborting. ",sampling);
+              PhyML_Fprintf(stderr, "\n. Unknown sampling scheme '%s'. Aborting. ",sampling);
               assert(FALSE);
             }
         }
@@ -415,7 +415,7 @@ void PHYREX_XML(char *xml_filename)
           else if(!strcmp(prior_distrib,"flat")) mixt_tree->mmod->rw_prior_distrib = FLAT_PRIOR;
           else
             {
-              PhyML_Printf("\n. Unknown prior distribution '%s'. Aborting. ",prior_distrib);
+              PhyML_Fprintf(stderr, "\n. Unknown prior distribution '%s'. Aborting. ",prior_distrib);
               assert(FALSE);
             }
         }
@@ -524,7 +524,7 @@ void PHYREX_XML(char *xml_filename)
           else if(!strcmp(prior_distrib,"flat")) mixt_tree->times->neff_prior_distrib = FLAT_PRIOR;
           else
             {
-              PhyML_Printf("\n. Unknown prior distribution '%s'. Aborting. ",prior_distrib);
+              PhyML_Fprintf(stderr, "\n. Unknown prior distribution '%s'. Aborting. ",prior_distrib);
               assert(FALSE);
             }
         }
@@ -631,7 +631,7 @@ void PHYREX_XML(char *xml_filename)
           mixt_tree->rates->clock_r_prior_mean = String_To_Dbl(prior_mean);
           if(mixt_tree->rates->clock_r_prior_mean < 0.0 || mixt_tree->rates->clock_r_prior_mean > 1000.)
             {
-              PhyML_Printf("\n. Prior mean for clock rate should be set to a value in [0,1000.]");
+              PhyML_Fprintf(stderr, "\n. Prior mean for clock rate should be set to a value in [0,1000.]");
               assert(false);
             }
         }
@@ -644,7 +644,7 @@ void PHYREX_XML(char *xml_filename)
           mixt_tree->rates->clock_r_prior_var = String_To_Dbl(prior_var);
           if(mixt_tree->rates->clock_r_prior_var < 0.0 || mixt_tree->rates->clock_r_prior_var > 1000.)
             {
-              PhyML_Printf("\n. Prior variance for clock rate should be set to a value in [0,1000.]");
+              PhyML_Fprintf(stderr, "\n. Prior variance for clock rate should be set to a value in [0,1000.]");
               assert(false);
             }
         }
@@ -652,8 +652,8 @@ void PHYREX_XML(char *xml_filename)
       if((prior_var && !prior_mean) ||
          (!prior_var && prior_mean))
         {
-          PhyML_Printf("\n. Could not read the prior mean or variance for the clock rate in your XML file.");
-          PhyML_Printf("\n. Please use ``prior.mean='value', prior.var='value'.");
+          PhyML_Fprintf(stderr, "\n. Could not read the prior mean or variance for the clock rate in your XML file.");
+          PhyML_Fprintf(stderr, "\n. Please use ``prior.mean='value', prior.var='value'.");
           assert(false);
         }
 
@@ -665,7 +665,7 @@ void PHYREX_XML(char *xml_filename)
           mixt_tree->rates->clock_r = String_To_Dbl(init_value);
           if(mixt_tree->rates->clock_r < 0.0)
             {
-              PhyML_Printf("\n. Initial value for clock rate should be positive.");
+              PhyML_Fprintf(stderr, "\n. Initial value for clock rate should be positive.");
               assert(false);
             }
         }      
@@ -1182,7 +1182,7 @@ phydbl PHYREX_Lk_Core(t_dsk *disk, t_tree *tree)
         }
     case IBM : case RIBM : case IWNc : case IWNu : case RIWNc : case RIWNu : case IOU : 
       {
-        PhyML_Printf("\n. PHYREX_Lk_Core function not implemented for IBM not IWN model");
+        PhyML_Fprintf(stderr, "\n. PHYREX_Lk_Core function not implemented for IBM not IWN model");
         Exit("\n");
         break;
       }
@@ -1217,7 +1217,7 @@ phydbl PHYREX_Lk_Range(t_dsk *young, t_dsk *old, t_tree *tree)
       }
     case IBM : case RIBM : case IWNc : case IWNu : case RIWNc : case RIWNu : case IOU : 
       {
-        PhyML_Printf("\n. PHYREX_Lk_Core function not implemented for IBM nor IWN models");
+        PhyML_Fprintf(stderr, "\n. PHYREX_Lk_Core function not implemented for IBM nor IWN models");
         Exit("\n");
         break;
       }
@@ -1634,7 +1634,7 @@ int PHYREX_Get_Next_Direction(t_ldsk *young, t_ldsk *old)
 {
   if(young->disk->time < old->disk->time)
     {
-      PhyML_Printf("\n. young (%s) @ time: %f; old (%s) @ time: %f delta: %G",
+      PhyML_Fprintf(stderr, "\n. young (%s) @ time: %f; old (%s) @ time: %f delta: %G",
                    young->coord->id,young->disk->time,
                    old->coord->id,old->disk->time,
                    old->disk->time-young->disk->time);
@@ -1924,7 +1924,7 @@ int PHYREX_Check_Struct(t_tree *tree, int exit)
         {
           if(exit == YES)
             {
-              PhyML_Printf("\n. disk %s time %f has n_ldsk_a=0 (next has %d prev has %d)",
+              PhyML_Fprintf(stderr, "\n. disk %s time %f has n_ldsk_a=0 (next has %d prev has %d)",
                        disk->id,
                        disk->time,
                        disk->next ? disk->next->n_ldsk_a : -1,
@@ -1977,7 +1977,7 @@ int PHYREX_Check_Struct(t_tree *tree, int exit)
                 {
                   if(exit == YES)
                     {
-                      PhyML_Printf("\n. disk->time: %f [%f] disk->ldsk->next[i]->disk->time: %f [%f]",
+                      PhyML_Fprintf(stderr, "\n. disk->time: %f [%f] disk->ldsk->next[i]->disk->time: %f [%f]",
                                    disk->time,
                                    disk->ldsk->base_line,
                                    disk->ldsk->next[i]->disk->time,

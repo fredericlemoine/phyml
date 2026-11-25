@@ -84,12 +84,20 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   (`longjmp` to its recovery point). So never call `exit()` directly: use
   `Exit`, `PhyML_Raise(code)`, or `PhyML_Stop` to end a run without error.
   `Exit` raises the code of the current scope (`PhyML_Error_Scope`: usage
-  while reading the command line, input while reading files). `assert` is
-  defined in `utilities.h` and goes the same way (`PHYML_ERR_INTERNAL`; it
-  aborts in the program): do not include `<assert.h>` in source files, it
-  would bring the standard macro back. There is no error return path in the
-  functions themselves yet, and no prompt before an error exit ("Type any
-  key to exit" is gone: do not add one).
+  while reading the command line, input while reading files). Print error
+  messages on stderr (`PhyML_Fprintf(stderr, ...)`): that is what the error
+  text holds. `assert` is defined in `utilities.h` and goes the same way
+  (`PHYML_ERR_INTERNAL`; it aborts in the program): do not include
+  `<assert.h>` in source files, it would bring the standard macro back. No
+  prompt before an error exit ("Type any key to exit" is gone: do not add
+  one).
+- Functions that return an error code instead of raising it set the code
+  and text with `PhyML_Error_Set(code, fmt, ...)`; a caller that cannot go
+  on calls `PhyML_Error_Raise_Last()`. So far: `Read_Tree_String` and
+  `Read_Tree_File` (`io.c`), which check the tree against the grammar the
+  parser accepts (`Newick_Check`) before parsing, so the parser never sees
+  a malformed string. Read user input with them, not `Read_Tree`, which
+  raises on a malformed tree and is meant for PhyML's own strings.
 - `PhyML_Run` releases what its run allocated and opened, also after an
   error: `utilities.h` maps `malloc`, `calloc`, `realloc`, `posix_memalign`,
   `free`, `fopen` and `fclose` to recording versions (`error.c`,
@@ -120,10 +128,16 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   take scratch vectors instead of `tree->site_lk_cat`, `b->sum_scale_*_cat`
   and `tree->curr_site`. Sums over sites are done afterwards in site order,
   so results do not depend on the number of threads. Mixture models (`mixt.c`)
-  still run serially. These loops run hundreds of millions of times per
-  search: declare scratch arrays once per thread (`omp parallel` around
-  `omp for`, as in `Lk` and `dLk`), not as variable-length arrays in the
-  loop body, and keep per-site work to what the caller uses (a `pow()` per
+  still run serially. In every region, each thread's work goes between
+  `PHYML_THREAD_TRY` and `PHYML_THREAD_END` (`error.h`), followed by
+  `PhyML_Thread_Errors_Raise()` after the region: an error in a thread then
+  ends that thread's work and is raised once the region is over (a longjmp
+  must not leave a region, even an inactive one). So no `omp for` or
+  barrier inside a region: a thread that jumps out would skip it; each
+  thread takes its sites from `Lk_Thread_Range`. These loops run hundreds
+  of millions of times per search: declare scratch arrays once per thread
+  (at the top of the `omp parallel` block, as in `Lk` and `dLk`), not as
+  variable-length arrays in the loop body, and keep per-site work to what the caller uses (a `pow()` per
   site in `Lk_Core_Site` cost 3%). The partial- and site-likelihood kernels
   (generic, `sse.c`, `avx.c`) are always-inlined copies (`LK_INLINE`,
   `*_Inl`, `*_Ns`) called with ns = 4 or 20 so the compiler unrolls them;

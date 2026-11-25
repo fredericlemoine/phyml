@@ -52,7 +52,7 @@ void Find_Nexus_Parm(char *token, nexparm **found_parm, nexcom *curr_com)
 
   if(!curr_com)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
@@ -176,7 +176,7 @@ int Read_Nexus_Begin(char *token, nexparm *curr_parm, option *io)
 
   if(!curr_parm)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
@@ -184,8 +184,8 @@ int Read_Nexus_Begin(char *token, nexparm *curr_parm, option *io)
     PhyML_Printf("\n. Reading '%s' block.\n",curr_parm->value);
   else
     {
-      PhyML_Printf("\n. The '%s' block type is not supported by PhyML. Sorry.\n",curr_parm->name);
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. The '%s' block type is not supported by PhyML. Sorry.\n",curr_parm->name);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
@@ -201,7 +201,7 @@ int Read_Nexus_Dimensions(char *token, nexparm *curr_parm, option *io)
 
   if(!curr_parm)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
   
@@ -230,7 +230,7 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
   
   if(!curr_parm)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
@@ -279,8 +279,8 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
       
       else if(!strcmp(curr_parm->value,"continuous"))
 	{
-	  PhyML_Printf("\n== The 'continuous' format is not supported by PhyML. Sorry.\n");
-	  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n== The 'continuous' format is not supported by PhyML. Sorry.\n");
+	  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
 	  Exit("");
 	}
     }
@@ -305,8 +305,8 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
     {
       if(*token != '"' || *(token+strlen(token)-1) != '"')
 	{
-	  PhyML_Printf("\n== Symbols list is supposed to be displayed between quotation marks (e.g., \"ACTG\").\n");
-	  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n== Symbols list is supposed to be displayed between quotation marks (e.g., \"ACTG\").\n");
+	  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
 	  Exit("");
 	}
 
@@ -329,8 +329,8 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
 	      i++;
 	      if(io->mod->ns > T_MAX_ALPHABET)
 		{
-		  PhyML_Printf("\n== The alphabet cannot contain more than %d characters. Sorry.",T_MAX_ALPHABET);
-		  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+		  PhyML_Fprintf(stderr, "\n== The alphabet cannot contain more than %d characters. Sorry.",T_MAX_ALPHABET);
+		  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
 		  Exit("");
 		}
 	    }
@@ -348,8 +348,8 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
 		  i++;
 		  if(state_len > T_MAX_STATE)
 		    {
-		      PhyML_Printf("\n== A state cannot contain more than %d characters. Sorry.\n",T_MAX_STATE);
-		      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+		      PhyML_Fprintf(stderr, "\n== A state cannot contain more than %d characters. Sorry.\n",T_MAX_STATE);
+		      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
 		      Exit("");
 		    }
 		}
@@ -367,8 +367,8 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
 	{
 	  if(strlen(io->alphabet[i]) != len)
 	    {
-	      PhyML_Printf("\n== All character states defined in the symbol list are supposed to have the same length.\n");
-	      PhyML_Printf("\n== Er.r in file %s at line %d\n",__FILE__,__LINE__);
+	      PhyML_Fprintf(stderr, "\n== All character states defined in the symbol list are supposed to have the same length.\n");
+	      PhyML_Fprintf(stderr, "\n== Er.r in file %s at line %d\n",__FILE__,__LINE__);
 	      Exit("");
 	    }
 	}
@@ -379,22 +379,22 @@ int Read_Nexus_Format(char *token, nexparm *curr_parm, option *io)
   
   else if(!strcmp(curr_parm->name,"equate"))
     {
-      PhyML_Printf("\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
   
   else if(!strcmp(curr_parm->name,"matchchar"))
     {
-      PhyML_Printf("\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
   else if(!strcmp(curr_parm->name,"items"))
     {
-      PhyML_Printf("\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== PhyML does not recognize the command '%s' yet. Sorry.",curr_parm->name);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("");
     }
 
@@ -414,8 +414,8 @@ int Read_Nexus_Eliminate(char *token, nexparm *curr_parm, option *io)
 {
   if(token[0] == '=') return 0;
 
-  PhyML_Printf("\n== 'Eliminate' command is not supported by PhyML. Sorry.");
-  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+  PhyML_Fprintf(stderr, "\n== 'Eliminate' command is not supported by PhyML. Sorry.");
+  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
   Exit("");
 
   return 1;
@@ -429,8 +429,8 @@ int Read_Nexus_Taxlabel(char *token, nexparm *curr_parm, option *io)
 {
   if(token[0] == '=') return 0;
 
-  PhyML_Printf("\n== 'Taxlabels' command is not supported by PhyML. Sorry.");
-  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+  PhyML_Fprintf(stderr, "\n== 'Taxlabels' command is not supported by PhyML. Sorry.");
+  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
   Exit("");
 
   return 1;
@@ -445,8 +445,8 @@ int Read_Nexus_Charstatelabels(char *token, nexparm *curr_parm, option *io)
 
   if(token[0] == '=') return 0;
 
-  PhyML_Printf("\n== 'CharStateLabels' command is not supported by PhyML. Sorry.");
-  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+  PhyML_Fprintf(stderr, "\n== 'CharStateLabels' command is not supported by PhyML. Sorry.");
+  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
   Exit("");
 
   return 1;
@@ -460,8 +460,8 @@ int Read_Nexus_Charlabels(char *token, nexparm *curr_parm, option *io)
 {
   if(token[0] == '=') return 0;
 
-  PhyML_Printf("\n== 'CharLabels' command is not supported by PhyML. Sorry.");
-  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+  PhyML_Fprintf(stderr, "\n== 'CharLabels' command is not supported by PhyML. Sorry.");
+  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
   Exit("");
 
   return 1;
@@ -475,8 +475,8 @@ int Read_Nexus_Statelabels(char *token, nexparm *curr_parm, option *io)
 {
   if(token[0] == '=') return 0;
 
-  PhyML_Printf("\n== 'StateLabels' command is not supported by PhyML. Sorry.");
-  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+  PhyML_Fprintf(stderr, "\n== 'StateLabels' command is not supported by PhyML. Sorry.");
+  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
   Exit("");
 
   return 1;

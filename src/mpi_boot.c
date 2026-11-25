@@ -64,7 +64,7 @@ void Bootstrap_MPI(t_tree *tree)
 	
 	if(tree->is_mixt_tree == YES)
 	{
-		PhyML_Printf("\n== Bootstrap option not yet available for partition/mixture analysis.");
+		PhyML_Fprintf(stderr, "\n== Bootstrap option not yet available for partition/mixture analysis.");
 		assert(FALSE);
 	}
 	
@@ -91,8 +91,8 @@ void Bootstrap_MPI(t_tree *tree)
 	
 	if(Global_numTask <= 1)
 	{
-		PhyML_Printf("\n\n. The number of CPUs used in the MPI bootstrap analysis should be");
-		PhyML_Printf("\n. strictly greater than 1 (it is equal to %d here).",Global_numTask);
+		PhyML_Fprintf(stderr, "\n\n. The number of CPUs used in the MPI bootstrap analysis should be");
+		PhyML_Fprintf(stderr, "\n. strictly greater than 1 (it is equal to %d here).",Global_numTask);
 		assert(FALSE);
 	}
 	iterations_per_process = tree->io->n_boot_replicates / Global_numTask;
@@ -161,7 +161,7 @@ void Bootstrap_MPI(t_tree *tree)
 			}
 			if (init_len != tree->data->init_len) 
 			{
-				PhyML_Printf("\n== thread: %d || init: %d %d here. Pb when copying sequences\n",Global_myRank,init_len,tree->data->init_len);
+				PhyML_Fprintf(stderr, "\n== thread: %d || init: %d %d here. Pb when copying sequences\n",Global_myRank,init_len,tree->data->init_len);
 				fflush(NULL);
 				Generic_Exit(__FILE__,__LINE__,__FUNCTION__);
 			}

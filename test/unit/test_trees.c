@@ -11,6 +11,8 @@
 #include "free.h"
 #include "io.h"
 #include "make.h"
+#include "error.h"
+#include <setjmp.h>
 
 static t_tree *parse(const char *newick)
 {
@@ -156,6 +158,184 @@ TEST(newick, unterminated_comment_is_rejected)
   }
   CHECK(pid > 0 && waitpid(pid, &status, 0) == pid);
   CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 1);
+}
+
+/* Read_Tree_String and Read_Tree_File return an error code for a malformed
+   tree instead of ending the process (no recovery point is set here: an
+   exit would fail the test). */
+
+static const struct
+{
+  const char *newick, *why;
+} bad_trees[] = {
+    {"", "empty tree"},
+    {"   ", "empty tree"},
+    {"A,B,C;", "starts with '('"},
+    {"(A,B,C", "missing ')'"},
+    {"(A,B,C));", "unexpected text after the tree"},
+    {"(A,B,C);(D,E,F);", "unexpected text after the tree"},
+    {"(A,B,C)D,E;", "unexpected text after the tree"},
+    {"(A,,C);", "a tip has no name"},
+    {"(A,B,);", "a tip has no name"},
+    {"(,A,B);", "a tip has no name"},
+    {"((A),B,C);", "a node with a single child"},
+    {"((A,B,C,D));", "a node with a single child"},
+    {"(A:0.1,B:x,C);", "invalid branch length"},
+    {"(A:0.1,B:,C);", "invalid branch length"},
+    {"(A:0.1,B:0.2.3,C);", "invalid branch length"},
+    {"(A,B[comment,C);", "comment not closed"},
+    {"(A,B[a[b]c],C);", "nested '[' comment"},
+    {"(A,B(C,D),E);", "expected ',' or ')'"},
+    {"((A,B[x(y],C),D,E);", "in a '[' comment"},
+    {"(A,B,C;", "expected ',' or ')'"},
+    {"(A;B,C);", "expected ',' or ')'"},
+    {"(A,B);", "at least three"},
+    {"((A,B),C,A);", "'A' appears more than once"},
+    {"(Tax1:1,Tax2:1,(Tax1:1,Tax3:1):1);", "'Tax1' appears more than once"},
+};
+
+TEST(newick, read_tree_string_returns_input_errors)
+{
+  for (size_t i = 0; i < sizeof(bad_trees) / sizeof(bad_trees[0]); i++)
+  {
+    t_tree *t = (t_tree *)1;
+    int     rc = Read_Tree_String(bad_trees[i].newick, &t);
+    if (rc != PHYML_ERR_INPUT || t != NULL ||
+        !strstr(PhyML_Error_Message(), bad_trees[i].why))
+      tt_fail(__FILE__, __LINE__, "'%s': code %d, expected '%s' in: %s",
+              bad_trees[i].newick, rc, bad_trees[i].why, PhyML_Error_Message());
+    CHECK_EQ_INT(PhyML_Error_Code(), PHYML_ERR_INPUT);
+  }
+}
+
+TEST(newick, read_tree_string_reads_valid_trees)
+{
+  static const struct
+  {
+    const char *newick;
+    int         n_otu;
+  } good[] = {
+      {T5, 5},
+      {"(A,B,C);", 3},
+      {"(A,B,C)", 3},
+      {" ( A : 0.1 ,\n B:0.2,\tC:1e-3 ) ; ", 3},
+      {"((A,B),C);", 3},
+      {"((A:1,B:2)0.95:0.5,(C,D)node_x:1[&a=1],E);", 5},
+      {"((A[c1]:[c2]0.1[c3],B),C,D)[root];", 4},
+      {"(A,B,C,D,E,F,G);", 7},
+      {"((A,B,C,D),(E,F,G),H);", 8},
+      {"(t1:-0.5,t10:1E2,t100:.25);", 3},
+      {"((A,B)[&a=,],C[a=1,b],D[,]);", 4}, // empty label items
+  };
+  for (size_t i = 0; i < sizeof(good) / sizeof(good[0]); i++)
+  {
+    t_tree *t  = NULL;
+    int     rc = Read_Tree_String(good[i].newick, &t);
+    if (rc != PHYML_OK || t == NULL)
+      tt_fail(__FILE__, __LINE__, "'%s' refused: %s", good[i].newick,
+              PhyML_Error_Message());
+    CHECK_EQ_INT(t->n_otu, good[i].n_otu);
+    Free_Tree(t);
+  }
+}
+
+TEST(newick, read_tree_string_does_not_change_its_argument)
+{
+  char    s[] = " (A, B, C); ";
+  t_tree *t   = NULL;
+  CHECK_EQ_INT(Read_Tree_String(s, &t), PHYML_OK);
+  CHECK_STR_EQ(s, " (A, B, C); ");
+  Free_Tree(t);
+}
+
+TEST(newick, read_tree_file_returns_input_errors)
+{
+  FILE   *fp = tmpfile();
+  t_tree *t  = NULL;
+
+  fputs(T5 "\n((A,B),(C,D)\n", fp);
+  rewind(fp);
+  CHECK_EQ_INT(Read_Tree_File(fp, &t), PHYML_OK);
+  CHECK_EQ_INT(t->n_otu, 5);
+  Free_Tree(t);
+  CHECK_EQ_INT(Read_Tree_File(fp, &t), PHYML_ERR_INPUT); // malformed
+  CHECK(t == NULL);
+  CHECK(strstr(PhyML_Error_Message(), "missing ')'") != NULL);
+  CHECK_EQ_INT(Read_Tree_File(fp, &t), PHYML_ERR_INPUT); // no more tree
+  CHECK(strstr(PhyML_Error_Message(), "no tree found") != NULL);
+  CHECK_EQ_INT(Read_Tree_File(NULL, &t), PHYML_ERR_INPUT);
+  fclose(fp);
+}
+
+/* Random edits of valid trees: each one is refused with an input error, or
+   accepted and then read without any error (a recovery point catches an
+   error raised by the parser, which would mean the check let through a tree
+   the parser cannot read). The sanitizer build also catches overflows. */
+TEST(newick, edited_trees_are_refused_or_read_cleanly)
+{
+  static const char *base[] = {
+      T5,
+      "((A:1,B:2)0.95:0.5,(C,D)x:1[&a=1],E);",
+      "(((t1,t2),(t3,t4)),((t5,t6),(t7,t8)),t9);",
+      "((A[c]:0.1,B:[d]0.2)[n],C,(D,E,F,G):0.3);",
+  };
+  const char   ins[] = "(),:;[]Ax0.e-#& ";
+  char         s[256];
+  jmp_buf      env;
+  volatile int n_ok = 0, n_bad = 0;
+  int          k;
+
+  srand(7);
+  for (k = 0; k < 20000; k++)
+  {
+    const char *b   = base[k % 4];
+    int         len = (int)strlen(b), n_edits = 1 + rand() % 3, e, pos;
+    t_tree     *t   = NULL;
+    int         rc;
+
+    strcpy(s, b);
+    for (e = 0; e < n_edits; e++)
+    {
+      len = (int)strlen(s);
+      pos = len ? rand() % len : 0;
+      switch (rand() % 4)
+      {
+      case 0: memmove(s + pos, s + pos + 1, len - pos); break; // delete
+      case 1:                                                // insert
+        if (len < 250)
+        {
+          memmove(s + pos + 1, s + pos, len - pos + 1);
+          s[pos] = ins[rand() % (sizeof(ins) - 1)];
+        }
+        break;
+      case 2: s[pos] = ins[rand() % (sizeof(ins) - 1)]; break; // replace
+      case 3: s[pos] = '\0'; break;                            // truncate
+      }
+    }
+
+    if (setjmp(env) != 0)
+    {
+      PhyML_Error_Set_Recovery(NULL);
+      tt_fail(__FILE__, __LINE__, "'%s' accepted, then an error: %s", s,
+              PhyML_Error_Message());
+    }
+    PhyML_Error_Set_Recovery(&env);
+    rc = Read_Tree_String(s, &t);
+    PhyML_Error_Set_Recovery(NULL);
+    if (rc == PHYML_OK)
+    {
+      CHECK(t != NULL && t->n_otu >= 3);
+      Free_Tree(t);
+      n_ok++;
+    }
+    else
+    {
+      CHECK_EQ_INT(rc, PHYML_ERR_INPUT);
+      CHECK(t == NULL);
+      n_bad++;
+    }
+  }
+  CHECK(n_ok > 1000 && n_bad > 1000); // both kinds were tried
 }
 
 /* -------------------------------------------------- bipartitions, RF */

@@ -368,7 +368,7 @@ phydbl Generic_Brent(phydbl *param, phydbl ax, phydbl cx, phydbl tol,
         }
     }
 
-  PhyML_Printf("\n. Too many iterations in Generic_Brent !");
+  PhyML_Fprintf(stderr, "\n. Too many iterations in Generic_Brent !");
   assert(FALSE);
   return((*obj_func)(tree));
   /* Not Reached ??  *param=x;   */
@@ -2400,7 +2400,7 @@ static phydbl Br_Len_Spline(phydbl *l, t_edge *b, int n_iter_max, phydbl tol, t_
       else if(ok2 == YES) new_l = root2;
       else if(u/v > 1.1 || u/v < 0.9)
         {
-          PhyML_Printf("\n. iter=%4d u=%12G fu=%12G dfu=%12G v=%12G fv=%12G dfv=%12G root1=%12G root2=%12G\n",iter,u,fu,dfu,v,fv,dfv,root1,root2);
+          PhyML_Fprintf(stderr, "\n. iter=%4d u=%12G fu=%12G dfu=%12G v=%12G fv=%12G dfv=%12G root1=%12G root2=%12G\n",iter,u,fu,dfu,v,fv,dfv,root1,root2);
           assert(FALSE);
         }
       
@@ -2491,7 +2491,7 @@ static phydbl Br_Len_Spline(phydbl *l, t_edge *b, int n_iter_max, phydbl tol, t_
   
   if(iter == n_iter_max)
     {
-      PhyML_Printf("\n. Too many iterations in edge length optimization routine (l=%G init=%G).\n",best_l,init_l);
+      PhyML_Fprintf(stderr, "\n. Too many iterations in edge length optimization routine (l=%G init=%G).\n",best_l,init_l);
       assert(FALSE);
     }
   
@@ -2848,7 +2848,7 @@ void Optimize_RR_Params(t_tree *mixt_tree, int verbose)
                   
                   if(lk_new < lk_old - tree->mod->s_opt->min_diff_lk_global)
                     {
-                      PhyML_Printf("\n. lk_new: %f lk_old: %f",lk_new,lk_old);
+                      PhyML_Fprintf(stderr, "\n. lk_new: %f lk_old: %f",lk_new,lk_old);
                       assert(FALSE);
                     }
                   

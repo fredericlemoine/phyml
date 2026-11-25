@@ -20,6 +20,7 @@ typedef struct
 
 static tt_test tt_tests[TT_MAX_TESTS];
 static int     tt_n_tests;
+static FILE   *tt_report; /* the test's stderr, even if the test redirects it */
 
 void tt_register(const char *group, const char *name, tt_fn fn, const char *known_bug)
 {
@@ -34,11 +35,12 @@ void tt_register(const char *group, const char *name, tt_fn fn, const char *know
 void tt_fail(const char *file, int line, const char *fmt, ...)
 {
   va_list ap;
-  fprintf(stderr, "    %s:%d: ", file, line);
+  FILE   *out = tt_report ? tt_report : stderr;
+  fprintf(out, "    %s:%d: ", file, line);
   va_start(ap, fmt);
-  vfprintf(stderr, fmt, ap);
+  vfprintf(out, fmt, ap);
   va_end(ap);
-  fprintf(stderr, "\n");
+  fprintf(out, "\n");
   fflush(NULL);
   _exit(TT_FAIL_CODE);
 }
@@ -62,6 +64,7 @@ static int tt_run_one(const tt_test *t, char *why, size_t why_len)
   {
     /* PhyML prints a lot; keep the report readable. */
     if (!freopen("/dev/null", "w", stdout)) _exit(2);
+    tt_report = fdopen(dup(2), "w");
     alarm(TT_TIMEOUT_S);
     srand(1);
     t->fn();

@@ -58,8 +58,8 @@ void DR_Print_Postscript_Header(int n_pages, FILE *fp)
 {
   if(!fp)
     {
-      PhyML_Printf("\n== Failed to open the postscript file.");
-      PhyML_Printf("\n== Did you forget the '--ps' option ?.");
+      PhyML_Fprintf(stderr, "\n== Failed to open the postscript file.");
+      PhyML_Fprintf(stderr, "\n== Did you forget the '--ps' option ?.");
       Exit("\n");
     }
 

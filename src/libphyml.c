@@ -175,7 +175,7 @@ int PhyML_Main(int argc, char **argv)
 
   if (io->n_trees == 0 && io->in_tree == 2)
   {
-    PhyML_Printf("\n== Err.: the input tree file does not provide a tree in "
+    PhyML_Fprintf(stderr, "\n== Err.: the input tree file does not provide a tree in "
                  "valid format.");
     Exit("\n");
   }
@@ -249,7 +249,7 @@ int PhyML_Main(int argc, char **argv)
 
         if (orig_random_input_tree == YES && io->n_trees > 1)
         {
-          PhyML_Printf("\n== Cannot combine random starting trees with "
+          PhyML_Fprintf(stderr, "\n== Cannot combine random starting trees with "
                        "multiple input trees.");
           Exit("\n");
         }
@@ -304,14 +304,13 @@ int PhyML_Main(int argc, char **argv)
 
             PhyML_Printf("\n. Reading constraint tree file...");
 
-            io->cstr_tree = Read_Tree_File_Phylip(io->fp_in_constraint_tree);
-
-            if (io->cstr_tree == NULL)
-              Exit("\n. Constraint tree not found...\n");
+            if (Read_Tree_File(io->fp_in_constraint_tree, &io->cstr_tree) !=
+                PHYML_OK)
+              PhyML_Error_Raise_Last();
 
             if (io->cstr_tree->n_root != NULL)
             {
-              PhyML_Printf("\n== The constraint tree file must be unrooted");
+              PhyML_Fprintf(stderr, "\n== The constraint tree file must be unrooted");
               Exit("\n");
             }
 
@@ -348,9 +347,9 @@ int PhyML_Main(int argc, char **argv)
 
           if (io->cstr_tree && !Check_Topo_Constraints(tree, io->cstr_tree))
           {
-            PhyML_Printf("\n\n== The initial tree does not satisfy the "
+            PhyML_Fprintf(stderr, "\n\n== The initial tree does not satisfy the "
                          "topological constraint.");
-            PhyML_Printf("\n== Please use the user input tree option with an "
+            PhyML_Fprintf(stderr, "\n== Please use the user input tree option with an "
                          "adequate tree topology.");
             Exit("\n");
           }
@@ -365,13 +364,13 @@ int PhyML_Main(int argc, char **argv)
 #ifdef BEAGLE
           if (mod->bootstrap == YES)
           {
-            PhyML_Printf("\n== PhyML-BEAGLE does not support bootstrap "
+            PhyML_Fprintf(stderr, "\n== PhyML-BEAGLE does not support bootstrap "
                          "analysis yet... ");
             Exit("\n");
           }
           if (mod->ras->invar == YES)
           {
-            PhyML_Printf("\n== PhyML-BEAGLE does not support invariant site "
+            PhyML_Fprintf(stderr, "\n== PhyML-BEAGLE does not support invariant site "
                          "models yet... ");
             Exit("\n");
           }
@@ -553,8 +552,8 @@ int PhyML_Main(int argc, char **argv)
     }
     else
     {
-      PhyML_Printf("\n== No data was found.\n");
-      PhyML_Printf("\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n== No data was found.\n");
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
       Exit("\n");
     }
     Free_Model_Complete(mod);

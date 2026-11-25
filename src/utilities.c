@@ -1030,7 +1030,7 @@ void Connect_One_Edge_To_Two_Nodes(t_node *a, t_node *d, t_edge *b,
 
   if (dir_a_d == -1 || dir_d_a == -1)
   {
-    PhyML_Printf("\n. a:%d a->v[0]:%d a->v[1]:%d a->v[2]:%d  d:%d d->v[0]:%d "
+    PhyML_Fprintf(stderr, "\n. a:%d a->v[0]:%d a->v[1]:%d a->v[2]:%d  d:%d d->v[0]:%d "
                  "d->v[1]:%d d->v[2]:%d root:%d",
                  a->num, a->v[0] ? a->v[0]->num : -1,
                  a->v[1] ? a->v[1]->num : -1, a->v[2] ? a->v[2]->num : -1,
@@ -1851,9 +1851,9 @@ void NNI(t_tree *tree, t_edge *b_fcus, int do_swap)
 
   if (lk0 < lk_init - tree->mod->s_opt->min_diff_lk_local)
   {
-    PhyML_Printf("\n. %f %f %f", l_infa, l_infb, b_fcus->l->v);
-    PhyML_Printf("\n. %f -- %f", lk0_init, lk0);
-    PhyML_Printf("\n. Err. in NNI (3)\n");
+    PhyML_Fprintf(stderr, "\n. %f %f %f", l_infa, l_infb, b_fcus->l->v);
+    PhyML_Fprintf(stderr, "\n. %f -- %f", lk0_init, lk0);
+    PhyML_Fprintf(stderr, "\n. Err. in NNI (3)\n");
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -3436,7 +3436,7 @@ int Assign_State(char *c, int datatype, int stepsize)
   }
   else
   {
-    PhyML_Printf("\n. Not implemented yet.\n");
+    PhyML_Fprintf(stderr, "\n. Not implemented yet.\n");
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -3475,8 +3475,8 @@ char Reciproc_Assign_State(int i_state, int datatype)
     }
     default:
     {
-      PhyML_Printf("\n. i_state = %d", i_state);
-      PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. i_state = %d", i_state);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
       break;
     }
@@ -3589,7 +3589,7 @@ char Reciproc_Assign_State(int i_state, int datatype)
     }
     default:
     {
-      PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
       break;
     }
@@ -3703,7 +3703,7 @@ int Assign_State_With_Ambiguity(char *c, int datatype, int stepsize)
       }
       default:
       {
-        PhyML_Printf("\n. Unknown character state : '%c'\n", c[i]);
+        PhyML_Fprintf(stderr, "\n. Unknown character state : '%c'\n", c[i]);
         Warn_And_Exit("\n. Init failed (data type supposed to be DNA)\n");
         break;
       }
@@ -3835,7 +3835,7 @@ int Assign_State_With_Ambiguity(char *c, int datatype, int stepsize)
     }
     default:
     {
-      PhyML_Printf("\n. Unknown character state : '%c'\n", state[0]);
+      PhyML_Fprintf(stderr, "\n. Unknown character state : '%c'\n", state[0]);
       Warn_And_Exit("\n. Init failed (data type supposed to be amino-acids)\n");
       break;
     }
@@ -3852,10 +3852,10 @@ int Assign_State_With_Ambiguity(char *c, int datatype, int stepsize)
       sprintf(format, "%%%dd", stepsize);
       if (!sscanf(c, format, state))
       {
-        PhyML_Printf("\n. Error reading character. Was expecting an integer, "
+        PhyML_Fprintf(stderr, "\n. Error reading character. Was expecting an integer, "
                      "got '%c' instead.\n",
                      c[0]);
-        PhyML_Printf("\n. Err. in file %s at line %d (function '%s')\n",
+        PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s')\n",
                      __FILE__, __LINE__, __FUNCTION__);
         Warn_And_Exit("\n. PhyML finished prematurely.");
       }
@@ -3907,7 +3907,7 @@ void Bootstrap(t_tree *tree)
 
   if (tree->is_mixt_tree == YES)
   {
-    PhyML_Printf("\n. Bootstrap option not yet available for partition/mixture "
+    PhyML_Fprintf(stderr, "\n. Bootstrap option not yet available for partition/mixture "
                  "analysis...");
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
@@ -4762,7 +4762,7 @@ void Test_Node_Table_Consistency(t_tree *tree)
   {
     if (tree->a_nodes[i]->num != i)
     {
-      PhyML_Printf("\n. Node table is not consistent with node numbers.");
+      PhyML_Fprintf(stderr, "\n. Node table is not consistent with node numbers.");
       Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
     }
   }
@@ -4779,8 +4779,8 @@ void Get_Bip(t_node *a, t_node *d, t_tree *tree)
 
   if (!d || !a || !tree)
   {
-    PhyML_Printf("\n. d: %p a: %p tree: %p", d, a, tree);
-    PhyML_Printf("\n. Err. in file %s at line %d (function '%s').\n", __FILE__,
+    PhyML_Fprintf(stderr, "\n. d: %p a: %p tree: %p", d, a, tree);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s').\n", __FILE__,
                  __LINE__, __FUNCTION__);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
@@ -4920,7 +4920,7 @@ void Get_Bip(t_node *a, t_node *d, t_tree *tree)
 
         if (a->bip_size[i] != tree->n_otu - d->bip_size[d_a])
         {
-          PhyML_Printf("%d %d \n", a->bip_size[i],
+          PhyML_Fprintf(stderr, "%d %d \n", a->bip_size[i],
                        tree->n_otu - d->bip_size[d_a]);
           Warn_And_Exit("\n. Problem in counting bipartitions \n");
         }
@@ -5232,7 +5232,7 @@ void Match_Tip_Numbers(t_tree *tree1, t_tree *tree2)
 
   if (tree1->n_otu != tree2->n_otu)
   {
-    PhyML_Printf("\n. tree1 and tree2 must have the same number of tips.");
+    PhyML_Fprintf(stderr, "\n. tree1 and tree2 must have the same number of tips.");
     /* Otherwise, if tree2->n_otu < tree->n_otu, then some tips in tree2
        will have a number (->num) that is the same as the number of an
        internal node in this tree */
@@ -5671,9 +5671,9 @@ int Are_Compatible(char *statea, char *stateb, int stepsize, int datatype)
         }
         default:
         {
-          PhyML_Printf("\n. Err. in Are_Compatible.");
-          PhyML_Printf("\n. Please check that characters `%c` and `%c`", a, b);
-          PhyML_Printf("\n. correspond to existing nucleotides.\n");
+          PhyML_Fprintf(stderr, "\n. Err. in Are_Compatible.");
+          PhyML_Fprintf(stderr, "\n. Please check that characters `%c` and `%c`", a, b);
+          PhyML_Fprintf(stderr, "\n. correspond to existing nucleotides.\n");
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
           return 0;
         }
@@ -6037,9 +6037,9 @@ int Are_Compatible(char *statea, char *stateb, int stepsize, int datatype)
     }
     default:
     {
-      PhyML_Printf("\n. Err. in Are_Compatible.");
-      PhyML_Printf("\n. Please check that characters `%c` and `%c`", a, b);
-      PhyML_Printf("\n. correspond to existing amino-acids.\n");
+      PhyML_Fprintf(stderr, "\n. Err. in Are_Compatible.");
+      PhyML_Fprintf(stderr, "\n. Please check that characters `%c` and `%c`", a, b);
+      PhyML_Fprintf(stderr, "\n. correspond to existing amino-acids.\n");
       Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       return 0;
     }
@@ -6059,14 +6059,14 @@ int Are_Compatible(char *statea, char *stateb, int stepsize, int datatype)
 
       if (!sscanf(statea, format, &a))
       {
-        PhyML_Printf("\n. statea = %s", statea);
-        PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+        PhyML_Fprintf(stderr, "\n. statea = %s", statea);
+        PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
         Warn_And_Exit("\n. PhyML finished prematurely.");
       }
       if (!sscanf(stateb, format, &b))
       {
-        PhyML_Printf("\n. statea = %s", stateb);
-        PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+        PhyML_Fprintf(stderr, "\n. statea = %s", stateb);
+        PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
         Warn_And_Exit("\n. PhyML finished prematurely.");
       }
 
@@ -6239,7 +6239,7 @@ void Prune_Subtree(t_node *a, t_node *d, t_edge **target, t_edge **residual,
       a = tree->e_root->left;
     else
     {
-      PhyML_Printf("\n. left: %d right: %d", tree->e_root->left->num,
+      PhyML_Fprintf(stderr, "\n. left: %d right: %d", tree->e_root->left->num,
                    tree->e_root->rght->num);
       assert(false);
     }
@@ -6504,7 +6504,7 @@ void Prune_Subtree(t_node *a, t_node *d, t_edge **target, t_edge **residual,
 #ifdef DEBUG
   if (i == 3)
   {
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
   }
 #endif
@@ -6519,7 +6519,7 @@ void Prune_Subtree(t_node *a, t_node *d, t_edge **target, t_edge **residual,
 #ifdef DEBUG
   if (i == 3)
   {
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
   }
 #endif
@@ -6580,14 +6580,14 @@ void Prune_Subtree(t_node *a, t_node *d, t_edge **target, t_edge **residual,
 #ifdef DEBUG
   if (b1->left->tax == YES && b1->rght->tax == NO)
   {
-    PhyML_Printf("\n. root: %d root->v1: %d root->v2: %d eroot: %d b1: %d b2: "
+    PhyML_Fprintf(stderr, "\n. root: %d root->v1: %d root->v2: %d eroot: %d b1: %d b2: "
                  "%d v1: %d v2: %d",
                  tree->n_root->num, tree->n_root->v[1]->num,
                  tree->n_root->v[2]->num, tree->e_root->num, b1->num, b2->num,
                  v1->num, v2->num);
-    PhyML_Printf("\n. b1->left->num = %d", b1->left->num);
-    PhyML_Printf("\n. b1->rght->num = %d", b1->rght->num);
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. b1->left->num = %d", b1->left->num);
+    PhyML_Fprintf(stderr, "\n. b1->rght->num = %d", b1->rght->num);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
   }
 #endif
@@ -6625,7 +6625,7 @@ void Graft_Subtree(t_edge *target, t_node *link, t_node *link_daughter,
       link = tree->n_root->v[1];
     else
     {
-      PhyML_Printf("\n. link: %d link_daughter: %d", link->num,
+      PhyML_Fprintf(stderr, "\n. link: %d link_daughter: %d", link->num,
                    link_daughter ? link_daughter->num : -1);
       assert(false);
     }
@@ -6648,7 +6648,7 @@ void Graft_Subtree(t_edge *target, t_node *link, t_node *link_daughter,
 
   if (dir_v1 < 0 || dir_v2 < 0)
   {
-    PhyML_Printf("\n. link: %d was not pruned in a clean manner...\n",
+    PhyML_Fprintf(stderr, "\n. link: %d was not pruned in a clean manner...\n",
                  link->num);
     assert(FALSE);
   }
@@ -6949,7 +6949,7 @@ void Reassign_Edge_Nums(t_node *a, t_node *d, int *curr_br, t_tree *tree)
       For(j, 2 * N_MAX_OTU - 3) if (tree->a_edges[j] == a->b[i]) break;
       if (j == 2 * N_MAX_OTU - 3)
       {
-        PhyML_Printf("\n. Err. in file %s at line %d (function '%s').\n",
+        PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s').\n",
                      __FILE__, __LINE__, __FUNCTION__);
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -7013,8 +7013,8 @@ void Find_Mutual_Direction(t_node *n1, t_node *n2, short int *dir_n1_to_n2,
     }
   }
 
-  PhyML_Printf("\n. n1=%d n2=%d", n1->num, n2->num);
-  PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+  PhyML_Fprintf(stderr, "\n. n1=%d n2=%d", n1->num, n2->num);
+  PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
   Warn_And_Exit("\n. PhyML finished prematurely.");
 
   /*   for(i=0;i<3;i++) */
@@ -7171,7 +7171,7 @@ void Joint_Proba_States_Left_Right(phydbl *Pij, phydbl *p_lk_left,
 
       PhyML_Printf("\n. sum = %G", sum);
       Print_Site(tree->data, site, tree->n_otu, "\n", 1, stderr);
-      PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
       Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
     }
   }
@@ -7377,7 +7377,7 @@ void Record_Br_Len(t_tree *mixt_tree)
 
   if (mixt_tree->br_len_recorded == YES)
   {
-    PhyML_Printf("\n. Overwriting recorded edge lengths.\n");
+    PhyML_Fprintf(stderr, "\n. Overwriting recorded edge lengths.\n");
     assert(FALSE);
   }
 
@@ -7698,10 +7698,10 @@ t_node *Common_Nodes_Btw_Two_Edges(t_edge *a, t_edge *b)
   else if (a->rght == b->rght)
     return b->rght;
 
-  PhyML_Printf("\n. First t_edge = %d (%d %d); Second t_edge = %d (%d %d)\n",
+  PhyML_Fprintf(stderr, "\n. First t_edge = %d (%d %d); Second t_edge = %d (%d %d)\n",
                a->num, a->left->num, a->rght->num, b->num, b->left->num,
                b->rght->num);
-  PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
   Warn_And_Exit("\n. PhyML finished prematurely.");
 
   return NULL;
@@ -8333,10 +8333,10 @@ void Check_Dirs(t_tree *tree)
       if (tree->a_edges[i]->left->v[tree->a_edges[i]->l_v1]->num <
           tree->a_edges[i]->left->v[tree->a_edges[i]->l_v2]->num)
       {
-        PhyML_Printf("\n. Edge %d ; v1=%d v2=%d", tree->a_edges[i]->num,
+        PhyML_Fprintf(stderr, "\n. Edge %d ; v1=%d v2=%d", tree->a_edges[i]->num,
                      tree->a_edges[i]->left->v[tree->a_edges[i]->l_v1]->num,
                      tree->a_edges[i]->left->v[tree->a_edges[i]->l_v2]->num);
-        PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+        PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
     }
@@ -8346,10 +8346,10 @@ void Check_Dirs(t_tree *tree)
       if (tree->a_edges[i]->rght->v[tree->a_edges[i]->r_v1]->num <
           tree->a_edges[i]->rght->v[tree->a_edges[i]->r_v2]->num)
       {
-        PhyML_Printf("\n. Edge %d ; v3=%d v4=%d", tree->a_edges[i]->num,
+        PhyML_Fprintf(stderr, "\n. Edge %d ; v3=%d v4=%d", tree->a_edges[i]->num,
                      tree->a_edges[i]->rght->v[tree->a_edges[i]->r_v1]->num,
                      tree->a_edges[i]->rght->v[tree->a_edges[i]->r_v2]->num);
-        PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+        PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
         Warn_And_Exit("\n. PhyML finished prematurely.");
       }
     }
@@ -8608,7 +8608,7 @@ void Update_Ancestors(t_node *a, t_node *d, t_edge *b, t_tree *tree)
 
   if (d == NULL)
   {
-    PhyML_Printf("\n. d is NULL; a: %d root: %d", a->num, tree->n_root->num);
+    PhyML_Fprintf(stderr, "\n. d is NULL; a: %d root: %d", a->num, tree->n_root->num);
     assert(FALSE);
   }
 
@@ -9082,8 +9082,8 @@ void Best_Of_NNI_And_SPR(t_tree *tree)
     Lk(NULL, tree);
     if (FABS(tree->c_lnL - ori_lnL) > tree->mod->s_opt->min_diff_lk_local)
     {
-      PhyML_Printf("\n. ori_lnL = %f, c_lnL = %f", ori_lnL, tree->c_lnL);
-      PhyML_Printf("\n. Err. in file %s at line %d (function '%s') \n",
+      PhyML_Fprintf(stderr, "\n. ori_lnL = %f, c_lnL = %f", ori_lnL, tree->c_lnL);
+      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s') \n",
                    __FILE__, __LINE__, __FUNCTION__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
     }
@@ -9275,7 +9275,7 @@ char *Bootstrap_From_String(char *s_tree, calign *cdata, t_mod *mod, option *io)
 
   if (!tree)
   {
-    PhyML_Printf("\n. Err. in file %s at line %d (function '%s') \n", __FILE__,
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s') \n", __FILE__,
                  __LINE__, __FUNCTION__);
     Exit("");
   }
@@ -9641,7 +9641,7 @@ t_node *Find_Lca_Pair_Of_Nodes(t_node *n1, t_node *n2, int *dist, t_tree *tree)
 
   if (!tree->n_root)
   {
-    PhyML_Printf("\n. The tree must be rooted in this function.");
+    PhyML_Fprintf(stderr, "\n. The tree must be rooted in this function.");
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -9668,7 +9668,7 @@ t_node *Find_Lca_Pair_Of_Nodes(t_node *n1, t_node *n2, int *dist, t_tree *tree)
 
   if (lca == NULL)
   {
-    PhyML_Printf("\n. %s", Write_Tree(tree));
+    PhyML_Fprintf(stderr, "\n. %s", Write_Tree(tree));
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
   return lca;
@@ -9981,8 +9981,8 @@ t_edge *Find_Root_Edge(FILE *fp_input_tree, t_tree *tree)
   Clean_Multifurcation(subs, degree, 3);
   if (degree != 2)
   {
-    PhyML_Printf("\n. The tree does not seem to be rooted...");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. The tree does not seem to be rooted...");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
   }
 
@@ -10018,8 +10018,8 @@ t_edge *Find_Root_Edge(FILE *fp_input_tree, t_tree *tree)
 
   if (i == 2 * tree->n_otu - 3)
   {
-    PhyML_Printf("\n. Could not find the root edge...");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Could not find the root edge...");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
   }
 
@@ -10231,8 +10231,8 @@ void Set_Model_Name(t_mod *mod)
   }
   default:
   {
-    PhyML_Printf("\n. Unknown model name.\n");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Unknown model name.\n");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("\n. PhyML finished prematurely.");
     break;
   }
@@ -10318,9 +10318,9 @@ void Get_Best_Root_Position(t_tree *tree)
 
   if (tree->n_root)
   {
-    PhyML_Printf("\n. Tree already has a root.");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
-    PhyML_Printf("\n. PhyML finished prematurely.");
+    PhyML_Fprintf(stderr, "\n. Tree already has a root.");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. PhyML finished prematurely.");
     assert(FALSE);
   }
 
@@ -10496,9 +10496,9 @@ int Check_Sequence_Name(char *s)
   {
     if (s[i] == ':')
     {
-      PhyML_Printf("\n. Character ':' is not permitted in sequence name (%s).",
+      PhyML_Fprintf(stderr, "\n. Character ':' is not permitted in sequence name (%s).",
                    s);
-      PhyML_Printf("\n. Err. in file %s at line %d", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
     }
   }
@@ -10507,9 +10507,9 @@ int Check_Sequence_Name(char *s)
   {
     if (s[i] == ',')
     {
-      PhyML_Printf("\n. Character ',' is not permitted in sequence name (%s).",
+      PhyML_Fprintf(stderr, "\n. Character ',' is not permitted in sequence name (%s).",
                    s);
-      PhyML_Printf("\n. Err in file %s at line %d", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
     }
   }
@@ -10518,9 +10518,9 @@ int Check_Sequence_Name(char *s)
   {
     if (s[i] == ' ')
     {
-      PhyML_Printf("\n. Character ' ' is not permitted in sequence name (%s).",
+      PhyML_Fprintf(stderr, "\n. Character ' ' is not permitted in sequence name (%s).",
                    s);
-      PhyML_Printf("\n. Err in file %s at line %d", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
     }
   }
@@ -10608,12 +10608,12 @@ void Scale_Node_Heights_Post(t_node *a, t_node *d, phydbl K, phydbl floor,
 
     if (tree->times->nd_t[d->num] < tree->times->nd_t[a->num])
     {
-      PhyML_Printf("\n. K = %f floor = %f t_prior_max(a) = %f t_prior_max(d) = "
+      PhyML_Fprintf(stderr, "\n. K = %f floor = %f t_prior_max(a) = %f t_prior_max(d) = "
                    "%f a->t = %f d->t %f",
                    K, floor, tree->times->t_prior_max[a->num],
                    tree->times->t_prior_max[d->num], tree->times->nd_t[a->num],
                    tree->times->nd_t[d->num]);
-      PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
       Warn_And_Exit("\n. PhyML finished prematurely.");
     }
 
@@ -11049,8 +11049,8 @@ phydbl Reflect(phydbl x, phydbl l, phydbl u)
 
   if (rounds == 100 && (x > u || x < l))
   {
-    PhyML_Printf("\n. u=%f l=%f x=%f", u, l, x);
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. u=%f l=%f x=%f", u, l, x);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -11084,10 +11084,10 @@ int Check_Topo_Constraints(t_tree *big_tree, t_tree *small_tree)
 
   if (small_tree->n_otu > big_tree->n_otu)
   {
-    PhyML_Printf("\n");
-    PhyML_Printf(
+    PhyML_Fprintf(stderr, "\n");
+    PhyML_Fprintf(stderr,
         "\n. The tree that defines the topological constraints can not");
-    PhyML_Printf("\n. display more taxa than %d", big_tree->n_otu);
+    PhyML_Fprintf(stderr, "\n. display more taxa than %d", big_tree->n_otu);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -11240,9 +11240,9 @@ void Match_Nodes_In_Small_Tree(t_tree *small_tree, t_tree *big_tree)
 
   if (small_tree->n_otu > big_tree->n_otu)
   {
-    PhyML_Printf("\n. small_tree->n_otu=%d big_tree->n_otu=%d",
+    PhyML_Fprintf(stderr, "\n. small_tree->n_otu=%d big_tree->n_otu=%d",
                  small_tree->n_otu, big_tree->n_otu);
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -11256,9 +11256,9 @@ void Match_Nodes_In_Small_Tree(t_tree *small_tree, t_tree *big_tree)
 
   if (!Check_Topo_Constraints(big_tree, small_tree))
   {
-    PhyML_Printf(
+    PhyML_Fprintf(stderr,
         "\n. small_tree and big_tree cannot have distinct topologies.");
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 
@@ -11417,7 +11417,7 @@ void Get_Edge_Binary_Coding_Number(t_tree *tree)
 
   if (tree->n_otu > 1000)
   {
-    PhyML_Printf(
+    PhyML_Fprintf(stderr,
         "\n. Can't work out edge binary code if the number of taxa >1000.");
     assert(FALSE);
   }
@@ -11669,7 +11669,7 @@ void Connect_CSeqs_To_Nodes(calign *cdata, option *io, t_tree *tree)
 
   if ((n_otu_tree != n_otu_cdata) && (io->fp_in_constraint_tree == NULL))
   {
-    PhyML_Printf("\n. Number of taxa in the tree: %d, number of sequences: %d.",
+    PhyML_Fprintf(stderr, "\n. Number of taxa in the tree: %d, number of sequences: %d.",
                  n_otu_tree, n_otu_cdata);
     Warn_And_Exit("\n. The number of tips in the tree is not the same as the "
                   "number of sequences\n");
@@ -11684,7 +11684,7 @@ void Connect_CSeqs_To_Nodes(calign *cdata, option *io, t_tree *tree)
 
     if (j == n_otu_cdata)
     {
-      PhyML_Printf("\n. Taxon '%s' was not found in sequence file '%s'.\n",
+      PhyML_Fprintf(stderr, "\n. Taxon '%s' was not found in sequence file '%s'.\n",
                    tree->a_nodes[i]->name, io->in_align_file);
       Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
     }
@@ -11760,7 +11760,7 @@ void Best_Root_Position_IL_Model(t_tree *tree)
 
   if (tree->n_root)
   {
-    PhyML_Printf("\n. The tree already has a root node");
+    PhyML_Fprintf(stderr, "\n. The tree already has a root node");
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
   else
@@ -13233,7 +13233,7 @@ void Replace_Short_With_Long_Tax_Names(t_tree *tree, option *io)
     }
     if (j == tree->n_otu)
     {
-      PhyML_Printf("\n. Taxon '%s' with short name '%s' not found in the tree",
+      PhyML_Fprintf(stderr, "\n. Taxon '%s' with short name '%s' not found in the tree",
                    io->long_tax_names[i], io->short_tax_names[i]);
       assert(false);
     }

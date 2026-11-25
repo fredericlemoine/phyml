@@ -863,8 +863,8 @@ int GEO_Get_Arrival_Location(t_node *n, t_geo *t, t_tree *tree)
     {
       if(t->idx_loc[n->num] != t->idx_loc[v1->num])
         {
-          PhyML_Printf("\n== Error detected in location labeling.");
-          PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+          PhyML_Fprintf(stderr, "\n== Error detected in location labeling.");
+          PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
           Exit("\n");    
         }
       else
@@ -874,8 +874,8 @@ int GEO_Get_Arrival_Location(t_node *n, t_geo *t, t_tree *tree)
     {
       if((t->idx_loc[v1->num] != t->idx_loc[n->num]) && (t->idx_loc[v2->num] != t->idx_loc[n->num]))
         {
-          PhyML_Printf("\n== Error detected in location labeling.");
-          PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+          PhyML_Fprintf(stderr, "\n== Error detected in location labeling.");
+          PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
           Exit("\n");    
         }
       else
@@ -1359,7 +1359,7 @@ void GEO_Randomize_Locations(t_node *n, t_geo *t, t_tree *tree)
           
           if(n_v1 + n_v2 < 1)
             {
-              PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+              PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
               Exit("\n");
             }
           
@@ -1401,22 +1401,22 @@ void GEO_Randomize_Locations(t_node *n, t_geo *t, t_tree *tree)
           
           if(t->idx_loc[v1->num] != t->idx_loc[n->num] && t->idx_loc[v2->num] != t->idx_loc[n->num])
             {
-              PhyML_Printf("\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
-              PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+              PhyML_Fprintf(stderr, "\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
+              PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
               Exit("\n");
             }
 
           if(t->idx_loc_beneath[v1->num * t->ldscape_sz + t->idx_loc[v1->num]] < 1)
             {
-              PhyML_Printf("\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
-              PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+              PhyML_Fprintf(stderr, "\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
+              PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
               Exit("\n");
             }
 
           if(t->idx_loc_beneath[v2->num * t->ldscape_sz + t->idx_loc[v2->num]] < 1)
             {
-              PhyML_Printf("\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
-              PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+              PhyML_Fprintf(stderr, "\n. %d %d %d",t->idx_loc[v1->num],t->idx_loc[v2->num],t->idx_loc[n->num]);
+              PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
               Exit("\n");
             }
           

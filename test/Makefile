@@ -70,6 +70,8 @@ LDFLAGS_asan   := -fsanitize=address,undefined -fsanitize-recover=address,undefi
 
 UNIT_SRCS := $(wildcard unit/test_*.c)
 UNIT_BIN  := $(BUILD)/unit_tests
+# The same tests on the OpenMP build: errors raised in threads (test_lib.c)
+UNIT_BIN_OMP := $(BUILD)/unit_tests_omp
 
 .PHONY: all check check-unit check-functional check-asan check-mpi clean data
 .SECONDARY:
@@ -82,7 +84,12 @@ ifeq ($(OPENMP),1)
 BINS += $(BUILD)/phyml-omp
 endif
 
-all: $(BINS) $(UNIT_BIN)
+UNIT_BINS := $(UNIT_BIN)
+ifeq ($(OPENMP),1)
+UNIT_BINS += $(UNIT_BIN_OMP)
+endif
+
+all: $(BINS) $(UNIT_BINS)
 
 # ---- object files, one directory per variant ---------------------------
 define VARIANT_RULES
@@ -118,6 +125,10 @@ $(UNIT_BIN): $(UNIT_SRCS) unit/tinytest.h unit/tinytest.c $(BUILD)/libphyml-defa
 	$(CC) $(BASE) $(CFLAGS_default) -Iunit unit/tinytest.c $(UNIT_SRCS) \
 	  $(BUILD)/libphyml-default.a $(LIBS) -o $@
 
+$(UNIT_BIN_OMP): $(UNIT_SRCS) unit/tinytest.h unit/tinytest.c $(BUILD)/libphyml-omp.a
+	$(CC) $(BASE) $(CFLAGS_omp) -Iunit unit/tinytest.c $(UNIT_SRCS) \
+	  $(BUILD)/libphyml-omp.a $(OPENMP_LIBS) $(LIBS) -o $@
+
 # ---- running --------------------------------------------------------------
 TEST_ENV = PHYML=$(abspath $(BUILD)/phyml) \
            PHYML_GENERIC=$(abspath $(BUILD)/phyml-generic) \
@@ -132,8 +143,8 @@ check: all
 	$(MAKE) --no-print-directory check-functional || status=1; \
 	exit $$status
 
-check-unit: $(UNIT_BIN)
-	./$(UNIT_BIN)
+check-unit: $(UNIT_BINS)
+	@status=0; for t in $(UNIT_BINS); do echo "== $$t"; ./$$t || status=1; done; exit $$status
 
 check-functional: $(BINS)
 	cd functional && $(TEST_ENV) $(PYTHON) -m unittest discover -p '$(TESTS)' -v

@@ -335,12 +335,15 @@ class UserTrees(PhymlTestCase):
         res = self.run_phyml("-i", "sim_jc_8.phy", "-u", "bad_tree.nwk", "-m", "JC69",
                              timeout=60)
         self.assertCleanFailure(res)
-        self.assertIn("unbalanced parentheses", res.output)
+        self.assertIn("missing ')'", res.output)
 
     def test_malformed_trees_are_refused(self):
-        for text, msg in (("((t1,t2),(t3,t4)),((t5,t6),(t7,t8)));", "without a matching"),
+        for text, msg in (("((t1,t2),(t3,t4)),((t5,t6),(t7,t8)));", "unexpected text after"),
                           ("((t1,t2)[x,(t3,t4),((t5,t6),(t7,t8)));", "not closed"),
-                          ("t1,t2,t3,t4,t5,t6,t7,t8;", "tree not found")):
+                          ("t1,t2,t3,t4,t5,t6,t7,t8;", "no tree found"),
+                          ("((t1,t2),(t3,t4),((t5,t6),(t7,t1)));", "'t1' appears more than once"),
+                          ("((t1,t2),(t3,t4),((t5,t6),(t7,)));", "a tip has no name"),
+                          ("((t1,t2),(t3:x,t4),((t5,t6),(t7,t8)));", "invalid branch length")):
             with self.subTest(tree=text):
                 res = self.run_tree(text, "n")
                 self.assertCleanFailure(res)

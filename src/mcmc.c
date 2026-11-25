@@ -1554,7 +1554,7 @@ void MCMC_Root_Time(t_tree *tree, int print)
       
       if(isnan(t0_new))
         {
-          PhyML_Printf("\n. t_max=%f t0_cur=%f t0_new=%f",t_max,t0_cur,t0_new);
+          PhyML_Fprintf(stderr, "\n. t_max=%f t0_cur=%f t0_new=%f",t_max,t0_cur,t0_new);
           assert(FALSE);
         }
             
@@ -3082,14 +3082,14 @@ void MCMC_Pause(t_mcmc *mcmc)
 	      
 	case 'Y': 
 	  {
-	    PhyML_Printf("\n. Ok. Done.\n");
+	    PhyML_Fprintf(stderr, "\n. Ok. Done.\n");
 	    Exit("\n");
 	    break;
 	  }
 	  
 	default: 
 	  {
-	    PhyML_Printf("\n. Please enter 'Y' or 'N'.\n");
+	    PhyML_Fprintf(stderr, "\n. Please enter 'Y' or 'N'.\n");
 	    Exit("\n");
 	  }
 	}
@@ -5681,7 +5681,7 @@ void MCMC_Prune_Regraft(t_tree *tree)
           new_lnL_time = TIMES_Lk(tree); 
           if(Are_Equal(new_lnL_time,cur_lnL_time,1.E-5) == NO)
             {
-              PhyML_Printf("\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
+              PhyML_Fprintf(stderr, "\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
               assert(FALSE);
             }
 
@@ -5972,7 +5972,7 @@ void MCMC_Prune_Regraft_Weighted(t_tree *tree)
           new_lnL_time = TIMES_Lk(tree); 
           if(Are_Equal(new_lnL_time,cur_lnL_time,1.E-5) == NO)
             {
-              PhyML_Printf("\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
+              PhyML_Fprintf(stderr, "\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
               assert(FALSE);
             }
 
@@ -6423,7 +6423,7 @@ void MCMC_Prune_Regraft_Local(t_tree *tree)
           new_lnL_time = TIMES_Lk(tree); 
           if(Are_Equal(new_lnL_time,cur_lnL_time,1.E-5) == NO)
             {
-              PhyML_Printf("\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
+              PhyML_Fprintf(stderr, "\n. new_lnL_time: %f cur_lnL_time: %f",new_lnL_time,cur_lnL_time);
               assert(FALSE);
             }
           
@@ -7036,7 +7036,7 @@ void MCMC_Run_Core(t_tree *tree)
 
   if(tree->mmod->c_lnL < UNLIKELY || tree->c_lnL < UNLIKELY || tree->rates->c_lnL < UNLIKELY || tree->times->c_lnL < UNLIKELY)
     {
-      PhyML_Printf("\n. Move: %s tree->mmod->c_lnL: %f tree->c_lnL: %f",
+      PhyML_Fprintf(stderr, "\n. Move: %s tree->mmod->c_lnL: %f tree->c_lnL: %f",
                    tree->mcmc->move_name[move],
                    tree->mmod->c_lnL,
                    tree->c_lnL,
@@ -7221,7 +7221,7 @@ void MCMC_Make_Move(phydbl *cur, phydbl *new, phydbl inf, phydbl sup, phydbl *lo
 
     default : 
       {
-	PhyML_Printf("\n. Move not implemented");
+	PhyML_Fprintf(stderr, "\n. Move not implemented");
 	Exit("");
 	break;
       }
@@ -7460,7 +7460,7 @@ void MCMC_PHYREX_Sigsq(t_tree *tree, int print)
               
               if(Are_Equal(aux_tree->times->scaled_pop_size,neff_orig,1.E-5) == FALSE)
                 {
-                  PhyML_Printf("\n. aux_tree->times->scaled_pop_size=%f neff_orig=%f",aux_tree->times->scaled_pop_size,neff_orig);
+                  PhyML_Fprintf(stderr, "\n. aux_tree->times->scaled_pop_size=%f neff_orig=%f",aux_tree->times->scaled_pop_size,neff_orig);
                   assert(false);
                 }
             }
@@ -8752,7 +8752,7 @@ void MCMC_PHYREX_Move_Disk_Updown(t_tree *tree, int print)
           
           if(isnan(new_time))
             {
-              PhyML_Printf("\n. max=%f cur_time=%f K=%f new_time=%f",max,cur_time,K,new_time);
+              PhyML_Fprintf(stderr, "\n. max=%f cur_time=%f K=%f new_time=%f",max,cur_time,K,new_time);
               assert(FALSE);
             }
         }
@@ -9072,7 +9072,7 @@ void MCMC_PHYREX_Swap_Disk(t_tree *tree, int print)
           
           if(isnan(t))
             {
-              PhyML_Printf("\n. t_max=%f ori_time[i]=%f K=%f t=%f",t_max,ori_time[i],K,t);
+              PhyML_Fprintf(stderr, "\n. t_max=%f ori_time[i]=%f K=%f t=%f",t_max,ori_time[i],K,t);
               assert(FALSE);
             }
         }
@@ -10548,7 +10548,7 @@ void MCMC_PHYREX_Prune_Regraft(t_tree *tree, int print)
 
           if(!(new_tlnL > UNLIKELY && new_glnL > UNLIKELY))
             {
-              PhyML_Printf("\n. [%d/%d] tlnL: %f->%f glnL: %f->%f alnL: %f->%f rlnL: %f->%f hr: %f",
+              PhyML_Fprintf(stderr, "\n. [%d/%d] tlnL: %f->%f glnL: %f->%f alnL: %f->%f rlnL: %f->%f hr: %f",
                            n_iter,(int)(1+0.2*tree->n_otu),
                            cur_tlnL,new_tlnL,
                            cur_glnL,new_glnL,

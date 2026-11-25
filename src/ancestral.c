@@ -496,7 +496,7 @@ void Map_Mutations(t_node *a, t_node *d, int sa, int sd, t_edge *b, int site, in
 
   if(n_iter == 10000)
     {
-      PhyML_Printf("\n. sa=%2d sd=%2d slast=%2d tlast=%12G T=%12G  rcat=%12f site=%4d",sa,sd,slast,tlast,T,rcat,site);
+      PhyML_Fprintf(stderr, "\n. sa=%2d sd=%2d slast=%2d tlast=%12G T=%12G  rcat=%12f site=%4d",sa,sd,slast,tlast,T,rcat,site);
       assert(FALSE);
     }
   

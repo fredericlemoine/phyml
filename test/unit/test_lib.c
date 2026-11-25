@@ -313,3 +313,140 @@ TEST(lib, tracking_follows_free_and_realloc)
   CHECK_EQ_INT(n_blocks, 1000);
   CHECK_EQ_INT(n_files, 1);
 }
+
+/* Error messages printed just before an exit go to stderr, so they are in
+   the error text (they were printed on stdout). */
+TEST(lib, option_error_text_is_returned)
+{
+  Silence();
+  CHECK_EQ_INT(Run(Stage("dna_small.phy"), "-mXYZ"), PHYML_ERR_USAGE);
+  CHECK(strstr(PhyML_Error_Message(), "model name is incorrect") != NULL);
+}
+
+TEST(lib, version_and_help_are_not_errors)
+{
+  char *version[] = {"phyml", "--version", NULL};
+  char *help[]    = {"phyml", "--help", NULL};
+
+  Silence();
+  CHECK_EQ_INT(PhyML_Run(2, version), PHYML_OK);
+  CHECK_EQ_INT(PhyML_Run(2, help), PHYML_OK);
+  CHECK_STR_EQ(PhyML_Error_Message(), "");
+}
+
+/* A run with threads gives the same tree as without, also when PhyML is
+   called as a library, where each parallel region sets an error guard. */
+TEST(lib, threaded_run_matches_serial_run)
+{
+  char  out[600], tree1[1 << 16];
+  char *argv[] = {"phyml", "-i", NULL, "-u", NULL, "-m", "GTR", "-o", "lr",
+                  "-b", "0", "--r_seed", "5", "--threads", NULL, NULL};
+
+  Silence();
+  argv[2] = strdup(Stage("threads_dna.phy"));
+  argv[4] = strdup(Stage("threads_dna.true.nwk"));
+  snprintf(out, sizeof(out), "%s_phyml_tree.txt", argv[2]);
+
+  argv[14] = "1";
+  CHECK_EQ_INT(PhyML_Run(15, argv), PHYML_OK);
+  strcpy(tree1, Slurp(out));
+  argv[14] = "4";
+  CHECK_EQ_INT(PhyML_Run(15, argv), PHYML_OK);
+  CHECK_STR_EQ(Slurp(out), tree1);
+}
+
+#ifdef _OPENMP
+#include <omp.h>
+
+/* An error in one thread of a parallel region ends that thread's work; the
+   region ends normally and the error is raised after it. */
+/* Not a local of the test: it is changed between setjmp and longjmp */
+static int n_done;
+
+static int Parallel_Region_With_Error(int failing_thread, int use_assert)
+{
+  n_done = 0;
+  // A shared counter, not a reduction variable: a local changed after the
+  // error point may be stored before it (its value is then indeterminate
+  // after the longjmp, as GCC showed)
+#pragma omp parallel num_threads(4)
+  {
+    PHYML_THREAD_TRY
+    if (omp_get_thread_num() == failing_thread)
+    {
+      if (use_assert)
+        assert(failing_thread < 0);
+      else
+        Exit("\n. Error in a thread.\n");
+    }
+#pragma omp atomic
+    n_done++;
+    PHYML_THREAD_END
+  }
+  PhyML_Thread_Errors_Raise();
+  return 0;
+}
+
+TEST(lib, error_in_a_thread_comes_back_after_the_region)
+{
+  jmp_buf      env;
+  volatile int code, round;
+  int          n_threads = 0;
+
+  Silence();
+  for (round = 0; round < 2; round++)
+  {
+    PhyML_Error_Clear();
+    PhyML_Error_Scope(PHYML_ERR_INPUT);
+    n_done = -1;
+    code   = setjmp(env);
+    if (code == 0)
+    {
+      PhyML_Error_Set_Recovery(&env);
+      Parallel_Region_With_Error(2, round == 1);
+      CHECK(0); // not reached
+    }
+    PhyML_Error_Set_Recovery(NULL);
+    CHECK_EQ_INT(code, round == 0 ? PHYML_ERR_INPUT : PHYML_ERR_INTERNAL);
+    CHECK_EQ_INT(n_done, 3); // the other threads finished their work
+    CHECK(strstr(PhyML_Error_Message(), round == 0 ? "Error in a thread"
+                                                   : "Assertion failed") != NULL);
+    CHECK_EQ_INT(omp_get_level(), 0); // the region was left normally
+  }
+
+  // The OpenMP runtime still gives the next region its threads
+#pragma omp parallel num_threads(4)
+  {
+#pragma omp atomic
+    n_threads++;
+  }
+  CHECK_EQ_INT(n_threads, 4);
+}
+
+/* An error in an inactive region (one thread) is also raised after it. */
+TEST(lib, error_in_an_inactive_region_comes_back_after_it)
+{
+  jmp_buf      env;
+  volatile int code;
+  int          nt = 1;
+
+  Silence();
+  PhyML_Error_Clear();
+  code = setjmp(env);
+  if (code == 0)
+  {
+    PhyML_Error_Set_Recovery(&env);
+#pragma omp parallel if (nt > 1) num_threads(nt)
+    {
+      PHYML_THREAD_TRY
+      Exit("\n. Error in an inactive region.\n");
+      PHYML_THREAD_END
+    }
+    PhyML_Thread_Errors_Raise();
+    CHECK(0);
+  }
+  PhyML_Error_Set_Recovery(NULL);
+  CHECK_EQ_INT(code, PHYML_ERR);
+  CHECK_EQ_INT(omp_get_level(), 0);
+}
+#endif

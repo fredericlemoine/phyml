@@ -134,9 +134,12 @@ LK_INLINE void AVX_Update_Eigen_Lr_Ns(t_edge *b, t_tree *tree, const unsigned in
 #pragma omp parallel num_threads(nt)
         {
           int beg,end;
+          PHYML_THREAD_TRY
           Lk_Thread_Range((int)npattern,&beg,&end);
           LK_SIMD_SITES(beg,end);
+          PHYML_THREAD_END
         }
+        PhyML_Thread_Errors_Raise();
       }
     else
       LK_SIMD_SITES(0,(int)npattern);
@@ -666,8 +669,8 @@ LK_INLINE void AVX_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, cons
 
   if(tree->mod->augmented == YES)
     {
-      PhyML_Printf("\n== AVX version of the Update_Partial_Lk function does not");
-      PhyML_Printf("\n== allow augmented data.");
+      PhyML_Fprintf(stderr, "\n== AVX version of the Update_Partial_Lk function does not");
+      PhyML_Fprintf(stderr, "\n== allow augmented data.");
       assert(FALSE);
     }
     
@@ -687,9 +690,12 @@ LK_INLINE void AVX_Update_Partial_Lk_Ns(t_tree *tree, t_edge *b, t_node *d, cons
 #pragma omp parallel num_threads(nt)
         {
           int beg,end;
+          PHYML_THREAD_TRY
           Lk_Thread_Range((int)npattern,&beg,&end);
           LK_SIMD_SITES(beg,end);
+          PHYML_THREAD_END
         }
+        PhyML_Thread_Errors_Raise();
       }
     else
       LK_SIMD_SITES(0,(int)npattern);

@@ -26,7 +26,6 @@ class Basics(PhymlTestCase):
         # The -f line had 9 %s for 7 arguments: a crash on Linux x86-64
         self.assertGreaterEqual(res.returncode, 0)
 
-    @known_bug("--version and --help exit with status 1")
     def test_version_and_help_exit_zero(self):
         self.assertEqual(self.run_phyml("--version").returncode, 0)
         self.assertEqual(self.run_phyml("--help").returncode, 0)

@@ -152,10 +152,10 @@ phydbl RW_Independent_Contrasts(t_tree *tree)
 
       if(lnP < UNLIKELY)
         {
-          PhyML_Printf("\n. v1: %f v2: %f",v1,v2);
-          PhyML_Printf("\n. ctrst1: %f ctrst2: %f",tree->ctrst->x[n1->num],tree->ctrst->x[n2->num]);
-          PhyML_Printf("\n. tprime: %f",tree->ctrst->tprime[tree->n_root->num]);
-          PhyML_Printf("\n. t: %f",tree->times->nd_t[tree->n_root->num]);
+          PhyML_Fprintf(stderr, "\n. v1: %f v2: %f",v1,v2);
+          PhyML_Fprintf(stderr, "\n. ctrst1: %f ctrst2: %f",tree->ctrst->x[n1->num],tree->ctrst->x[n2->num]);
+          PhyML_Fprintf(stderr, "\n. tprime: %f",tree->ctrst->tprime[tree->n_root->num]);
+          PhyML_Fprintf(stderr, "\n. t: %f",tree->times->nd_t[tree->n_root->num]);
           assert(false);
         } 
     }
@@ -212,10 +212,10 @@ void RW_Independent_Contrasts_Post(t_node *a, t_node *d, phydbl sd, phydbl *lnP,
 
       if(*lnP < UNLIKELY)
         {
-          PhyML_Printf("\n. v1: %f v2: %f",v1,v2);
-          PhyML_Printf("\n. ctrst1: %f ctrst2: %f",tree->ctrst->x[n1->num],tree->ctrst->x[n2->num]);
-          PhyML_Printf("\n. tprime: %f",tree->ctrst->tprime[d->num]);
-          PhyML_Printf("\n. t: %f",tree->times->nd_t[d->num]);
+          PhyML_Fprintf(stderr, "\n. v1: %f v2: %f",v1,v2);
+          PhyML_Fprintf(stderr, "\n. ctrst1: %f ctrst2: %f",tree->ctrst->x[n1->num],tree->ctrst->x[n2->num]);
+          PhyML_Fprintf(stderr, "\n. tprime: %f",tree->ctrst->tprime[d->num]);
+          PhyML_Fprintf(stderr, "\n. t: %f",tree->times->nd_t[d->num]);
           assert(false);
         }
     }
@@ -284,7 +284,7 @@ void RW_Integrated_Lk_Up(phydbl dad_mu_up, phydbl dad_var_up, phydbl dad_logrem_
 
   if (err == YES)
   {
-    PhyML_Printf("\n. bro_mu_down: %f bro_b: %f bro_a: %f dad_mu_up: %f  bro_var_down: %f bro_var: %f dad_var_up: %f",
+    PhyML_Fprintf(stderr, "\n. bro_mu_down: %f bro_b: %f bro_a: %f dad_mu_up: %f  bro_var_down: %f bro_var: %f dad_var_up: %f",
                  bro_mu_down,
                  bro_b,
                  bro_a,

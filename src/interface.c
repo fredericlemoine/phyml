@@ -47,7 +47,7 @@ void Launch_Interface(option *io)
     }
     default:
     {
-      PhyML_Printf("\n== Err in file %s at line %d\n\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n\n", __FILE__, __LINE__);
       Exit("");
       break;
     }
@@ -89,13 +89,13 @@ void Launch_Interface(option *io)
 
   if ((io->datatype == NT) && (io->mod->whichmodel > 10))
   {
-    PhyML_Printf("\n== Err: model incompatible with the data type. Please use "
+    PhyML_Fprintf(stderr, "\n== Err: model incompatible with the data type. Please use "
                  "JC69, K80, F81, HKY, F84, TN93 or GTR\n");
     Warn_And_Exit("\n");
   }
   else if ((io->datatype == AA) && (io->mod->whichmodel < 11))
   {
-    PhyML_Printf("\n== Err: model incompatible with the data type. Please use "
+    PhyML_Fprintf(stderr, "\n== Err: model incompatible with the data type. Please use "
                  "LG, Dayhoff, JTT, MtREV, WAG, DCMut, RtREV, CpREV, VT, "
                  "Blosum62, MtMam, MtArt, HIVw, HIVb or AB.\n");
     Exit("\n");
@@ -501,7 +501,7 @@ void Launch_Interface_Data_Type(option *io)
 
     if ((io->do_boot || io->do_bayesboot || io->do_tbe) && (io->n_data_sets > 1))
     {
-      PhyML_Printf(
+      PhyML_Fprintf(stderr,
           "\n. Bootstrap option is not allowed with multiple data sets !\n");
       Exit("\n");
     }
@@ -1221,7 +1221,7 @@ void Launch_Interface_Model(option *io)
         (io->mod->whichmodel == F81) || (io->mod->whichmodel == GTR) ||
         (io->mod->whichmodel == CUSTOM))
     {
-      PhyML_Printf("\n. 'K' is not a valid choice for this model\n");
+      PhyML_Fprintf(stderr, "\n. 'K' is not a valid choice for this model\n");
       Exit("\n");
     }
 
@@ -1844,7 +1844,7 @@ void Launch_Interface_Branch_Support(option *io)
 
       if (io->n_data_sets > 1)
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. Bootstrap option is not allowed with multiple data sets.\n");
         Exit("\n");
       }
@@ -2121,7 +2121,7 @@ void Launch_Interface_Multigene(option *io)
         }
         default:
         {
-          PhyML_Printf("\n== Err in file %s at line %d\n\n", __FILE__,
+          PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n\n", __FILE__,
                        __LINE__);
           Exit("");
           break;

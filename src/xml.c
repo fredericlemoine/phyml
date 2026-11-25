@@ -1281,7 +1281,7 @@ xml_node *XML_Load_File(FILE *fp)
         }
         else if (XML_Add_Character(c, &bufptr, &buffer, &bufsize))
         {
-          PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+          PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
           Exit("\n");
         }
       }
@@ -2128,7 +2128,7 @@ int XML_Get_Number_Of_Classes_Siterates(xml_node *parent)
 
   if (!parent)
   {
-    PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
     Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
   }
 

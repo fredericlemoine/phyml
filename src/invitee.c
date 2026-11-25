@@ -57,7 +57,7 @@ void PhyTime_XML(char *xml_file)
   //file can/cannot be open:
   if ((f =(FILE *)fopen(xml_file, "r")) == NULL)
     {
-      PhyML_Printf("\n== File '%s' can not be opened...\n",xml_file);
+      PhyML_Fprintf(stderr, "\n== File '%s' can not be opened...\n",xml_file);
       Exit("\n");
     }
 
@@ -96,8 +96,8 @@ void PhyTime_XML(char *xml_file)
 	}
       else
 	{
-	  PhyML_Printf("\n== No input tree was not found. \n");
-	  PhyML_Printf("\n== Please specify either a tree file name or enter the whole tree directly in the XML file (in Newick format). \n");
+	  PhyML_Fprintf(stderr, "\n== No input tree was not found. \n");
+	  PhyML_Fprintf(stderr, "\n== Please specify either a tree file name or enter the whole tree directly in the XML file (in Newick format). \n");
 	  Exit("\n");
 	}
     }
@@ -199,16 +199,16 @@ void PhyTime_XML(char *xml_file)
 
   if(n_cur == NULL)
     {
-      PhyML_Printf("\n== There is no calibration information provided. \n");
-      PhyML_Printf("\n== Please check your data. \n");
+      PhyML_Fprintf(stderr, "\n== There is no calibration information provided. \n");
+      PhyML_Fprintf(stderr, "\n== Please check your data. \n");
       Exit("\n");
     }
   else
     {
       if(XML_Search_Node_Name("upper", NO, n_cur -> child) == NULL && XML_Search_Node_Name("lower", NO, n_cur -> child) == NULL)
 	{
-	  PhyML_Printf("\n== There is no calibration information provided. \n");
-	  PhyML_Printf("\n== Please check your data. \n");
+	  PhyML_Fprintf(stderr, "\n== There is no calibration information provided. \n");
+	  PhyML_Fprintf(stderr, "\n== Please check your data. \n");
 	  Exit("\n");
 	}
     }
@@ -225,8 +225,8 @@ void PhyTime_XML(char *xml_file)
 	{
 	  if(!n_r -> attr -> value)
 	  {
-		PhyML_Printf("\n== Sequence type (nt / aa) must be provided. \n");
-		PhyML_Printf("\n== Please, include this information as an attribute of component <%s>. \n", n_r -> name);
+		PhyML_Fprintf(stderr, "\n== Sequence type (nt / aa) must be provided. \n");
+		PhyML_Fprintf(stderr, "\n== Please, include this information as an attribute of component <%s>. \n", n_r -> name);
 		Exit("\n");
 	  }	
           char *s;
@@ -280,7 +280,7 @@ void PhyTime_XML(char *xml_file)
 	  i = 1;
 	  For(i, n_taxa) if(strlen(io -> data[0] -> state) != strlen(io -> data[i] -> state))
 	    {
-	      PhyML_Printf("\n== All the sequences should be of the same length. Please check your data...\n");
+	      PhyML_Fprintf(stderr, "\n== All the sequences should be of the same length. Please check your data...\n");
 	      Exit("\n");
 	      break;
 	    }  
@@ -292,7 +292,7 @@ void PhyTime_XML(char *xml_file)
 	  //check if a number of tips is equal to a number of taxa:
 	  if(n_taxa != io -> n_otu)
 	    {
-	      PhyML_Printf("\n== The number of taxa is not the same as a number of tips. Check your data...\n");
+	      PhyML_Fprintf(stderr, "\n== The number of taxa is not the same as a number of tips. Check your data...\n");
 	      Exit("\n");
 	    }
 
@@ -344,8 +344,8 @@ void PhyTime_XML(char *xml_file)
                         }
                       else
                         {
-                          PhyML_Printf("\n== The calibration information for clade [%s] was not found.", clade_name);
-                          PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+                          PhyML_Fprintf(stderr, "\n== The calibration information for clade [%s] was not found.", clade_name);
+                          PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
                           Exit("\n");
                         }
                     }
@@ -364,9 +364,9 @@ void PhyTime_XML(char *xml_file)
                       if(!n_r -> child -> attr -> next && n_r -> child -> next ==  NULL) tree -> rates -> calib -> proba[node_num] = 1.;
                       if(!n_r -> child -> attr -> next && n_r -> child -> next)
                         {
-                          PhyML_Printf("\n== You either need to provide information about the probability with which calibration ");
-                          PhyML_Printf("\n== applies to a node or you need to apply calibration only to one node.");
-                          PhyML_Printf("\n. Err. in file %s at line %d\n",__FILE__,__LINE__);
+                          PhyML_Fprintf(stderr, "\n== You either need to provide information about the probability with which calibration ");
+                          PhyML_Fprintf(stderr, "\n== applies to a node or you need to apply calibration only to one node.");
+                          PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n",__FILE__,__LINE__);
                           Exit("\n");
                         }
                       
@@ -2280,8 +2280,8 @@ xml_node *XML_Search_Node_Attribute_Value_Clade(char *attr_name, char *value, in
   //printf("\n. Node name [%s] Attr name [%s] Attr value [%s] \n", node -> name, attr_name, value);
   if(!node)
     {
-      PhyML_Printf("\n== node: %p attr: %p",node,node?node->attr:NULL);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== node: %p attr: %p",node,node?node->attr:NULL);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");         
     }
   
@@ -2471,9 +2471,9 @@ phydbl log_g_i(phydbl lmbd, phydbl t_slice_max, phydbl t_slice_min, phydbl t_pri
       /* printf("\n. K = [%f] \n", K); */
       if(lmbd * t_prior_max + K > 700.0)
         {
-          PhyML_Printf("\n. Please scale your calibration intervals. \n");
-          PhyML_Printf("\n. Cannot calculate exp(-lmbd * t_prior_max). \n");
-          PhyML_Printf("\n. Err. in file %s at line %d\n\n",__FILE__,__LINE__);
+          PhyML_Fprintf(stderr, "\n. Please scale your calibration intervals. \n");
+          PhyML_Fprintf(stderr, "\n. Cannot calculate exp(-lmbd * t_prior_max). \n");
+          PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n\n",__FILE__,__LINE__);
           Warn_And_Exit("\n");
         }
       else

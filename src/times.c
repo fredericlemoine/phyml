@@ -1861,7 +1861,7 @@ void TIMES_Connect_List_Of_Taxa(t_node **tax_list, int list_size, phydbl t_mrca,
       
       if(t_upper_bound < t_lower_bound)
         {
-          PhyML_Printf("\n. upper: %f lower: %f t_mrca: %f\n",t_upper_bound,t_lower_bound,t_mrca);
+          PhyML_Fprintf(stderr, "\n. upper: %f lower: %f t_mrca: %f\n",t_upper_bound,t_lower_bound,t_mrca);
           assert(FALSE);
         }
       

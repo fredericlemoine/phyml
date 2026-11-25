@@ -2426,12 +2426,12 @@ void SLFV_Integrated_Coal_Rate(t_ldsk *l0, t_ldsk *l1, phydbl T, t_tree *tree)
     }
   while(l0->prev && l1->prev);
   
-  PhyML_Printf("%d %f %g %f",
+  PhyML_Fprintf(stderr, "%d %f %g %f",
                coal,
                integrated_coal_rate,
                njumps,
                coaltime);
-  PhyML_Printf("\n");
+  PhyML_Fprintf(stderr, "\n");
   Exit("\n");
 }
 
@@ -2466,8 +2466,8 @@ void SLFV_Sum_Coal_Rate(t_ldsk *l0, t_ldsk *l1, int n, t_tree *tree)
 
   prod_one_min_coal_prob = exp(prod_one_min_coal_prob);
   
-  PhyML_Printf("%d %d %f",coal,n_evts,prod_one_min_coal_prob);
-  PhyML_Printf("\n");
+  PhyML_Fprintf(stderr, "%d %d %f",coal,n_evts,prod_one_min_coal_prob);
+  PhyML_Fprintf(stderr, "\n");
   Exit("\n");
 }
 

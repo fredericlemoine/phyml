@@ -30,21 +30,56 @@ static int      error_scope    = PHYML_ERR;
 static int      error_code     = PHYML_OK;
 static char     error_msg[PHYML_ERROR_MSG_SIZE];
 static size_t   error_msg_len  = 0;
+static int      pending_code   = PHYML_OK; /* error raised in a thread */
+
+#if defined(_MSC_VER)
+#define PHYML_THREAD_LOCAL __declspec(thread)
+#else
+#define PHYML_THREAD_LOCAL __thread
+#endif
+static PHYML_THREAD_LOCAL phyml_jmp_buf *thread_guard = NULL;
 
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
 static void Error_Capture_Text(const char *text, size_t len);
 
-/* longjmp must not leave an OpenMP parallel region */
+/* longjmp must not leave an OpenMP parallel region, active or not: the
+   runtime keeps its state until the region ends */
+
+static int Error_In_Region(void)
+{
+#ifdef _OPENMP
+  return omp_get_level() > 0;
+#else
+  return 0;
+#endif
+}
 
 static int Error_Can_Recover(void)
 {
-  if (error_recovery == NULL) return 0;
+  return error_recovery != NULL && !Error_In_Region();
+}
+
+/* In a guarded thread: records the first error of the region and goes to
+   the end of the thread's work (PHYML_THREAD_END). Returns if the thread
+   is not guarded. */
+
+static void Error_Leave_Thread(int code)
+{
+  if (error_recovery == NULL || !Error_In_Region() || thread_guard == NULL)
+    return;
 #ifdef _OPENMP
-  if (omp_in_parallel()) return 0;
+#pragma omp critical(phyml_pending)
 #endif
-  return 1;
+  {
+    if (pending_code == PHYML_OK) pending_code = code;
+  }
+#ifdef WIN32
+  longjmp(*thread_guard, 1);
+#else
+  siglongjmp(*thread_guard, 1);
+#endif
 }
 
 //////////////////////////////////////////////////////////////
@@ -54,6 +89,7 @@ void PhyML_Raise(int code)
 {
   if (code == PHYML_OK) code = PHYML_ERR;
   fflush(NULL);
+  Error_Leave_Thread(code);
   if (Error_Can_Recover())
   {
     error_code = code;
@@ -87,6 +123,7 @@ void PhyML_Assert_Failed(const char *expr, const char *file, int line,
   fputs(text, stderr);
   Error_Capture_Text(text, strlen(text));
   fflush(NULL);
+  Error_Leave_Thread(PHYML_ERR_INTERNAL);
   if (Error_Can_Recover())
   {
     error_code = PHYML_ERR_INTERNAL;
@@ -112,6 +149,26 @@ int PhyML_Error_Scope_Code(void) { return error_scope; }
 
 int PhyML_Error_Has_Recovery(void) { return error_recovery != NULL; }
 
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+int PhyML_Thread_Guard_Needed(void)
+{
+  return error_recovery != NULL && Error_In_Region();
+}
+
+void PhyML_Thread_Guard(phyml_jmp_buf *env) { thread_guard = env; }
+
+void PhyML_Thread_Errors_Raise_(void)
+{
+  int code;
+
+  if (pending_code == PHYML_OK) return;
+  code         = pending_code;
+  pending_code = PHYML_OK;
+  PhyML_Raise(code);
+}
+
 void PhyML_Error_Set_Recovery(jmp_buf *env) { error_recovery = env; }
 
 //////////////////////////////////////////////////////////////
@@ -120,6 +177,7 @@ void PhyML_Error_Set_Recovery(jmp_buf *env) { error_recovery = env; }
 void PhyML_Error_Clear(void)
 {
   error_code    = PHYML_OK;
+  pending_code  = PHYML_OK;
   error_scope   = PHYML_ERR;
   error_msg_len = 0;
   error_msg[0]  = '\0';
@@ -172,6 +230,33 @@ void PhyML_Error_Capture(const char *format, va_list ap)
   if (n <= 0) return;
   Error_Capture_Text(chunk, ((size_t)n < sizeof(chunk)) ? (size_t)n
                                                        : sizeof(chunk) - 1);
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+int PhyML_Error_Set(int code, const char *format, ...)
+{
+  va_list ap;
+  int     n;
+
+  va_start(ap, format);
+  n = vsnprintf(error_msg, sizeof(error_msg), format, ap);
+  va_end(ap);
+  if (n < 0) n = 0;
+  error_msg_len = ((size_t)n < sizeof(error_msg)) ? (size_t)n : sizeof(error_msg) - 1;
+  error_code    = code;
+  return code;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+void PhyML_Error_Raise_Last(void)
+{
+  // Not through PhyML_Fprintf: the text is already the error text
+  fputs(error_msg, stderr);
+  PhyML_Raise(error_code == PHYML_OK ? PHYML_ERR : error_code);
 }
 
 //////////////////////////////////////////////////////////////

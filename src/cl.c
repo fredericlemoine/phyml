@@ -11,6 +11,7 @@ the GNU public licence. See http://www.opensource.org for details.
 */
 
 #include "cl.h"
+#include "error.h"
 #include "structure.h"
 #include "lg4.h"
 
@@ -237,7 +238,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       strcpy(io->struct_file, optarg);
       if (!Filexists(io->struct_file))
       {
-        PhyML_Printf("\n. The structure annotation file '%s' does not exist.\n",
+        PhyML_Fprintf(stderr, "\n. The structure annotation file '%s' does not exist.\n",
                      io->struct_file);
         Exit("\n");
       }
@@ -336,7 +337,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       if ((!atoi(optarg)) || (atoi(optarg) < 1) ||
           (atoi(optarg) > DECIMAL_DIG - 3))
       {
-        PhyML_Printf("\n. The number of digits must be [1 - %d]\n",
+        PhyML_Fprintf(stderr, "\n. The number of digits must be [1 - %d]\n",
                      DECIMAL_DIG - 3);
         Exit("\n");
       }
@@ -484,7 +485,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->codpos = (int)pos;
       if (io->codpos < 1 || io->codpos > 3)
       {
-        PhyML_Printf("\n. Coding position must be set to 1, 2 or 3.\n");
+        PhyML_Fprintf(stderr, "\n. Coding position must be set to 1, 2 or 3.\n");
         Exit("\n");
       }
       break;
@@ -533,7 +534,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
         io->rates->model_id = STRICTCLOCK;
       else
       {
-        PhyML_Printf("\n. rate_model should be 'autocorrelated', "
+        PhyML_Fprintf(stderr, "\n. rate_model should be 'autocorrelated', "
                      "'uncorrelated', 'integrated' or 'clock'.");
         Exit("\n");
       }
@@ -584,7 +585,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->chain_len_burnin = (int)len;
       if (io->mcmc->chain_len_burnin < 1)
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. chain_len_burnin must be an integer greater than 0.\n");
         Exit("\n");
       }
@@ -597,7 +598,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->sample_interval = (int)len;
       if (io->mcmc->sample_interval < 1)
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. sample_interval must be an integer greater than 0.\n");
         Exit("\n");
       }
@@ -610,7 +611,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mcmc->chain_len = (int)len;
       if (io->mcmc->chain_len < 1)
       {
-        PhyML_Printf("\n. chain_len must be an integer greater than 0.\n");
+        PhyML_Fprintf(stderr, "\n. chain_len must be an integer greater than 0.\n");
         Exit("\n");
       }
       break;
@@ -632,7 +633,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->boot_prog_every = atoi(optarg);
       if (io->boot_prog_every < 1)
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. boot_progress_every must be an integer greater than 0.\n");
         Exit("\n");
       }
@@ -646,8 +647,9 @@ int Read_Command_Line(option *io, int argc, char **argv)
     }
     case 49:
     {
+      // Not an error: exit status 0, PHYML_OK from PhyML_Run
       PhyML_Printf("\n. This is PhyML version %s.\n\n", VERSION);
-      Exit("");
+      PhyML_Stop(0);
       break;
     }
     case 48:
@@ -692,7 +694,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mod->s_opt->min_diff_lk_move = atof(optarg);
       if (io->mod->s_opt->min_diff_lk_move < 0)
       {
-        PhyML_Printf("\n. Min_diff_lk_move must be a double greater than 0.\n");
+        PhyML_Fprintf(stderr, "\n. Min_diff_lk_move must be a double greater than 0.\n");
         Exit("\n");
       }
       break;
@@ -702,7 +704,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       io->mod->s_opt->pars_thresh = (int)atoi(optarg);
       if (io->mod->s_opt->pars_thresh < 0)
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. The parsimony threshold must be an integer greater than 0.\n");
         Exit("\n");
       }
@@ -763,7 +765,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
       if (io->mod->m4mod->n_h < 1)
       {
-        PhyML_Printf("\n. The number of classes must be greater than 0.\n");
+        PhyML_Fprintf(stderr, "\n. The number of classes must be greater than 0.\n");
         Exit("\n");
       }
 #endif
@@ -794,7 +796,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
         if (io->mod->m4mod->alpha < 1.E-5)
         {
-          PhyML_Printf("\n. The value of alpha must be greater than 1.E-5.\n");
+          PhyML_Fprintf(stderr, "\n. The value of alpha must be greater than 1.E-5.\n");
           Exit("\n");
         }
       }
@@ -823,7 +825,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
         if (atof(optarg) < 1.E-10)
         {
-          PhyML_Printf("\n. The value of delta must be larger than 1.E-10.\n");
+          PhyML_Fprintf(stderr, "\n. The value of delta must be larger than 1.E-10.\n");
           Exit("\n");
         }
       }
@@ -1020,7 +1022,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else
       {
-        PhyML_Printf("\n. Unknown argument to -d option: please use `nt' for "
+        PhyML_Fprintf(stderr, "\n. Unknown argument to -d option: please use `nt' for "
                      "DNA or `aa' for Amino-Acids\n");
         Exit("\n");
       }
@@ -1087,7 +1089,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
             }
             else
             {
-              PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+              PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                            tok);
               Exit("\n");
             }
@@ -1309,7 +1311,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
         }
         else
         {
-          PhyML_Printf("\n. The model name is incorrect. Please see the "
+          PhyML_Fprintf(stderr, "\n. The model name is incorrect. Please see the "
                        "documentation.\n");
           Exit("\n");
         }
@@ -1344,7 +1346,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else if (atof(optarg) < 1.E-10)
       {
-        PhyML_Printf("\n. Alpha must be > 1.E-10.\n");
+        PhyML_Fprintf(stderr, "\n. Alpha must be > 1.E-10.\n");
         Exit("\n");
       }
       else
@@ -1359,7 +1361,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((int)String_To_Dbl(optarg) < -5)
       {
-        PhyML_Printf("\n. Branch test value must be a positive integer for "
+        PhyML_Fprintf(stderr, "\n. Branch test value must be a positive integer for "
                      "bootstrap, or between -1 and -4 for aLRT branch test\n");
         Exit("\n");
       }
@@ -1374,7 +1376,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
           if (io->n_data_sets > 1)
           {
-            PhyML_Printf("\n. Bootstrap option is not allowed with multiple "
+            PhyML_Fprintf(stderr, "\n. Bootstrap option is not allowed with multiple "
                          "data sets\n");
             Exit("\n");
           }
@@ -1403,7 +1405,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((!atoi(optarg)) || (atoi(optarg) < 0))
       {
-        PhyML_Printf("\n. Unknown argument to -c option: the number of rate "
+        PhyML_Fprintf(stderr, "\n. Unknown argument to -c option: the number of rate "
                      "categories must be a positive integer\n");
         Exit("\n");
       }
@@ -1412,7 +1414,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
         io->mod->ras->n_catg = atoi(optarg);
         if (io->mod->ras->n_catg < 1)
         {
-          PhyML_Printf(
+          PhyML_Fprintf(stderr,
               "\n. The number of rate categories must be a positive integer\n");
           Exit("\n");
         }
@@ -1551,6 +1553,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     case 69:
     {
       Usage();
+      PhyML_Stop(0); // help asked for: not an error
       break;
     }
 
@@ -1659,7 +1662,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
             // -- End TN93 rates for purines & pyrimidines
             if (atof(optarg) < .0)
             {
-              PhyML_Printf("\n. The ts/tv ratio must be a positive number\n");
+              PhyML_Fprintf(stderr, "\n. The ts/tv ratio must be a positive number\n");
               Exit("\n");
             }
             else
@@ -1676,7 +1679,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
     {
       if ((!atoi(optarg)) || (atoi(optarg) < 0))
       {
-        PhyML_Printf(
+        PhyML_Fprintf(stderr,
             "\n. The number of alignments must be a positive integer\n");
         Exit("\n");
       }
@@ -1720,7 +1723,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
       else if ((atof(optarg) < 0.0) || (atof(optarg) > 1.0))
       {
-        PhyML_Printf("\n. The proportion of invariable site must be a number "
+        PhyML_Fprintf(stderr, "\n. The proportion of invariable site must be a number "
                      "between 0.0 and 1.0\n");
         Exit("\n");
       }
@@ -1783,7 +1786,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
       }
       else
       {
-        PhyML_Printf("\n. The optimization parameter must be 'tlr' or 'tl' or "
+        PhyML_Fprintf(stderr, "\n. The optimization parameter must be 'tlr' or 'tl' or "
                      "'lr' or 'l' or 'r' or 'n'.");
         Exit("\n");
       }
@@ -1803,7 +1806,10 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
     default:
     {
+      // Unknown option (getopt has named it on stderr)
       Usage();
+      PhyML_Fprintf(stderr, "\n. Unknown option: see the list above.\n");
+      PhyML_Raise(PHYML_ERR_USAGE);
       break;
     }
     }
@@ -1875,7 +1881,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
            "structure models.\n\n");
     if (io->struct_n_props && io->struct_n_props != n_class)
     {
-      PhyML_Printf("\n. --struct_props needs %d proportions for this model.\n",
+      PhyML_Fprintf(stderr, "\n. --struct_props needs %d proportions for this model.\n",
                    n_class);
       Exit("\n");
     }
@@ -1923,13 +1929,13 @@ int Read_Command_Line(option *io, int argc, char **argv)
 
   if ((io->datatype == NT) && (io->mod->whichmodel > 10))
   {
-    PhyML_Printf("\n. Err.: model incompatible with the data type. Please use "
+    PhyML_Fprintf(stderr, "\n. Err.: model incompatible with the data type. Please use "
                  "JC69, K80, F81, HKY, F84, TN93 or GTR\n");
     Warn_And_Exit("\n");
   }
   else if ((io->datatype == AA) && (io->mod->whichmodel < 11))
   {
-    PhyML_Printf("\n. Err.: model incompatible with the data type. Please use "
+    PhyML_Fprintf(stderr, "\n. Err.: model incompatible with the data type. Please use "
                  "LG, Dayhoff, JTT, MtREV, WAG, DCMut, RtREV, CpREV, VT, "
                  "Blosum62, MtMam, MtArt, HIVw, HIVb, AB, FLU, Q.pfam, Q.bird, "
                  "Q.insect, Q.mammal, Q.plant, Q.yeast or MtZoa.\n");
@@ -2062,7 +2068,7 @@ int Read_Command_Line(option *io, int argc, char **argv)
   if (io->datatype == AA && io->mod->whichmodel == CUSTOMAA &&
       !io->mod->fp_aa_rate_mat)
   {
-    PhyML_Printf(
+    PhyML_Fprintf(stderr,
         "\n. Custom model option with amino-acid requires you to specify a "
         "rate matrix file through the '--aa_rate_file' option.\n");
     Exit("\n");

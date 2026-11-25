@@ -23,52 +23,268 @@ the GNU public licence. See http://www.opensource.org for details.
    since this string might be freed and then re-allocated by that function
    (i.e., its address in memory might change)
 */
-/* A Newick string must have balanced parentheses and closed [comments]:
-   the parser below assumes both and would read past the string. */
 
-static void Check_Newick_String(const char *s)
+/* Newick syntax accepted by Read_Tree, checked before parsing: the parser
+   assumes a well-formed string and would read past it, loop or crash
+   otherwise. Blanks are removed before the check.
+
+     tree    := '(' subtree (',' subtree)+ ')' label? suffix ';'?
+     subtree := '(' subtree (',' subtree)+ ')' label? suffix
+              | name suffix
+     suffix  := comment* (':' comment* number)? comment*
+     comment := '[' any character but [ ] ( ) ; ']'
+
+   Names and labels are made of any characters but ( ) , : ; [ ], and names
+   cannot be empty. A node has fewer than NODE_DEG_MAX children. */
+
+typedef struct
 {
-  int         depth = 0, n_open = 0;
-  const char *p, *end;
+  const char *s;          /* the tree, without blanks */
+  const char *p;          /* current position */
+  int         n_tips;
+  const char **tip;       /* first character of each name (check_names) */
+  int         *tip_len;
+  int          tip_cap;
+  int          check_names;
+  char        *why;       /* error message */
+  size_t       why_size;
+} newick_check;
 
-  for (p = s; *p != '\0'; ++p)
+#define NEWICK_DELIMITERS "(),:;[]"
+
+static int Newick_Fail(newick_check *c, const char *what)
+{
+  long pos = (long)(c->p - c->s);
+  long from = pos > 30 ? pos - 30 : 0;
+
+  snprintf(c->why, c->why_size,
+           "\n. Err.: invalid Newick tree: %s, at character %ld:\n. %s%.*s\n",
+           what, pos + 1, from > 0 ? "..." : "", (int)(pos - from + 30),
+           c->s + from);
+  return 0;
+}
+
+static int Newick_Comments(newick_check *c)
+{
+  while (*c->p == '[')
   {
-    if (*p == '[')
+    const char *q = c->p + 1;
+    // The parser matches parentheses without skipping comments
+    while (*q != '\0' && strchr("[]();", *q) == NULL) q++;
+    if (*q != ']')
+      return Newick_Fail(c, strchr(q, ']') == NULL ? "'[' comment not closed"
+                            : *q == '['            ? "nested '[' comment"
+                                        : "'(', ')' or ';' in a '[' comment");
+    c->p = q + 1;
+  }
+  return 1;
+}
+
+static int Newick_Token(newick_check *c)
+{
+  const char *q = c->p;
+  while (*c->p != '\0' && strchr(NEWICK_DELIMITERS, *c->p) == NULL) c->p++;
+  return (int)(c->p - q);
+}
+
+static int Newick_Suffix(newick_check *c)
+{
+  if (!Newick_Comments(c)) return 0;
+  if (*c->p == ':')
+  {
+    char *end;
+    c->p++;
+    if (!Newick_Comments(c)) return 0;
+    strtod(c->p, &end);
+    if (end == c->p || (*end != '\0' && strchr(",)[;", *end) == NULL))
+      return Newick_Fail(c, "invalid branch length");
+    c->p = end;
+  }
+  return Newick_Comments(c);
+}
+
+static int Newick_Subtree(newick_check *c, int depth)
+{
+  if (*c->p == '(')
+  {
+    int n_children = 0;
+    c->p++;
+    for (;;)
     {
-      end = strchr(p, ']');
-      if (end == NULL)
+      if (!Newick_Subtree(c, depth + 1)) return 0;
+      n_children++;
+      if (*c->p != ',') break;
+      c->p++;
+    }
+    if (*c->p != ')')
+      return Newick_Fail(c, *c->p == '\0' ? "missing ')'" : "expected ',' or ')'");
+    if (n_children < 2)
+      return Newick_Fail(c, "a node with a single child");
+    if (n_children >= NODE_DEG_MAX)
+      return Newick_Fail(c, "a node with too many children");
+    c->p++;
+    Newick_Token(c); // label or support value
+  }
+  else
+  {
+    const char *name = c->p;
+    int         len  = Newick_Token(c);
+    if (len == 0)
+      return Newick_Fail(c, *c->p == '\0' ? "unexpected end" : "a tip has no name");
+    if (c->check_names)
+    {
+      if (c->n_tips == c->tip_cap)
       {
-        PhyML_Fprintf(stderr,
-                      "\n. Err.: the tree has a '[' comment that is not "
-                      "closed:\n. %.60s\n",
-                      s);
-        Exit("");
+        c->tip_cap     = c->tip_cap ? 2 * c->tip_cap : 64;
+        c->tip         = (const char **)realloc(c->tip, c->tip_cap * sizeof(char *));
+        c->tip_len     = (int *)realloc(c->tip_len, c->tip_cap * sizeof(int));
+        if (c->tip == NULL || c->tip_len == NULL)
+          return Newick_Fail(c, "out of memory");
       }
-      p = end;
-      continue;
+      c->tip[c->n_tips]     = name;
+      c->tip_len[c->n_tips] = len;
     }
-    if (*p == '(')
-    {
-      depth++;
-      n_open++;
-    }
-    else if (*p == ')' && --depth < 0)
-    {
-      PhyML_Fprintf(stderr,
-                    "\n. Err.: the tree has a ')' without a matching '(':"
-                    "\n. %.60s\n",
-                    s);
-      Exit("");
-    }
+    c->n_tips++;
   }
-  if (depth != 0 || n_open == 0)
+  return Newick_Suffix(c);
+}
+
+static const char *const *newick_sort_names;
+static const int         *newick_sort_lens;
+
+static int Newick_Name_Cmp(const void *x, const void *y)
+{
+  int i = *(const int *)x, j = *(const int *)y;
+  int li = newick_sort_lens[i], lj = newick_sort_lens[j];
+  int r = strncmp(newick_sort_names[i], newick_sort_names[j], li < lj ? li : lj);
+  return r ? r : (li > lj) - (li < lj);
+}
+
+/* Checks a Newick string without blanks. check_names: also refuses fewer
+   than three tips and two tips with the same name, which Read_Tree accepts
+   (PhyML's own trees are read with it and may come from such data). Returns
+   1 if the tree is valid, 0 with a message in why otherwise. */
+
+static int Newick_Check(const char *s, int check_names, char *why, size_t why_size)
+{
+  newick_check c;
+  int          ok, i, *order;
+
+  memset(&c, 0, sizeof(c));
+  c.s = c.p = s;
+  c.check_names = check_names;
+  c.why         = why;
+  c.why_size    = why_size;
+
+  if (*c.p != '(')
+    ok = Newick_Fail(&c, *c.p == '\0' ? "empty tree" : "a tree starts with '('");
+  else
+    ok = Newick_Subtree(&c, 0);
+  if (ok && *c.p == ';') c.p++;
+  if (ok && *c.p != '\0') ok = Newick_Fail(&c, "unexpected text after the tree");
+
+  if (ok && check_names && c.n_tips < 3)
   {
-    PhyML_Fprintf(stderr,
-                  "\n. Err.: the tree is not a valid Newick string "
-                  "(%s):\n. %.60s\n",
-                  n_open == 0 ? "no parenthesis" : "unbalanced parentheses", s);
-    Exit("");
+    snprintf(why, why_size,
+             "\n. Err.: invalid Newick tree: it has %d tip%s, at least three "
+             "are needed.\n",
+             c.n_tips, c.n_tips > 1 ? "s" : "");
+    ok = 0;
   }
+  if (ok && check_names && c.n_tips > 1)
+  {
+    order = (int *)malloc(c.n_tips * sizeof(int));
+    if (order == NULL) ok = 0;
+    for (i = 0; ok && i < c.n_tips; i++) order[i] = i;
+    if (ok)
+    {
+      newick_sort_names = c.tip;
+      newick_sort_lens  = c.tip_len;
+      qsort(order, c.n_tips, sizeof(int), Newick_Name_Cmp);
+      for (i = 1; i < c.n_tips; i++)
+        if (Newick_Name_Cmp(order + i - 1, order + i) == 0)
+        {
+          snprintf(why, why_size,
+                   "\n. Err.: invalid Newick tree: the tip name '%.*s' appears "
+                   "more than once.\n",
+                   c.tip_len[order[i]], c.tip[order[i]]);
+          ok = 0;
+          break;
+        }
+    }
+    free(order);
+  }
+  free(c.tip);
+  free(c.tip_len);
+  return ok;
+}
+
+/* Removes blanks, as Return_Tree_String_Phylip does for tree files (the
+   parser refuses them) */
+
+static void Newick_Strip_Blanks(char *s)
+{
+  char *src, *dst;
+  for (src = dst = s; *src != '\0'; ++src)
+    if (*src != ' ' && *src != '\t' && *src != '\n' && *src != '\r')
+      *dst++ = *src;
+  *dst = '\0';
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* Reads a Newick tree without ending the process on a malformed string:
+   returns PHYML_OK and the tree in *tree, or PHYML_ERR_INPUT with *tree
+   NULL and the reason in PhyML_Error_Message(). Also refuses trees with
+   fewer than three tips or with two tips of the same name. The string is
+   not changed. Running out of memory still raises PHYML_ERR_MEMORY. */
+
+int Read_Tree_String(const char *newick, t_tree **tree)
+{
+  char *s, why[256];
+
+  *tree = NULL;
+  if (newick == NULL)
+    return PhyML_Error_Set(PHYML_ERR_INPUT, "\n. Err.: no tree given.\n");
+
+  s = (char *)mCalloc((int)strlen(newick) + 1, sizeof(char));
+  strcpy(s, newick);
+  Newick_Strip_Blanks(s);
+
+  if (!Newick_Check(s, YES, why, sizeof(why)))
+  {
+    Free(s);
+    return PhyML_Error_Set(PHYML_ERR_INPUT, "%s", why);
+  }
+
+  *tree = Read_Tree(&s);
+  Free(s);
+  return PHYML_OK;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* The next tree of a PHYLIP (Newick) tree file, as Read_Tree_String:
+   PHYML_OK and *tree, or PHYML_ERR_INPUT with *tree NULL, also when the file
+   holds no more tree. */
+
+int Read_Tree_File(FILE *fp, t_tree **tree)
+{
+  char *line;
+  int   rc;
+
+  *tree = NULL;
+  if (fp == NULL)
+    return PhyML_Error_Set(PHYML_ERR_INPUT, "\n. Err.: no tree file.\n");
+  line = Return_Tree_String_Phylip(fp);
+  if (line == NULL)
+    return PhyML_Error_Set(PHYML_ERR_INPUT,
+                           "\n. Err.: no tree found in the tree file.\n");
+  rc = Read_Tree_String(line, tree);
+  Free(line);
+  return rc;
 }
 
 //////////////////////////////////////////////////////////////
@@ -84,17 +300,18 @@ t_tree *Read_Tree(char **s_tree)
 
   /* PhyML_Printf("\n. Reading tree %s",(*s_tree)); */
 
-  // Blanks are dropped, as Return_Tree_String_Phylip does for tree files
-  // (R_rtree refuses them)
+  // Blanks are dropped (R_rtree refuses them), then the syntax is checked:
+  // a malformed tree raises PHYML_ERR_INPUT. Read_Tree_String returns the
+  // error instead.
+  Newick_Strip_Blanks(*s_tree);
   {
-    char *src, *dst;
-    for (src = dst = *s_tree; *src != '\0'; ++src)
-      if (*src != ' ' && *src != '\t' && *src != '\n' && *src != '\r')
-        *dst++ = *src;
-    *dst = '\0';
+    char why[256];
+    if (!Newick_Check(*s_tree, NO, why, sizeof(why)))
+    {
+      PhyML_Fprintf(stderr, "%s", why);
+      PhyML_Raise(PHYML_ERR_INPUT);
+    }
   }
-
-  Check_Newick_String(*s_tree);
 
   n_int = n_ext = 0;
 
@@ -4383,7 +4600,9 @@ t_tree *Read_User_Tree(calign *cdata, t_mod *mod, option *io)
   {
   case PHYLIP:
   {
-    tree = Read_Tree_File_Phylip(io->fp_in_tree);
+    // A malformed tree, or no tree, is an input error
+    if (Read_Tree_File(io->fp_in_tree, &tree) != PHYML_OK)
+      PhyML_Error_Raise_Last();
     break;
   }
   case NEXUS:
@@ -5711,7 +5930,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
       val = XML_Get_Attribute_Value(rr, "AC");
       if (val == NULL)
       {
-        PhyML_Printf("\n. Please specify the relative rate of substitution "
+        PhyML_Fprintf(stderr, "\n. Please specify the relative rate of substitution "
                      "between A and T");
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -5725,7 +5944,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -5735,7 +5954,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
       val = XML_Get_Attribute_Value(rr, "AG");
       if (val == NULL)
       {
-        PhyML_Printf("\n. Please specify the relative rate of substitution "
+        PhyML_Fprintf(stderr, "\n. Please specify the relative rate of substitution "
                      "between A and T");
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -5749,7 +5968,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -5759,7 +5978,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
       val = XML_Get_Attribute_Value(rr, "AT");
       if (val == NULL)
       {
-        PhyML_Printf("\n. Please specify the relative rate of substitution "
+        PhyML_Fprintf(stderr, "\n. Please specify the relative rate of substitution "
                      "between A and T");
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -5773,7 +5992,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -5783,7 +6002,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
       val = XML_Get_Attribute_Value(rr, "CG");
       if (val == NULL)
       {
-        PhyML_Printf("\n. Please specify the relative rate of substitution "
+        PhyML_Fprintf(stderr, "\n. Please specify the relative rate of substitution "
                      "between A and T");
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -5797,7 +6016,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -5807,7 +6026,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
       val = XML_Get_Attribute_Value(rr, "CT");
       if (val == NULL)
       {
-        PhyML_Printf("\n. Please specify the relative rate of substitution "
+        PhyML_Fprintf(stderr, "\n. Please specify the relative rate of substitution "
                      "between A and T");
         Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
       }
@@ -5821,7 +6040,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -5840,7 +6059,7 @@ void Make_Ratematrix_From_XML_Node(xml_node *instance, option *io, t_mod *mod)
         }
         else
         {
-          PhyML_Printf("\n. Invalid relative rate parameter value: '%s'.\n",
+          PhyML_Fprintf(stderr, "\n. Invalid relative rate parameter value: '%s'.\n",
                        val);
           Generic_Exit(__FILE__, __LINE__, __FUNCTION__);
         }
@@ -6354,7 +6573,7 @@ void Make_RAS_From_XML_Node(xml_node *parent, t_mod *mod)
         PhyML_Printf("\n. like to implement...");
       }
 
-      PhyML_Printf("\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__, __LINE__);
       Exit("\n");
     }
     }
@@ -6364,11 +6583,11 @@ void Make_RAS_From_XML_Node(xml_node *parent, t_mod *mod)
 
   if (w && nc != mod->ras->n_catg)
   {
-    PhyML_Printf("\n. <siterates> component '%s'. The number of classes ",
+    PhyML_Fprintf(stderr, "\n. <siterates> component '%s'. The number of classes ",
                  parent->id);
-    PhyML_Printf("\n. specified in the <weight> component should be ");
-    PhyML_Printf("\n. the same as that of <instance> nodes. Please fix");
-    PhyML_Printf("\n. your XML file accordingly.");
+    PhyML_Fprintf(stderr, "\n. specified in the <weight> component should be ");
+    PhyML_Fprintf(stderr, "\n. the same as that of <instance> nodes. Please fix");
+    PhyML_Fprintf(stderr, "\n. your XML file accordingly.");
     Exit("\n");
   }
 
@@ -6383,7 +6602,7 @@ void Make_RAS_From_XML_Node(xml_node *parent, t_mod *mod)
 void Generic_Exit(const char *file, int line, const char *function)
 {
   PhyML_Fprintf(stderr, "\n. Err. in file '%s' (line %d)", file, line);
-  if (function != NULL) PhyML_Printf(", function '%s'", function);
+  if (function != NULL) PhyML_Fprintf(stderr, ", function '%s'", function);
 
 #if defined(PHYTIME)
   PhyML_Fprintf(stderr, "\n. PhyTime finished prematurely.");
@@ -7442,18 +7661,20 @@ t_label *Read_Labels(char *s)
     cur++;
     beg = cur;
     op  = 0;
-    do
+    // An item may be empty ("[a=1,]"): test before moving on, or the last
+    // ']' is skipped and the scan goes past the string
+    while (s_cpy[cur] != '\0' && s_cpy[cur] != ']' &&
+           !(s_cpy[cur] == ',' && op == 0))
     {
       if (s_cpy[cur] == '{') op++;
       if (s_cpy[cur] == '}') op--;
-
       cur++;
-    } while (!(s_cpy[cur] == ',' && op == 0) && s_cpy[cur] != ']');
+    }
 
-    if (s_cpy[cur] == ']')
-      finished = YES;
-    else
+    if (s_cpy[cur] == ',')
       finished = NO;
+    else
+      finished = YES;
     s_cpy[cur] = '\0';
 
     strcpy(label, s_cpy + beg);

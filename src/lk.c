@@ -364,7 +364,7 @@ void Post_Order_Lk(t_node *a, t_node *d, t_tree *tree)
 
       if(dir < 0)
         {
-          PhyML_Printf("\n. a->num: %d d->num: %d d->v[0]->num: %d d->v[1]->num: %d d->v[2]->num: %d d->b[0]->num: %d d->b[1]->num: %d d->b[2]->num: %d root ? %d e_root ? %d\n",
+          PhyML_Fprintf(stderr, "\n. a->num: %d d->num: %d d->v[0]->num: %d d->v[1]->num: %d d->v[2]->num: %d d->b[0]->num: %d d->b[1]->num: %d d->b[2]->num: %d root ? %d e_root ? %d\n",
                        a?a->num:-1,
                        d?d->num:1,
                        d->v[0]?d->v[0]->num:-1,
@@ -666,13 +666,18 @@ phydbl Lk(t_edge *b, t_tree *tree)
     /* The scratch vectors are declared once per thread, not once per site
        (a variable-length array in the loop body costs a stack adjustment,
        and a stack probe on macOS, at every site). */
-#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn)
+    /* Each thread takes a block of sites (Lk_Thread_Range, as
+       schedule(static)), not an 'omp for': an error raised in a thread's
+       work ends that work, which must not skip a barrier (error.h). */
+#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn) private(s)
     {
     phydbl site_lk_cat[ncatg];
     int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
+    int s_beg,s_end;
 
-#pragma omp for schedule(static)
-    for(s=0;s<(int)npatterns;++s)
+    PHYML_THREAD_TRY
+    Lk_Thread_Range((int)npatterns,&s_beg,&s_end);
+    for(s=s_beg;s<s_end;++s)
       {
         int s_state = -1;
         int s_ambiguity_check = -1;
@@ -697,7 +702,9 @@ phydbl Lk(t_edge *b, t_tree *tree)
                        b->Pij_rr,b->tPij_rr,b,tree,
                        site_lk_cat,sum_scale_left_cat,sum_scale_rght_cat,&warn);
       }
+    PHYML_THREAD_END
     }
+    PhyML_Thread_Errors_Raise();
 
     if(warn == YES) tree->numerical_warning = YES;
 
@@ -802,13 +809,15 @@ phydbl dLk(phydbl *l, t_edge *b, t_tree *tree)
     int s;
 
     /* Scratch vectors once per thread, as in Lk */
-#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn)
+#pragma omp parallel if(nt > 1) num_threads(nt) reduction(|:warn) private(s)
     {
     phydbl site_lk_cat[ncatg];
     int sum_scale_left_cat[ncatg],sum_scale_rght_cat[ncatg];
+    int s_beg,s_end;
 
-#pragma omp for schedule(static)
-    for(s=0;s<(int)npattern;++s)
+    PHYML_THREAD_TRY
+    Lk_Thread_Range((int)npattern,&s_beg,&s_end);
+    for(s=s_beg;s<s_end;++s)
       {
         phydbl s_lk,s_dlk;
 
@@ -822,7 +831,9 @@ phydbl dLk(phydbl *l, t_edge *b, t_tree *tree)
         site_dlnl[2*s]   = s_dlk / s_lk;
         site_dlnl[2*s+1] = log(s_lk) - (phydbl)LOG2 * tree->fact_sum_scale[s];
       }
+    PHYML_THREAD_END
     }
+    PhyML_Thread_Errors_Raise();
 
     if(warn == YES) tree->numerical_warning = YES;
 
@@ -1296,8 +1307,13 @@ void Update_Eigen_Lr(t_edge *b, t_tree *tree)
     const int nt = Lk_Site_Threads(tree,npattern);
     int s;
 
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static)
-    for(s=0;s<(int)npattern;++s)
+#pragma omp parallel if(nt > 1) num_threads(nt) private(s)
+    {
+    int s_beg,s_end;
+
+    PHYML_THREAD_TRY
+    Lk_Thread_Range((int)npattern,&s_beg,&s_end);
+    for(s=s_beg;s<s_end;++s)
       {
         const phydbl *s_lk_left,*s_lk_rght;
         phydbl *s_dot_prod;
@@ -1330,6 +1346,9 @@ void Update_Eigen_Lr(t_edge *b, t_tree *tree)
             s_lk_rght  += step_rght;
           }
       }
+    PHYML_THREAD_END
+    }
+    PhyML_Thread_Errors_Raise();
   }
 }
 
@@ -1622,10 +1641,15 @@ void Update_Partial_Lk_Generic(t_tree *tree, t_edge *b, t_node *d)
   const int nt = Lk_Site_Threads(tree,n_patterns);
 
   /* For every site in the alignment */
-#pragma omp parallel for if(nt > 1) num_threads(nt) schedule(static) \
-  private(i,j,catg,state_v1,state_v2,ambiguity_check_v1,ambiguity_check_v2, \
+#pragma omp parallel if(nt > 1) num_threads(nt) \
+  private(site,i,j,catg,state_v1,state_v2,ambiguity_check_v1,ambiguity_check_v2, \
           p1_lk1,p2_lk2,smallest_p_lk,largest_p_lk,sum_scale_v1_val,sum_scale_v2_val)
-  for(site=0;site<n_patterns;site++)
+  {
+  int site_beg,site_end;
+
+  PHYML_THREAD_TRY
+  Lk_Thread_Range(n_patterns,&site_beg,&site_end);
+  for(site=site_beg;site<site_end;site++)
     {
       if(tree->data->wght[site] > SMALL)
         {
@@ -1807,6 +1831,9 @@ void Update_Partial_Lk_Generic(t_tree *tree, t_edge *b, t_node *d)
           for(i=0;i<ns*ncatg;++i) p_lk[site*ncatgns + i] = 0.0;
         }     
     }
+  PHYML_THREAD_END
+  }
+  PhyML_Thread_Errors_Raise();
 }
 
 //////////////////////////////////////////////////////////////
@@ -2053,9 +2080,12 @@ void Core_Default_Update_Partial_Lk(const t_node *n_v1, const t_node *n_v2,
 #pragma omp parallel num_threads(n_threads)
       {
         int beg,end;
+        PHYML_THREAD_TRY
         Lk_Thread_Range(npatterns,&beg,&end);
         LK_DEFAULT_SITES(beg,end);
+        PHYML_THREAD_END
       }
+      PhyML_Thread_Errors_Raise();
     }
   else
     LK_DEFAULT_SITES(0,npatterns);
@@ -2549,7 +2579,7 @@ void Update_PMat_At_Given_Edge(t_edge *b_fcus, t_tree *tree)
   
   if(b_fcus->Pij_rr == NULL)
     {
-      PhyML_Printf("\n. b_fcus is e_root ? %d node left: %d node rght: %d left is root ? %d right is root ? %d [%p] [%d] [%d]",
+      PhyML_Fprintf(stderr, "\n. b_fcus is e_root ? %d node left: %d node rght: %d left is root ? %d right is root ? %d [%p] [%d] [%d]",
                    (b_fcus == tree->e_root) ? 1 : 0,
                    b_fcus->left->num,
                    b_fcus->rght->num,
@@ -3280,7 +3310,7 @@ void Set_All_Partial_Lk(t_node **n_v1, t_node **n_v2,
                 }
               else
                 {
-                  PhyML_Printf("\n. Issue detected with node %d.\n",d->num);
+                  PhyML_Fprintf(stderr, "\n. Issue detected with node %d.\n",d->num);
                   assert(FALSE);
                 }
             }

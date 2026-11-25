@@ -1113,8 +1113,8 @@ phydbl Dnorm_Trunc(phydbl x, phydbl mean, phydbl sd, phydbl lo, phydbl up)
 
   if(isnan(dens) || isinf(fabs(dens)))
     {
-      PhyML_Printf("\n== mean=%f sd=%f lo=%f up=%f cdf_lo=%G CDF_up=%G",mean,sd,lo,up,cdf_lo,cdf_up);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== mean=%f sd=%f lo=%f up=%f cdf_lo=%G CDF_up=%G",mean,sd,lo,up,cdf_lo,cdf_up);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -1140,7 +1140,7 @@ phydbl Dnorm_Multi(phydbl *x, phydbl *mu, phydbl *cov, int size, int _log)
   
   if(!Matinv(invcov,size,size,NO))
     {
-      PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
 
@@ -1263,16 +1263,16 @@ phydbl Dgamma_Moments(phydbl x, phydbl mean, phydbl var)
   if(var < 1.E-20) 
     {
 /*       var  = 1.E-20;  */
-      PhyML_Printf("\n. var=%f mean=%f",var,mean);
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. var=%f mean=%f",var,mean);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
 
   if(mean < 1.E-20) 
     { 
 /*       mean = 1.E-20;  */
-      PhyML_Printf("\n. var=%f mean=%f",var,mean);
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. var=%f mean=%f",var,mean);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -1309,7 +1309,7 @@ phydbl Dgamma(phydbl x, phydbl shape, phydbl scale)
 
   if(scale < 0.0 || shape < 0.0)
     {
-      PhyML_Printf("\n. scale=%f shape=%f",scale,shape);
+      PhyML_Fprintf(stderr, "\n. scale=%f shape=%f",scale,shape);
       Exit("\n");
     }
 
@@ -1636,8 +1636,8 @@ phydbl Ppois(phydbl x, phydbl param)
   /* Press et al. (1990) approximation of the CDF for the Poisson distribution */
   if(param < SMALL || x < 0.0) 
     {
-      PhyML_Printf("\n== param = %G x=%G",param,x);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== param = %G x=%G",param,x);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Warn_And_Exit("");
     }
   return IncompleteGamma(x,param,LnGamma(param));
@@ -2374,7 +2374,7 @@ phydbl *Hessian(t_tree *tree)
 
   if(!Matinv(buff,n_ok_edges,n_ok_edges,NO))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
 
@@ -2480,8 +2480,8 @@ phydbl *Hessian(t_tree *tree)
 	{
 	  if(fabs(hessian[i*dim+j]-hessian[j*dim+i]) > 1.E-3)
 	    {
-	      PhyML_Printf("\n. Hessian not symmetrical.");
-	      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+	      PhyML_Fprintf(stderr, "\n. Hessian not symmetrical.");
+	      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
 	      Exit("\n");
 	    }
 	  hessian[i*dim+j] = (hessian[i*dim+j] + hessian[j*dim+i]) / 2.; 
@@ -2896,8 +2896,8 @@ phydbl *Hessian_Seo(t_tree *tree)
 	{
 	  if(fabs(hessian[i*dim+j]-hessian[j*dim+i]) > 1.E-3)
 	    {
-	      PhyML_Printf("\n== Hessian not symmetrical.");
-	      PhyML_Printf("\n== Err in file %s at line %d\n",__FILE__,__LINE__);
+	      PhyML_Fprintf(stderr, "\n== Hessian not symmetrical.");
+	      PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n",__FILE__,__LINE__);
 	      Exit("\n");
 	    }
 	  hessian[i*dim+j] = (hessian[i*dim+j] + hessian[j*dim+i]) / 2.; 
@@ -3185,7 +3185,7 @@ phydbl *Hessian_Log(t_tree *tree)
 
   if(!Matinv(buff,n_ok_edges,n_ok_edges,NO))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
 
@@ -3206,7 +3206,7 @@ phydbl *Hessian_Log(t_tree *tree)
 
   if(!Matinv(hessian,dim,dim,NO))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
 
@@ -3337,9 +3337,9 @@ phydbl Constraint_Normal_Trunc_Mean(phydbl wanted_mu, phydbl sd, phydbl min, phy
   
   if(f*fmid >= 0.0)
     {
-      PhyML_Printf("\n. Root must be bracketed for bisection!");
-      PhyML_Printf("\n. f=%f fmid=%f",f,fmid);
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Root must be bracketed for bisection!");
+      PhyML_Fprintf(stderr, "\n. f=%f fmid=%f",f,fmid);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -3520,8 +3520,8 @@ phydbl *Matrix_Mult(phydbl *A, phydbl *B, int nra, int nca, int nrb, int ncb)
 
   if(nca != nrb)
     {
-      PhyML_Printf("\n. Matrices dimensions don't match.");
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Matrices dimensions don't match.");
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
   
@@ -3754,7 +3754,7 @@ void Normal_Conditional(phydbl *mu, phydbl *cov, phydbl *a, int n, short int *is
       for(j=i+1;j<n;j++)
 	if(fabs(cond_cov[i*n+j] - cond_cov[j*n+i]) > 1.E-3)
 	  {
-	    PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+	    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
 	    Warn_And_Exit("");
 	  }
     }
@@ -3893,7 +3893,7 @@ void Normal_Conditional_Unsorted(phydbl *mu, phydbl *cov, phydbl *a, int n, shor
 
   if(!Matinv(sig22,n2,n2,NO))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
   sig12_invsig22 = Matrix_Mult(sig12,sig22,n1,n2,n2,n2);
@@ -3974,7 +3974,7 @@ void Get_Reg_Coeff(phydbl *mu, phydbl *cov, phydbl *a, int n, short int *is_1, i
 
   if(!Matinv(sig22,n2,n2,NO))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");      
     }
   sig12_invsig22 = Matrix_Mult(sig12,sig22,n1,n2,n2,n2);
@@ -4002,7 +4002,7 @@ void Get_Reg_Coeff(phydbl *mu, phydbl *cov, phydbl *a, int n, short int *is_1, i
 
   if(nc != n2 || nr != n1)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -4136,7 +4136,7 @@ phydbl Dorder_Unif(phydbl x, int r, int n, phydbl min, phydbl max)
 
   if(x < min || x > max || min > max)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -4238,8 +4238,8 @@ phydbl *Rnorm_Multid_Trunc_Constraint(phydbl *mu, phydbl *cov, phydbl *min, phyd
 	      
 	      if(lambda[i]*min[i] > alpha - lambda[cond]*min[i])
 		{
-		  PhyML_Printf("\n. Cannot satisfy the constraint.\n");
-		  PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+		  PhyML_Fprintf(stderr, "\n. Cannot satisfy the constraint.\n");
+		  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
 		  Exit("\n");
 		}
 
@@ -4249,7 +4249,7 @@ phydbl *Rnorm_Multid_Trunc_Constraint(phydbl *mu, phydbl *cov, phydbl *min, phyd
 			       MIN(lambda[i]*max[i],alpha-lambda[cond]*min[cond]),&err);
 	      if(err == YES)
 		{
-		  PhyML_Printf("\n. Err in file %s at line %d\n",__FILE__,__LINE__);
+		  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n",__FILE__,__LINE__);
 		  Exit("\n");
 		}
 	      sum += zi;
@@ -4484,8 +4484,8 @@ int Sample_i_With_Proba_pi(phydbl *pi, int len)
 
   if((cum_pi[i-1] > 1. + 1.E-10) || (cum_pi[i-1] < 1. - 1.E-10))
     {
-      PhyML_Printf("\n== Sum of probabilities is different from 1.0 (%f).",cum_pi[i-1]);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== Sum of probabilities is different from 1.0 (%f).",cum_pi[i-1]);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -4495,8 +4495,8 @@ int Sample_i_With_Proba_pi(phydbl *pi, int len)
   if(i == len)
     {
       for(i=0;i<len;i++) printf("\n== idx:%d prob:%g",i,pi[i]);
-      PhyML_Printf("\n== Len = %d",len);
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== Len = %d",len);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
   Free(cum_pi);
@@ -4537,8 +4537,8 @@ int* Sample_n_i_With_Proba_pi(phydbl *pi, int len, int n_elts)
     {
       if( pi[i]<0 )
 	{
-	  PhyML_Printf("\n== Probability < 0");
-	  PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n== Probability < 0");
+	  PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
 	  Exit("\n");
 	}
       sum += pi[i];
@@ -4546,8 +4546,8 @@ int* Sample_n_i_With_Proba_pi(phydbl *pi, int len, int n_elts)
 
   if(sum == 0. )
     {
-      PhyML_Printf("\n== Sum of probabilities is 0");
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== Sum of probabilities is 0");
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
   
@@ -4818,7 +4818,7 @@ int Sum_Bits(int value, int range)
 
   if(range > 8*(int)sizeof(int))
     {
-      PhyML_Printf("\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n",__FILE__,__LINE__);
       Exit("\n");
     }
 
@@ -4886,7 +4886,7 @@ int *Random_Permut(int n)
 
   if(n < 3) 
     {
-      PhyML_Printf("\n== Number of vertices in a polygon has to be at least 3.");
+      PhyML_Fprintf(stderr, "\n== Number of vertices in a polygon has to be at least 3.");
       Generic_Exit(__FILE__,__LINE__,__FUNCTION__);
     }
     
@@ -5055,7 +5055,7 @@ phydbl Euclidean_Distance(t_geo_coord *x, t_geo_coord *y)
   
   if(x->dim != y->dim)
     {
-      PhyML_Printf("\n. x->dim: %d y->dim: %d",x->dim,y->dim);
+      PhyML_Fprintf(stderr, "\n. x->dim: %d y->dim: %d",x->dim,y->dim);
       Generic_Exit(__FILE__,__LINE__,__FUNCTION__);    
     }
   
@@ -5075,7 +5075,7 @@ phydbl Manhattan_Distance(t_geo_coord *x, t_geo_coord *y)
   
   if(x->dim != y->dim)
     {
-      PhyML_Printf("\n. x->dim: %d y->dim: %d",x->dim,y->dim);
+      PhyML_Fprintf(stderr, "\n. x->dim: %d y->dim: %d",x->dim,y->dim);
       Generic_Exit(__FILE__,__LINE__,__FUNCTION__);    
     }
   

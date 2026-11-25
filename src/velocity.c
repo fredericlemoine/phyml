@@ -193,7 +193,7 @@ phydbl VELOC_Locations_Forward_Lk_Path(t_ldsk *a, t_ldsk *d, t_tree *tree)
           
           if(isnan(lnP))
             {
-              PhyML_Printf("\n. ld=%f var=%f dt=[%f,%f] sigsq=%f",ld,var,ldsk->disk->time,ldsk->prev->disk->time,tree->mmod->sigsq);
+              PhyML_Fprintf(stderr, "\n. ld=%f var=%f dt=[%f,%f] sigsq=%f",ld,var,ldsk->disk->time,ldsk->prev->disk->time,tree->mmod->sigsq);
               assert(FALSE);
             }
         }
@@ -649,7 +649,7 @@ void VELOC_Update_Lk_Location_Up(t_node *a, t_node *d, t_tree *tree)
         }
       else if(IWN_Is_Iwn(tree->mmod) == YES)
         {
-          PhyML_Printf("\n. Not implemented yet");
+          PhyML_Fprintf(stderr, "\n. Not implemented yet");
           assert(false);
         }
       else if(IOU_Is_Iou(tree->mmod) == YES)
@@ -733,7 +733,7 @@ void VELOC_Update_Lk_Location_Down(t_node *a, t_node *d, t_tree *tree)
         }
       else if(IWN_Is_Iwn(tree->mmod) == YES)
         {
-            PhyML_Printf("\n. Not implemented yet");
+            PhyML_Fprintf(stderr, "\n. Not implemented yet");
             assert(false);
         }
       else if(IOU_Is_Iou(tree->mmod) == YES)

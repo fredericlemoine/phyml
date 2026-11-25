@@ -88,6 +88,64 @@ void  PhyML_Free_Block(void *p);
 FILE *PhyML_Fopen(const char *name, const char *mode);
 int   PhyML_Fclose(FILE *fp);
 
+/* Errors raised in OpenMP parallel regions. A thread cannot leave a
+   parallel region with longjmp (nor an inactive one, which the runtime
+   also tracks), so each thread of a region runs its work between
+   PHYML_THREAD_TRY and PHYML_THREAD_END: an error raised in that work
+   records its code and jumps to the end of the thread's work, the region
+   ends normally, and PhyML_Thread_Errors_Raise(), called after the region,
+   raises the recorded error. The guard is only set when PhyML is called as
+   a library (PhyML_Run); in the phyml program an error in a thread exits
+   the process as before, and the guard costs nothing. The work of a guarded
+   thread must not contain an 'omp for' or a barrier, which a thread that
+   jumped out would skip: give each thread its sites with Lk_Thread_Range.
+   An error in a region without the guard still ends the process. */
+#ifdef WIN32
+typedef jmp_buf phyml_jmp_buf;
+#define PHYML_SETJMP(env) setjmp(env)
+#else
+typedef sigjmp_buf phyml_jmp_buf; /* no signal mask: no system call */
+#define PHYML_SETJMP(env) sigsetjmp(env, 0)
+#endif
+
+int  PhyML_Thread_Guard_Needed(void);
+void PhyML_Thread_Guard(phyml_jmp_buf *env);
+void PhyML_Thread_Errors_Raise_(void);
+
+/* Without OpenMP there is no parallel region and the macros are empty: a
+   function that calls setjmp is compiled with fewer optimisations (the
+   likelihood loops of the default build were 3.5% slower). With OpenMP
+   the region body is compiled as a separate function. */
+#ifdef _OPENMP
+#define PHYML_THREAD_TRY                                                   \
+  {                                                                        \
+    phyml_jmp_buf phyml_thread_env;                                        \
+    const int     phyml_thread_guarded = PhyML_Thread_Guard_Needed();      \
+    if (!phyml_thread_guarded || PHYML_SETJMP(phyml_thread_env) == 0)      \
+    {                                                                      \
+      if (phyml_thread_guarded) PhyML_Thread_Guard(&phyml_thread_env);
+
+#define PHYML_THREAD_END                                                   \
+    }                                                                      \
+    if (phyml_thread_guarded) PhyML_Thread_Guard(NULL);                    \
+  }
+#define PhyML_Thread_Errors_Raise() PhyML_Thread_Errors_Raise_()
+#else
+#define PHYML_THREAD_TRY {
+#define PHYML_THREAD_END }
+#define PhyML_Thread_Errors_Raise() ((void)0)
+#endif
+
+/* For functions that return an error code instead of raising it: sets the
+   code and the text of the last error (PhyML_Error_Code() and
+   PhyML_Error_Message()), replacing the previous text, without printing
+   anything, and returns the code. */
+int PhyML_Error_Set(int code, const char *format, ...);
+
+/* Prints the text of the last error on stderr and raises its code: for a
+   caller that cannot go on after such a function failed. */
+PHYML_NORETURN void PhyML_Error_Raise_Last(void);
+
 /* Forgets the last error, and keeps the text written to stderr */
 void PhyML_Error_Clear(void);
 void PhyML_Error_Capture(const char *format, va_list ap);

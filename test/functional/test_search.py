@@ -167,8 +167,8 @@ class Constraints(PhymlTestCase):
         self.assertSuccess(res)
 
     def test_malformed_constraint_is_refused(self):
-        for text, msg in (("t1,t3,t2,t4,t5,t6,t7,t8;", "not found"),
-                          ("((t1,t3),t2,t4,t5,t6,t7,t8;", "unbalanced")):
+        for text, msg in (("t1,t3,t2,t4,t5,t6,t7,t8;", "no tree found"),
+                          ("((t1,t3),t2,t4,t5,t6,t7,t8;", "missing ')'")):
             with self.subTest(tree=text):
                 res = self.constrained(text)
                 self.assertCleanFailure(res)

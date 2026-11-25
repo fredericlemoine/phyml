@@ -88,7 +88,7 @@ int M4_main(int argc, char **argv)
         Check_Ambiguities(cdata, io->datatype, io->state_len);
       else
       {
-        PhyML_Printf("\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
+        PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
         Warn_And_Exit("");
       }
 
@@ -175,7 +175,7 @@ int M4_main(int argc, char **argv)
           Lk(NULL, tree);
           Pars(NULL, tree);
           Get_Tree_Size(tree);
-          PhyML_Printf("\n. Log likelihood of the current tree: %f.\n",
+          PhyML_Fprintf(stderr, "\n. Log likelihood of the current tree: %f.\n",
                        tree->c_lnL);
 
           Exit("\n");
@@ -274,8 +274,8 @@ int M4_main(int argc, char **argv)
     }
     else
     {
-      PhyML_Printf("\n. No data was found.\n");
-      PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. No data was found.\n");
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
       Warn_And_Exit("");
     }
     Free_Model_Complete(mod);
@@ -385,8 +385,8 @@ void M4_Update_Qmat(m4 *m4mod, t_mod *mod)
       sum += mod->m4mod->multipl->v[i] * mod->m4mod->h_fq->v[i];
     if (sum < 0.99 || sum > 1.01)
     {
-      PhyML_Printf("\n. sum = %f", sum);
-      PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. sum = %f", sum);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
       Warn_And_Exit("\n");
     }
 
@@ -785,8 +785,8 @@ void M4_Post_Prob_H_Class_Edge_Site(t_edge *b, phydbl ****integral,
   for (i = 0; i < n_h; i++)
     if ((postprob[i] < -1.E-5) || (postprob[i] > 1.0 + 1.E-5))
     {
-      PhyML_Printf("\n. Cat : %d Prob : %f\n", i, postprob[i]);
-      PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+      PhyML_Fprintf(stderr, "\n. Cat : %d Prob : %f\n", i, postprob[i]);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
       Warn_And_Exit("\n");
     }
 
@@ -795,8 +795,8 @@ void M4_Post_Prob_H_Class_Edge_Site(t_edge *b, phydbl ****integral,
 
   if ((sum > 1.0 + 1.E-2) || (sum < 1.0 - 1.E-2))
   {
-    PhyML_Printf("\n. Sum = %f\n", sum);
-    PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Sum = %f\n", sum);
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
     Exit("\n");
   }
 
@@ -1189,8 +1189,8 @@ void M4_Site_Branch_Classification_Experiment(t_tree *tree)
 
   if (tree->io->datatype != NT && tree->io->datatype != AA)
   {
-    PhyML_Printf("\n. Not implemented yet.");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Not implemented yet.");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("");
   }
 
@@ -1221,7 +1221,7 @@ void M4_Site_Branch_Classification_Experiment(t_tree *tree)
         }
         else
         {
-          PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+          PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
           Warn_And_Exit("\n");
         }
       }
@@ -1281,7 +1281,7 @@ void M4_Site_Branch_Classification_Experiment(t_tree *tree)
         }
         else
         {
-          PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+          PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
           Warn_And_Exit("\n");
         }
       }
@@ -1311,7 +1311,7 @@ void M4_Site_Branch_Classification_Experiment(t_tree *tree)
         }
         else
         {
-          PhyML_Printf("\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
+          PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n", __FILE__, __LINE__);
           Warn_And_Exit("\n");
         }
       }
@@ -1409,8 +1409,8 @@ void M4_Detect_Site_Switches_Experiment(t_tree *tree)
 
   if (tree->io->datatype != NT && tree->io->datatype != AA)
   {
-    PhyML_Printf("\n== Not implemented yet.");
-    PhyML_Printf("\n== Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n== Not implemented yet.");
+    PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("");
   }
 
@@ -1562,8 +1562,8 @@ void M4_Posterior_Prediction_Experiment(t_tree *tree)
 
   if (tree->io->datatype != NT && tree->io->datatype != AA)
   {
-    PhyML_Printf("\n. Not implemented yet.");
-    PhyML_Printf("\n. Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n. Not implemented yet.");
+    PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("");
   }
 
@@ -1694,8 +1694,8 @@ m4 *M4_Copy_M4_Model(t_mod *ori_mod, m4 *ori_m4mod)
 
   if (ori_mod->io->datatype != NT && ori_mod->io->datatype != AA)
   {
-    PhyML_Printf("\n== Not implemented yet.");
-    PhyML_Printf("\n== Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n== Not implemented yet.");
+    PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n", __FILE__, __LINE__);
     Exit("\n");
   }
 

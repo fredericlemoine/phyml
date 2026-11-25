@@ -481,7 +481,7 @@ void Make_Edge_Lk(t_edge *b, t_tree *tree)
 {
   if (tree->is_mixt_tree)
   {
-    PhyML_Printf("\n== Err. in file %s at line %d (function '%s') \n", __FILE__,
+    PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d (function '%s') \n", __FILE__,
                  __LINE__, __FUNCTION__);
     Warn_And_Exit("");
   }
@@ -1168,7 +1168,7 @@ void Make_Custom_Model(t_mod *mod)
 {
   if (!mod->r_mat)
   {
-    PhyML_Printf("\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d\n", __FILE__, __LINE__);
     Warn_And_Exit("");
   }
 
@@ -1305,7 +1305,7 @@ void Make_Model_Complete(t_mod *mod)
 
   if (mod->whichmodel < 0)
   {
-    PhyML_Printf("\n== Err in file %s at line %d\n", __FILE__, __LINE__);
+    PhyML_Fprintf(stderr, "\n== Err in file %s at line %d\n", __FILE__, __LINE__);
     Exit("\n");
   }
 

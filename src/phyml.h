@@ -58,8 +58,10 @@ enum
    after an error, and a failed internal check (assert) comes back as
    PHYML_ERR_INTERNAL.
 
-   Limits: an error raised inside an OpenMP parallel region still ends the
-   process; the MPI build initialises and finalises MPI in each run, so it
+   An error raised in an OpenMP thread comes back too, once the parallel
+   region is over.
+
+   Limits: the MPI build initialises and finalises MPI in each run, so it
    can run once; on Windows the memory of a run that fails is not released. */
 int PhyML_Run(int argc, char **argv);
 

@@ -196,8 +196,8 @@ void update_beagle_partials(t_tree* tree, t_edge* b, t_node* d)
 
   if(d->tax) //Partial likelihoods are only calculated on internal nodes
     {
-      PhyML_Printf("\n== t_node %d is a leaf...",d->num);
-      PhyML_Printf("\n== Err. in file %s at line %d (function '%s')\n",__FILE__,__LINE__,__FUNCTION__);
+      PhyML_Fprintf(stderr, "\n== t_node %d is a leaf...",d->num);
+      PhyML_Fprintf(stderr, "\n== Err. in file %s at line %d (function '%s')\n",__FILE__,__LINE__,__FUNCTION__);
       Warn_And_Exit("\n");
     }
 

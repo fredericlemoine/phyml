@@ -330,8 +330,8 @@ void TIPO_Get_Tips_Y_Rank(t_tree *tree)
   
   if(curr_rank != tree->n_otu)
     {
-      PhyML_Printf("\n. tree->n_otu = %d curr_rank = %d",tree->n_otu,curr_rank);
-      PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. tree->n_otu = %d curr_rank = %d",tree->n_otu,curr_rank);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
       Warn_And_Exit("");
     }
 }
@@ -821,28 +821,28 @@ void TIPO_Untangle_Node(t_node *a, t_node *d, t_node **node_table, int *conflict
 
 		  if(lca->y_rank_min > max && lca->y_rank_max > max)
 		    {
-		      PhyML_Printf("\n. lca = %d (%d)",lca->num,lca==tree->n_root);
-		      PhyML_Printf("\n. Err in file %s at line %d",__FILE__,__LINE__);
+		      PhyML_Fprintf(stderr, "\n. lca = %d (%d)",lca->num,lca==tree->n_root);
+		      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d",__FILE__,__LINE__);
 		      Warn_And_Exit("");
 		    }
 
 		  if(lca->y_rank_min < min && lca->y_rank_max < min)
 		    {
-		      PhyML_Printf("\n. lca = %d (root ? %d) (tip ? %d)",lca->num,lca==tree->n_root,lca->tax);
-		      PhyML_Printf("\n. lca->y_rank_min = %f lca->y_rank_max = %f",lca->y_rank_min,lca->y_rank_max);
-		      PhyML_Printf("\n. min=%f max=%f",min,max);
-		      PhyML_Printf("\n. Err in file %s at line %d",__FILE__,__LINE__);
+		      PhyML_Fprintf(stderr, "\n. lca = %d (root ? %d) (tip ? %d)",lca->num,lca==tree->n_root,lca->tax);
+		      PhyML_Fprintf(stderr, "\n. lca->y_rank_min = %f lca->y_rank_max = %f",lca->y_rank_min,lca->y_rank_max);
+		      PhyML_Fprintf(stderr, "\n. min=%f max=%f",min,max);
+		      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d",__FILE__,__LINE__);
 		      Warn_And_Exit("");
 		    }
 		  if(lca->tax)
 		    {
-		      PhyML_Printf("\n. lca  (%d) cannot be a tip.",lca->num);
-		      PhyML_Printf("\n. lca->anc->y_rank=%f",lca->anc->y_rank);
-		      PhyML_Printf("\n. lca->y_rank=%f",lca->y_rank);
-		      PhyML_Printf("\n. lca->y_rank_min=%f lca=>y_rank_max=%f",lca->y_rank_min,lca->y_rank_max);
-		      PhyML_Printf("\n. min=%f max=%f",min,max);
-		      PhyML_Printf("\n. %p %p",lca,conflict_tips[i]);
-		      PhyML_Printf("\n. Err in file %s at line %d",__FILE__,__LINE__);
+		      PhyML_Fprintf(stderr, "\n. lca  (%d) cannot be a tip.",lca->num);
+		      PhyML_Fprintf(stderr, "\n. lca->anc->y_rank=%f",lca->anc->y_rank);
+		      PhyML_Fprintf(stderr, "\n. lca->y_rank=%f",lca->y_rank);
+		      PhyML_Fprintf(stderr, "\n. lca->y_rank_min=%f lca=>y_rank_max=%f",lca->y_rank_min,lca->y_rank_max);
+		      PhyML_Fprintf(stderr, "\n. min=%f max=%f",min,max);
+		      PhyML_Fprintf(stderr, "\n. %p %p",lca,conflict_tips[i]);
+		      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d",__FILE__,__LINE__);
 		      Warn_And_Exit("");
 		    }
 		  
@@ -947,7 +947,7 @@ void TIPO_Untangle_Node(t_node *a, t_node *d, t_node **node_table, int *conflict
 	      if(j == d->bip_size[d_a])
 		{
 		  printf("\n. Conflict remaining for node %d (%d)",d->num,a->num);
-		  PhyML_Printf("\n. Err in file %s at line %d",__FILE__,__LINE__);
+		  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d",__FILE__,__LINE__);
 		  Warn_And_Exit("");
 		}
 	    }
@@ -998,7 +998,7 @@ void TIPO_Read_Taxa_Zscores(FILE *fp_coord, t_tree *tree)
 
   if(!fgets(line,T_MAX_LINE,fp_coord))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
       Warn_And_Exit("");
     }
   Free(line);
@@ -1013,8 +1013,8 @@ void TIPO_Read_Taxa_Zscores(FILE *fp_coord, t_tree *tree)
       
       if(i == tree->n_otu)
 	{
-	  PhyML_Printf("\n. Could not find taxon '%s' in coordinate file.",name);
-	  PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n. Could not find taxon '%s' in coordinate file.",name);
+	  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
 	  Warn_And_Exit("");
 	}
 
@@ -1040,7 +1040,7 @@ void TIPO_Read_Taxa_Coordinates(FILE *fp_coord, t_tree *tree)
 
   if(!fgets(line,T_MAX_LINE,fp_coord))
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
       Warn_And_Exit("");
     }
   Free(line);
@@ -1057,8 +1057,8 @@ void TIPO_Read_Taxa_Coordinates(FILE *fp_coord, t_tree *tree)
       
       if(i == tree->n_otu)
 	{
-	  PhyML_Printf("\n. Could not find taxon '%s' in coordinate file.",name);
-	  PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n. Could not find taxon '%s' in coordinate file.",name);
+	  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
 	  Warn_And_Exit("");
 	}
 
@@ -1197,8 +1197,8 @@ phydbl TIPO_Read_One_Taxon_Zscore(FILE *fp_coord, char *seqname_qry, int col, t_
 /*       if(fscanf(fp_coord,"%s\t%lf\t%lf\n",seqname,&lat,&lon) == EOF) */
       if(fscanf(fp_coord,"%s %lf\n",seqname,&lat) == EOF)
 	{
-	  PhyML_Printf("\n. Could not find sequence '%s' in coordinate file",seqname_qry);
-	  PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+	  PhyML_Fprintf(stderr, "\n. Could not find sequence '%s' in coordinate file",seqname_qry);
+	  PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
 	  Warn_And_Exit("");
 	}
 
@@ -1304,7 +1304,7 @@ phydbl TIPO_Lk_Core(t_node *a, t_node *d, t_tree *tree)
 
   if(d->tax)
     {
-      PhyML_Printf("\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
+      PhyML_Fprintf(stderr, "\n. Err in file %s at line %d\n\n",__FILE__,__LINE__);
       Warn_And_Exit("");
     }
 

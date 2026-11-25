@@ -463,7 +463,9 @@ void Usage(void)
 	 "%s\n\tAA sequential sequence file, with customization :   ""%s  ./phyml -i seqs3 -q -d aa -m JTT -c 4 -a e%s\n",BOLD,FLAT,BOLD,FLAT,BOLD,FLAT,BOLD,FLAT);
   #endif
 
-  Exit("");
+  // The caller ends the run: with status 0 for --help, as an error for an
+  // unknown option
+  fflush(NULL);
 }
 
 //////////////////////////////////////////////////////////////

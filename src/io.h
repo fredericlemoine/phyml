@@ -18,6 +18,8 @@ the GNU public licence.  See http://www.opensource.org for details.
 #include "utilities.h"
 
 t_tree *Read_Tree(char **s_tree);
+int     Read_Tree_String(const char *newick, t_tree **tree);
+int     Read_Tree_File(FILE *fp, t_tree **tree);
 void R_rtree(char *s_tree_a,char *s_tree_d,t_node *a,t_tree *tree,int *n_int,int *n_ext);
 void Read_Node_Label(char *s_d, char *s_a, t_node *n);
 void Read_Branch_Length(char *s_d, char *s_a, t_edge *b, t_tree *tree);

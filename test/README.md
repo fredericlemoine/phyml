@@ -57,7 +57,7 @@ To test another binary, run the Python tests with `PHYML=/path/to/phyml`.
 | Random numbers, distributions, discrete Gamma, aLRT conversion | `test_stats.c` | |
 | Newick reading and writing (including the error codes of `Read_Tree_String` and `Read_Tree_File`, and 20,000 random edits of valid trees), bipartitions, RF, transfer distance, BioNJ | `test_trees.c` | |
 | State encoding, strings, matrix inverse | `test_misc.c` | |
-| libphyml: `PhyML_Run` returns error codes (usage, input, internal, failed assert) and their text, runs again after an error, repeated runs agree, a failed run releases its memory and files, errors in OpenMP threads come back after the region (also run as `build/unit_tests_omp`), threads give the same tree | `test_lib.c` | |
+| libphyml: `PhyML_Run` returns error codes (usage, input, internal, failed assert) and their text, runs again after an error, repeated runs agree, a failed run releases its memory and files, errors in OpenMP threads come back after the region (also run as `build/unit_tests_omp`), threads give the same tree; `Read_Alignment` returns the errors of PHYLIP, FASTA and NEXUS files (with 6,000 random edits of alignments) | `test_lib.c` | |
 | Likelihood vs. the reference implementation (JC69, K80, F81, HKY85, GTR, +G mean and median, +I, +I+G, ambiguities, custom AA matrix, the protein matrices added for SMS, per-site values, SIMD vs scalar) | | `test_likelihood_oracle.py` |
 | Models and optimisation (nesting, parameter recovery on simulated data, `-o` levels, fixed values, FreeRate, invariance to taxon and site order) | | `test_models.py` |
 | Tree search (true topology recovered, optimality, starting trees, random starts, constraints) | | `test_search.py` |
@@ -91,7 +91,7 @@ Known bugs covered at the time of writing:
 - Wrong results: MPI silently rounds the replicate count up;
   `Permutate()` is not a uniform shuffle; `-d aa -m LG` without `-f` uses
   the empirical amino-acid frequencies (LG+F).
-- Other: `--print_trace` writes an empty file; duplicate taxon names are accepted;
+- Other: `--print_trace` writes an empty file;
   stale `config.h` version; help text out of date (`-s NNI`, `-b` range).
 
 ## Notes

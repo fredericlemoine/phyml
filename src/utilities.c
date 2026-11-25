@@ -1409,6 +1409,27 @@ void Qksort_Matrix(phydbl **A, int col, int ilo, int ihi)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
+/* Starting tree of a search with a constraint tree: the constraint tree,
+   with the taxa it does not name added at its root, and BioNJ branch
+   lengths if it has none. Used for every start (random starts too: a random
+   tree would break the constraint) and every bootstrap replicate. */
+
+t_tree *Constraint_Start_Tree(calign *cdata, t_mod *mod, option *io)
+{
+  char   *s;
+  t_tree *tree;
+
+  s    = Add_Taxa_To_Constraint_Tree(io->fp_in_constraint_tree, cdata);
+  tree = Read_Tree(&s);
+  Free(s);
+  if (tree->has_branch_lengths == NO)
+    Add_BioNJ_Branch_Lengths(tree, cdata, mod, NULL);
+  return tree;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
 char *Add_Taxa_To_Constraint_Tree(FILE *fp, calign *cdata)
 {
   char   *line, *long_line;
@@ -3999,7 +4020,12 @@ void Bootstrap(t_tree *tree)
     Init_Model(boot_data, boot_mod, tree->io);
     Set_Model_Parameters(boot_mod);
 
-    if (tree->io->in_tree == 2)
+    // With a constraint, the replicate starts from the constraint tree, as
+    // the main search does (io->in_tree is then not 2: there may be no -u
+    // file)
+    if (tree->io->cstr_tree != NULL)
+      boot_tree = Constraint_Start_Tree(boot_data, boot_mod, tree->io);
+    else if (tree->io->in_tree == 2)
     {
       rewind(tree->io->fp_in_tree);
       boot_tree = Read_Tree_File_Phylip(tree->io->fp_in_tree);
@@ -4043,7 +4069,8 @@ void Bootstrap(t_tree *tree)
     Set_Both_Sides(YES, boot_tree);
 
     if ((boot_tree->mod->s_opt->random_input_tree) &&
-        (boot_tree->mod->s_opt->topo_search == SPR_MOVE))
+        (boot_tree->mod->s_opt->topo_search == SPR_MOVE) &&
+        tree->io->cstr_tree == NULL)
       Random_Tree(boot_tree);
 
     Connect_CSeqs_To_Nodes(boot_data, tree->io, boot_tree);

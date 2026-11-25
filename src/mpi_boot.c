@@ -192,7 +192,10 @@ void Bootstrap_MPI(t_tree *tree)
 			Init_Model(boot_data,boot_mod,tree->io);
 			Set_Model_Parameters(boot_mod);
 			
-			if(tree->io->in_tree == 2)
+			// With a constraint, the replicate starts from the constraint tree
+			if(tree->io->cstr_tree != NULL)
+				boot_tree = Constraint_Start_Tree(boot_data,boot_mod,tree->io);
+			else if(tree->io->in_tree == 2)
 			{
 				rewind(tree->io->fp_in_tree);
 				boot_tree = Read_Tree_File_Phylip(tree->io->fp_in_tree);
@@ -234,7 +237,7 @@ void Bootstrap_MPI(t_tree *tree)
 
 			Set_Both_Sides(YES,boot_tree);
 			
-			if((boot_tree->mod->s_opt->random_input_tree) && (boot_tree->mod->s_opt->topo_search == SPR_MOVE)) Random_Tree(boot_tree);
+			if((boot_tree->mod->s_opt->random_input_tree) && (boot_tree->mod->s_opt->topo_search == SPR_MOVE) && tree->io->cstr_tree == NULL) Random_Tree(boot_tree);
 			
 			Connect_CSeqs_To_Nodes(boot_data,boot_tree->io,boot_tree);
 			Share_Lk_Struct(tree,boot_tree);

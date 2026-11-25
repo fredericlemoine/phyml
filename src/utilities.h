@@ -2633,6 +2633,7 @@ void    Qksort(phydbl *A, phydbl *B, int ilo, int ihi);
 void    Qksort_Matrix(phydbl **A, int col, int ilo, int ihi);
 void    Order_Tree_Seq(t_tree *tree, align **data);
 char   *Add_Taxa_To_Constraint_Tree(FILE *fp, calign *cdata);
+t_tree *Constraint_Start_Tree(calign *cdata, t_mod *mod, option *io);
 void    Check_Constraint_Tree_Taxa_Names(t_tree *tree, calign *cdata);
 void    Order_Tree_CSeq(t_tree *tree, calign *cdata);
 void    Init_Mat(matrix *mat, calign *data);

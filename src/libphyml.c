@@ -98,6 +98,11 @@ static void Search_Or_Optimize(t_tree *tree)
 // mode, where every write goes to the end of the file)
 static void Truncate_Tree_File(FILE *fp, long pos)
 {
+#ifdef MPI
+  // Only rank 0 writes the tree file (PhyML_Fprintf): another rank
+  // truncating it could empty the file rank 0 has just written
+  if (Global_myRank != 0) return;
+#endif
   fflush(fp);
   if (ftruncate(fileno(fp), (off_t)pos) != 0 || fseek(fp, pos, SEEK_SET) != 0)
   {
@@ -300,32 +305,36 @@ int PhyML_Main(int argc, char **argv)
 
           if (io->fp_in_constraint_tree != NULL)
           {
-            char *s;
-
-            PhyML_Printf("\n. Reading constraint tree file...");
-
-            if (Read_Tree_File(io->fp_in_constraint_tree, &io->cstr_tree) !=
-                PHYML_OK)
-              PhyML_Error_Raise_Last();
-
-            if (io->cstr_tree->n_root != NULL)
+            // Read once, for all the starts and data sets. io->in_tree is
+            // left as it is: setting it to 2 made the next random start and
+            // the bootstrap replicates read a -u file that may not exist
+            if (io->cstr_tree == NULL)
             {
-              PhyML_Fprintf(stderr, "\n== The constraint tree file must be unrooted");
-              Exit("\n");
-            }
+              PhyML_Printf("\n. Reading constraint tree file...");
 
-            s = Add_Taxa_To_Constraint_Tree(io->fp_in_constraint_tree, cdata);
-            fflush(NULL);
-            Free_Tree(tree);
-            tree        = Read_Tree(&s);
-            io->in_tree = 2;
-            Free(s);
+              if (Read_Tree_File(io->fp_in_constraint_tree, &io->cstr_tree) !=
+                  PHYML_OK)
+                PhyML_Error_Raise_Last();
+
+              if (io->cstr_tree->n_root != NULL)
+              {
+                PhyML_Fprintf(stderr,
+                              "\n== The constraint tree file must be unrooted");
+                Exit("\n");
+              }
+              Alloc_Bip(io->cstr_tree);
+              Get_Bip(io->cstr_tree->a_nodes[0],
+                      io->cstr_tree->a_nodes[0]->v[0], io->cstr_tree);
+
+              if (orig_random_input_tree == YES && !io->quiet)
+                PhyML_Printf("\n. With a constraint tree, every start begins "
+                             "with the constraint tree (a random tree would "
+                             "break it).");
+            }
             Check_Constraint_Tree_Taxa_Names(io->cstr_tree, cdata);
-            Alloc_Bip(io->cstr_tree);
-            Get_Bip(io->cstr_tree->a_nodes[0], io->cstr_tree->a_nodes[0]->v[0],
-                    io->cstr_tree);
-            if (tree->has_branch_lengths == NO)
-              Add_BioNJ_Branch_Lengths(tree, cdata, mod, NULL);
+
+            Free_Tree(tree);
+            tree = Constraint_Start_Tree(cdata, mod, io);
           }
 
           if (!tree) continue;

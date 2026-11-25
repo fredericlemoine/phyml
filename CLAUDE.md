@@ -97,7 +97,16 @@ make -C test check-asan   # whole functional suite on the sanitizer build (slow)
   `Read_Tree_File` (`io.c`), which check the tree against the grammar the
   parser accepts (`Newick_Check`) before parsing, so the parser never sees
   a malformed string. Read user input with them, not `Read_Tree`, which
-  raises on a malformed tree and is meant for PhyML's own strings.
+  raises on a malformed tree and is meant for PhyML's own strings. And
+  `Read_Alignment` (`io.c`; `Get_Seq` raises what it returns): the PHYLIP
+  and FASTA readers (`*_Checked`, `Read_One_Line_Seq` returns -1 on an
+  error) return codes and free what they read; NEXUS goes through
+  `PhyML_Try(fn, arg, scope)` (`error.c`), which turns what `fn` raises into
+  a returned code, a bridge for code not converted yet (what `fn` allocated
+  before the error leaks outside `PhyML_Run`).
+- With `--constraint_file`, every start and every bootstrap replicate
+  begins with the constraint tree (`Constraint_Start_Tree`); `io->in_tree`
+  says only whether a `-u` file was given.
 - `PhyML_Run` releases what its run allocated and opened, also after an
   error: `utilities.h` maps `malloc`, `calloc`, `realloc`, `posix_memalign`,
   `free`, `fopen` and `fclose` to recording versions (`error.c`,

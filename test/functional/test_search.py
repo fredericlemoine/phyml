@@ -180,6 +180,35 @@ class Constraints(PhymlTestCase):
         tree = res.tree(JC8)
         self.assertTrue(tree.has_split(["t1", "t3"]), tree.to_string())
 
+    def test_constraint_with_random_starts(self):
+        """Random starts used to crash at the second start (it read a -u
+        file that was not given); every start begins with the constraint."""
+        self.stage(JC8)
+        res = self.run_phyml("-i", JC8, "-m", "JC69", "-c", "1", "-b", "0",
+                             "--constraint_file", self.write("((t1,t3),t2,t4,t5,t6,t7,t8);"),
+                             "--n_rand_starts", "3", "--r_seed", "1", timeout=120)
+        self.assertSuccess(res)
+        self.assertTrue(res.tree(JC8).has_split(["t1", "t3"]), res.tree(JC8).to_string())
+        starts = res.trees(JC8 + "_phyml_rand_trees.txt")
+        self.assertEqual(len(starts), 4)  # three random starts, then BioNJ
+        for t in starts:
+            self.assertTrue(t.has_split(["t1", "t3"]), t.to_string())
+
+    def test_constraint_with_bootstrap(self):
+        """Bootstrap with a constraint used to crash (the replicates read a -u
+        file that was not given); the replicates keep the constraint too."""
+        self.stage(JC8)
+        res = self.run_phyml("-i", JC8, "-m", "JC69", "-c", "1", "-b", "4",
+                             "--constraint_file", self.write("((t1,t3),t2,t4,t5,t6,t7,t8);"),
+                             "--r_seed", "1", timeout=120)
+        self.assertSuccess(res)
+        self.assertTrue(res.tree(JC8).has_split(["t1", "t3"]), res.tree(JC8).to_string())
+        reps = res.trees(JC8 + "_phyml_boot_trees.txt")
+        self.assertEqual(len(reps), 4)
+        for t in reps:
+            self.assertTrue(t.has_split(["t1", "t3"]), t.to_string())
+        self.assertIn("constraint tree (c.nwk)", res.read(JC8 + "_phyml_stats.txt"))
+
 
 class AminoAcidSearch(PhymlTestCase):
 

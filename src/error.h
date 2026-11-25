@@ -146,6 +146,14 @@ int PhyML_Error_Set(int code, const char *format, ...);
    caller that cannot go on after such a function failed. */
 PHYML_NORETURN void PhyML_Error_Raise_Last(void);
 
+/* Runs fn(arg) with its own recovery point: an error raised in it comes
+   back as the returned code, with what it wrote on stderr as the error text
+   (PhyML_Error_Message), instead of ending the run or the process. Exit()
+   raises 'scope' meanwhile. A bridge for code that does not return codes
+   yet: what fn allocated before the error is not released (PhyML_Run
+   releases it at the end of the run). */
+int PhyML_Try(void (*fn)(void *), void *arg, int scope);
+
 /* Forgets the last error, and keeps the text written to stderr */
 void PhyML_Error_Clear(void);
 void PhyML_Error_Capture(const char *format, va_list ap);

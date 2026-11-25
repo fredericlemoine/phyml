@@ -31,6 +31,7 @@ static int      error_code     = PHYML_OK;
 static char     error_msg[PHYML_ERROR_MSG_SIZE];
 static size_t   error_msg_len  = 0;
 static int      pending_code   = PHYML_OK; /* error raised in a thread */
+static unsigned long error_msg_dropped = 0; /* characters dropped from the front */
 
 #if defined(_MSC_VER)
 #define PHYML_THREAD_LOCAL __declspec(thread)
@@ -181,6 +182,7 @@ void PhyML_Error_Clear(void)
   error_scope   = PHYML_ERR;
   error_msg_len = 0;
   error_msg[0]  = '\0';
+  error_msg_dropped = 0;
 }
 
 //////////////////////////////////////////////////////////////
@@ -210,6 +212,7 @@ static void Error_Capture_Text(const char *text, size_t len)
       drop = error_msg_len + len - (PHYML_ERROR_MSG_SIZE - 1);
       memmove(error_msg, error_msg + drop, error_msg_len - drop);
       error_msg_len -= drop;
+      error_msg_dropped += drop;
     }
     memcpy(error_msg + error_msg_len, text, len);
     error_msg_len += len;
@@ -245,6 +248,7 @@ int PhyML_Error_Set(int code, const char *format, ...)
   va_end(ap);
   if (n < 0) n = 0;
   error_msg_len = ((size_t)n < sizeof(error_msg)) ? (size_t)n : sizeof(error_msg) - 1;
+  error_msg_dropped = 0;
   error_code    = code;
   return code;
 }
@@ -257,6 +261,42 @@ void PhyML_Error_Raise_Last(void)
   // Not through PhyML_Fprintf: the text is already the error text
   fputs(error_msg, stderr);
   PhyML_Raise(error_code == PHYML_OK ? PHYML_ERR : error_code);
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+int PhyML_Try(void (*fn)(void *), void *arg, int scope)
+{
+  jmp_buf *volatile outer       = error_recovery;
+  volatile int      outer_scope = error_scope;
+  volatile size_t   mark        = error_msg_len;
+  volatile unsigned long dropped = error_msg_dropped;
+  jmp_buf           env;
+  int               code;
+  char              text[PHYML_ERROR_MSG_SIZE];
+
+  code = setjmp(env);
+  if (code == 0)
+  {
+    error_recovery = &env;
+    error_scope    = scope;
+    fn(arg);
+    error_recovery = outer;
+    error_scope    = outer_scope;
+    return PHYML_OK;
+  }
+
+  error_recovery = outer;
+  error_scope    = outer_scope;
+  if (code == PHYML_STOP_REQUESTED) code = PHYML_ERR;
+  // The error text is what fn wrote (all that is left if more was written)
+  if (error_msg_dropped == dropped && mark <= error_msg_len)
+    snprintf(text, sizeof(text), "%s", error_msg + mark);
+  else
+    snprintf(text, sizeof(text), "%s", error_msg);
+  PhyML_Error_Set(code, "%s", text);
+  return code;
 }
 
 //////////////////////////////////////////////////////////////

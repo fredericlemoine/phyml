@@ -210,7 +210,8 @@ class BadAlignments(PhymlTestCase):
     def test_invalid_character(self):
         res = self.run_bad("bad_char.phy")
         self.assertCleanFailure(res)
-        self.assertIn("Unknown character state", res.output)
+        self.assertIn("unknown character state '@'", res.output)
+        self.assertIn("sequence 't5', at site 21", res.output)
 
     def test_non_numeric_header(self):
         self.assertCleanFailure(self.run_bad("bad_header.phy"))
@@ -263,9 +264,10 @@ class BadAlignments(PhymlTestCase):
         self.assertCleanFailure(res)
         self.assertIn("at least three sequences", res.output)
 
-    @known_bug("duplicate taxon names are accepted silently")
     def test_duplicate_taxon_names(self):
-        self.assertCleanFailure(self.run_bad("bad_dup_names.phy", "-b", "0"))
+        res = self.run_bad("bad_dup_names.phy", "-b", "0")
+        self.assertCleanFailure(res)
+        self.assertIn("appears more than once", res.output)
 
 
 class UserTrees(PhymlTestCase):

@@ -60,6 +60,16 @@ class MpiBootstrap(PhymlTestCase):
         for split, value in main.supports().items():
             self.assertAlmostEqual(value, expected[split], places=5, msg=sorted(split))
 
+    def test_tree_file_with_many_ranks(self):
+        """Every rank used to truncate the tree file, which only rank 0 writes:
+        a late rank could empty it. Only rank 0 truncates it now."""
+        for k in range(3):
+            res = self.mpi("-i", "dna_small.phy", "-b", "6", "--r_seed", str(10 + k),
+                           "--run_id", "many%d" % k, ranks=6)
+            self.assertSuccess(res)
+            tree = res.read("dna_small.phy_phyml_tree_many%d.txt" % k).strip()
+            self.assertTrue(tree.startswith("(") and tree.endswith(";"), tree)
+
     @known_bug("mpi_boot.c:76 the replicate count is silently rounded up to a multiple of the ranks")
     def test_replicate_count_is_kept(self):
         res = self.mpi("-i", "dna_small.phy", "-b", "10", "--run_id", "r3", ranks=3)

@@ -1250,13 +1250,8 @@ void Detect_Align_File_Format(option *io)
     else if (c == '#')
     {
       char s[10], t[6] = "NEXUS";
-      if (!fgets(s, 6, io->fp_in_align))
-      {
-        PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__,
-                      __LINE__);
-        Exit("\n");
-      }
-      if (!strcmp(t, s))
+      // A '#' at the end of the file: not a NEXUS file
+      if (fgets(s, 6, io->fp_in_align) && !strcmp(t, s))
       {
         fsetpos(io->fp_in_align, &curr_pos);
         io->data_file_format = NEXUS;
@@ -1334,74 +1329,131 @@ static int Generic_Alphabet_Size(option *io)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-align **Get_Seq(option *io)
+/* Characters accepted for DNA and protein states, as the tip likelihoods
+   read them (Init_Tips_At_One_Site_*, lk.c), after Post_Process_Data. */
+
+static int Valid_State_Char(char c, int datatype)
 {
+  if (datatype == NT) return c != '\0' && strchr("ACGTUMRWSYKBDHVNXO?-", c) != NULL;
+  if (datatype == AA)
+    return c != '\0' && strchr("ARNDCQEGHILKMFPSTWYVBZX?-", c) != NULL;
+  return 1; // other data types are checked when the tips are initialised
+}
+
+static void Read_Nexus(void *arg)
+{
+  option *io       = (option *)arg;
+  io->nex_com_list = Make_Nexus_Com();
+  Init_Nexus_Format(io->nex_com_list, io->fp_in_align);
+  Get_Nexus_Data(io);
+  Free_Nexus(io);
+}
+
+static int Name_Cmp(const void *x, const void *y)
+{
+  return strcmp((*(align *const *)x)->name, (*(align *const *)y)->name);
+}
+
+/* Reads the alignment of the next data set into io->data, as Get_Seq, but
+   returns an error code instead of ending the process: PHYML_OK, or
+   PHYML_ERR_INPUT with io->data NULL and the reason in
+   PhyML_Error_Message(). Besides the format, it refuses fewer than three
+   sequences, two sequences with the same name, and characters that are
+   not DNA or amino-acid states (-d nt, -d aa). PHYLIP and FASTA files are
+   read by functions that return codes; NEXUS files through PhyML_Try. */
+
+int Read_Alignment(option *io)
+{
+  int     rc, i, j;
+  align **sorted;
+
   io->data = NULL;
 
   if (!io->fp_in_align)
-  {
-    PhyML_Fprintf(stderr, "\n. Filehandle to '%s' seems to be closed.",
-                  io->in_align_file);
-    Exit("\n");
-  }
+    return PhyML_Error_Set(PHYML_ERR_INPUT,
+                           "\n. Err.: no alignment file to read.\n");
 
   Detect_Align_File_Format(io);
 
   switch (io->data_file_format)
   {
-  case PHYLIP:
-  {
-    io->data = Get_Seq_Phylip(io);
-    // NEXUS files give the generic alphabet (symbols=...); for PHYLIP files
-    // the states are the digits 0 to max, as the manual describes
-    if (io->data && io->datatype == GENERIC && io->state_len == 1)
-      io->mod->ns = Generic_Alphabet_Size(io);
-    break;
-  }
-  case FASTA:
-  {
-    io->data = Get_Seq_Fasta(io);
-    // Generic data: the states are the digits 0 to max, as for PHYLIP
-    if (io->data && io->datatype == GENERIC && io->state_len == 1)
-      io->mod->ns = Generic_Alphabet_Size(io);
-    break;
-  }
+  case PHYLIP: rc = Get_Seq_Phylip_Checked(io, &io->data); break;
+  case FASTA: rc = Get_Seq_Fasta_Checked(io, &io->data); break;
   case NEXUS:
-  {
-    io->nex_com_list = Make_Nexus_Com();
-    Init_Nexus_Format(io->nex_com_list, io->fp_in_align);
-    Get_Nexus_Data(io);
-    Free_Nexus(io);
+    rc = PhyML_Try(Read_Nexus, io, PHYML_ERR_INPUT);
+    if (rc != PHYML_OK) io->data = NULL;
     break;
-  }
   default:
-  {
-    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s')\n",
-                  __FILE__, __LINE__, __FUNCTION__);
-    Exit("\n");
+    rc = PhyML_Error_Set(PHYML_ERR_INPUT, "\n. Err.: unknown alignment format.\n");
     break;
   }
-  }
+  if (rc != PHYML_OK) return rc;
+  if (io->data == NULL)
+    return PhyML_Error_Set(PHYML_ERR_INPUT, "\n. Err.: no sequence was read.\n");
 
-  if (!io->data)
-  {
-    PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d (function '%s')\n",
-                  __FILE__, __LINE__, __FUNCTION__);
-    Exit("\n");
-  }
-  else
-  {
-    Post_Process_Data(io);
-  }
+  // NEXUS files give the generic alphabet (symbols=...); for PHYLIP and
+  // FASTA files the states are the digits 0 to max, as the manual describes
+  if (io->data_file_format != NEXUS && io->datatype == GENERIC &&
+      io->state_len == 1)
+    io->mod->ns = Generic_Alphabet_Size(io);
+
+  Post_Process_Data(io);
 
   if (io->n_otu < 3)
   {
-    PhyML_Fprintf(
-        stderr,
-        "\n. PhyML needs at least three sequences to perform an analysis.");
-    Exit("\n");
+    rc = PhyML_Error_Set(PHYML_ERR_INPUT,
+                         "\n. Err.: the alignment has %d sequence%s: PhyML needs "
+                         "at least three sequences to perform an analysis.\n",
+                         io->n_otu, io->n_otu > 1 ? "s" : "");
+    goto fail;
   }
 
+  sorted = (align **)mCalloc(io->n_otu, sizeof(align *));
+  for (i = 0; i < io->n_otu; i++) sorted[i] = io->data[i];
+  qsort(sorted, io->n_otu, sizeof(align *), Name_Cmp);
+  for (i = 1; i < io->n_otu; i++)
+    if (!strcmp(sorted[i - 1]->name, sorted[i]->name))
+    {
+      rc = PhyML_Error_Set(PHYML_ERR_INPUT,
+                           "\n. Err.: the sequence name '%s' appears more than "
+                           "once in the alignment.\n",
+                           sorted[i]->name);
+      Free(sorted);
+      goto fail;
+    }
+  Free(sorted);
+
+  if (io->state_len == 1)
+    for (i = 0; i < io->n_otu; i++)
+      for (j = 0; j < io->data[i]->len; j++)
+        if (!Valid_State_Char(io->data[i]->state[j], io->datatype))
+        {
+          char c = io->data[i]->state[j];
+          rc     = PhyML_Error_Set(
+              PHYML_ERR_INPUT,
+              "\n. Err.: unknown character state '%c' (code %d) in sequence "
+              "'%s', at site %d: not a%s state.\n",
+              isprint((unsigned char)c) ? c : '?', (unsigned char)c,
+              io->data[i]->name, j + 1,
+              io->datatype == NT ? " nucleotide" : "n amino-acid");
+          goto fail;
+        }
+
+  return PHYML_OK;
+
+fail:
+  Free_Seq(io->data, io->n_otu);
+  io->data = NULL;
+  return rc;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+align **Get_Seq(option *io)
+{
+  // A malformed alignment is an input error (Read_Alignment returns it)
+  if (Read_Alignment(io) != PHYML_OK) PhyML_Error_Raise_Last();
   return io->data;
 }
 
@@ -1700,22 +1752,389 @@ int Get_Token(FILE *fp, char *token)
 //////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////
 
-align **Get_Seq_Phylip(option *io)
-{
-  Read_Ntax_Len_Phylip(io->fp_in_align, &io->n_otu, &io->init_len);
+#define ALIGN_ERR(...) PhyML_Error_Set(PHYML_ERR_INPUT, __VA_ARGS__)
 
-  if (io->n_otu > N_MAX_OTU)
+/* Frees the first n sequences of data (some may be NULL), and data */
+
+static void Free_Partial_Seq(align **data, int n)
+{
+  int i;
+
+  if (data == NULL) return;
+  for (i = 0; i < n; i++)
+    if (data[i])
+    {
+      Free(data[i]->name);
+      Free(data[i]->state);
+      Free(data[i]);
+    }
+  Free(data);
+}
+
+/* ':', ',' and ' ' cannot be in a taxon name: they are Newick delimiters */
+
+static int Check_Name(const char *s)
+{
+  const char *p;
+  for (p = s; *p; p++)
+    if (*p == ':' || *p == ',' || *p == ' ')
+      return ALIGN_ERR("\n. Err.: character '%c' is not permitted in sequence "
+                       "name (%s).\n",
+                       *p, s);
+  return PHYML_OK;
+}
+
+/* A whole token read as a positive integer */
+
+static int Parse_Count(const char *tok, int *value)
+{
+  char *end;
+  long  v;
+
+  errno = 0;
+  v     = strtol(tok, &end, 10);
+  if (end == tok || *end != '\0' || errno != 0 || v <= 0 || v > INT_MAX)
+    return 0;
+  *value = (int)v;
+  return 1;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* Header of a PHYLIP file: the number of sequences and their length */
+
+static int Read_Header_Phylip(FILE *fp, int *n_otu, int *n_tax)
+{
+  char tok[64];
+
+  if (fscanf(fp, "%63s", tok) != 1)
+    return ALIGN_ERR("\n. Err.: the alignment file is empty.\n");
+  if (!Parse_Count(tok, n_otu))
+    return ALIGN_ERR("\n. Err.: the first line of a PHYLIP file gives the number "
+                     "of sequences and their length; found '%s' instead of the "
+                     "number of sequences.\n",
+                     tok);
+  if (fscanf(fp, "%63s", tok) != 1)
+    return ALIGN_ERR("\n. Err.: the PHYLIP header gives no sequence length.\n");
+  if (!Parse_Count(tok, n_tax))
+    return ALIGN_ERR("\n. Err.: the sequence length in the PHYLIP header must be "
+                     "a positive integer; found '%s'.\n",
+                     tok);
+  return PHYML_OK;
+}
+
+void Read_Ntax_Len_Phylip(FILE *fp, int *n_otu, int *n_tax)
+{
+  if (Read_Header_Phylip(fp, n_otu, n_tax) != PHYML_OK) PhyML_Error_Raise_Last();
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* Taxon name of sequence i into a T_MAX_NAME buffer: at most T_MAX_NAME - 1
+   characters, so that the name stays terminated. */
+
+static int Read_Taxon_Name(FILE *fp, char *name, int i, int n_otu)
+{
+  char format[32];
+  int  c;
+
+  snprintf(format, sizeof(format), "%%%ds", T_MAX_NAME - 1);
+  if (fscanf(fp, format, name) != 1)
+    return ALIGN_ERR("\n. Err.: the header announces %d sequences but the file "
+                     "ends after %d.\n",
+                     n_otu, i);
+  c = fgetc(fp);
+  if (c != EOF && !isspace(c))
+    return ALIGN_ERR("\n. Err.: the name of sequence %d is longer than %d "
+                     "characters.\n",
+                     i + 1, T_MAX_NAME - 1);
+  if (c != EOF) ungetc(c, fp);
+  return Check_Name(name);
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+/* One line of sequence num_otu: returns 1 if a line was read, 0 at the end
+   of the file, and -1 on an error (its text is set). */
+
+int Read_One_Line_Seq(align ***data, int num_otu, int max_len, FILE *in)
+{
+  int  c     = ' '; // int, not char: EOF must stay distinct from any character
+  char ch;
+  int  nchar = 0;
+
+  while (1)
   {
-    PhyML_Fprintf(stderr, "\n. The number of taxa should not exceed %d",
-                  N_MAX_OTU);
-    assert(FALSE);
+    if ((c == 13) || (c == 10))
+    {
+      if (!nchar)
+      {
+        c = fgetc(in);
+        continue;
+      }
+      else
+        break;
+    }
+    else if (c == EOF)
+      break;
+    else if ((c == ' ') || (c == '\t'))
+    {
+      c = fgetc(in);
+      continue;
+    }
+
+    // The sequence buffer holds the length given in the header
+    if ((*data)[num_otu]->len >= max_len)
+    {
+      ALIGN_ERR("\n. Err.: the sequence of '%s' is longer than the %d "
+                "characters given in the header.\n",
+                (*data)[num_otu]->name, max_len);
+      return -1;
+    }
+
+    nchar++;
+    ch = (char)c;
+    Uppercase(&ch);
+
+    if (ch == '.')
+    {
+      if (!num_otu)
+      {
+        ALIGN_ERR("\n. Err.: symbol '.' (same as the first sequence) cannot "
+                  "appear in the first sequence.\n");
+        return -1;
+      }
+      ch = (*data)[0]->state[(*data)[num_otu]->len];
+    }
+    (*data)[num_otu]->state[(*data)[num_otu]->len] = ch;
+    (*data)[num_otu]->len++;
+    c = fgetc(in);
+    if (c == ';') break;
   }
 
-  if (io->interleaved == YES)
-    io->data = Read_Seq_Interleaved(io);
-  else
-    io->data = Read_Seq_Sequential(io);
+  return (c == EOF) ? 0 : 1;
+}
 
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+static align *New_Seq(int len)
+{
+  align *a     = (align *)mCalloc(1, sizeof(align));
+  a->name      = (char *)mCalloc(T_MAX_NAME, sizeof(char));
+  a->state     = (char *)mCalloc(len + 1, sizeof(char));
+  a->is_ambigu = NULL;
+  a->len       = 0;
+  return a;
+}
+
+static int Wrong_Length(align *a, int expected)
+{
+  return ALIGN_ERR("\n. Err.: sequence '%s' has %d characters, the header "
+                   "announces %d.\n",
+                   a->name, a->len, expected);
+}
+
+/* Sequential PHYLIP: each sequence on one or more lines after its name */
+
+static int Read_Seq_Sequential_Checked(option *io, align ***out)
+{
+  int     i, rc, len = io->init_len * io->state_len;
+  align **data = (align **)mCalloc(io->n_otu, sizeof(align *));
+
+  for (i = 0; i < io->n_otu; i++)
+  {
+    data[i] = New_Seq(len);
+    if ((rc = Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu)) !=
+        PHYML_OK)
+      goto fail;
+
+    while (data[i]->len < len)
+    {
+      int r = Read_One_Line_Seq(&data, i, len, io->fp_in_align);
+      if (r < 0)
+      {
+        rc = PHYML_ERR_INPUT;
+        goto fail;
+      }
+      if (r == 0) break; // end of file: the length is checked below
+    }
+    if (data[i]->len != len)
+    {
+      rc = Wrong_Length(data[i], len);
+      goto fail;
+    }
+  }
+
+  for (i = 0; i < io->n_otu; i++) data[i]->state[data[i]->len] = '\0';
+  Restrict_To_Coding_Position(data, io);
+  *out = data;
+  return PHYML_OK;
+
+fail:
+  Free_Partial_Seq(data, io->n_otu);
+  return rc;
+}
+
+/* Interleaved PHYLIP: blocks of one line per sequence, names in the first
+   block (and optionally in the others), separated by blank lines */
+
+static int Read_Seq_Interleaved_Checked(option *io, align ***out)
+{
+  int     i, r, rc, end, num_block, len = io->init_len * io->state_len;
+  char   *line, format[32];
+  align **data;
+  fpos_t  curr_pos;
+
+  line = (char *)mCalloc(T_MAX_LINE, sizeof(char));
+  data = (align **)mCalloc(io->n_otu, sizeof(align *));
+  snprintf(format, sizeof(format), "%%%ds", T_MAX_NAME - 1);
+
+  end = 0;
+  for (i = 0; i < io->n_otu; i++)
+  {
+    data[i] = New_Seq(len);
+    if ((rc = Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu)) !=
+        PHYML_OK)
+      goto fail;
+
+    r = Read_One_Line_Seq(&data, i, len, io->fp_in_align);
+    if (r < 0)
+    {
+      rc = PHYML_ERR_INPUT;
+      goto fail;
+    }
+    if (r == 0)
+    {
+      end = 1;
+      if (i != io->n_otu - 1)
+      {
+        rc = ALIGN_ERR("\n. Err.: the file ends after sequence '%s', %d of the "
+                       "%d announced.\n",
+                       data[i]->name, i + 1, io->n_otu);
+        goto fail;
+      }
+      break;
+    }
+  }
+
+  if (data[0]->len == len) end = 1;
+
+  num_block = 1;
+  while (!end)
+  {
+    num_block++;
+
+    /* interblock */
+    if (!fgets(line, T_MAX_LINE, io->fp_in_align)) break;
+
+    if (line[0] != 13 && line[0] != 10)
+    {
+      rc = ALIGN_ERR("\n. Err.: one or more missing sequences in block %d.\n",
+                     num_block - 1);
+      goto fail;
+    }
+
+    for (i = 0; i < io->n_otu; i++)
+      if (data[i]->len != len) break;
+    if (i == io->n_otu) break;
+
+    for (i = 0; i < io->n_otu; i++)
+    {
+      /* Skip the taxon name, if any, in this interleaved block */
+      fgetpos(io->fp_in_align, &curr_pos);
+      if (fscanf(io->fp_in_align, format, line) != 1)
+      {
+        rc = ALIGN_ERR("\n. Err.: the file ends in block %d, at sequence '%s'.\n",
+                       num_block, data[i]->name);
+        goto fail;
+      }
+      if (strcmp(line, data[i]->name)) fsetpos(io->fp_in_align, &curr_pos);
+
+      r = Read_One_Line_Seq(&data, i, len, io->fp_in_align);
+      if (r < 0)
+      {
+        rc = PHYML_ERR_INPUT;
+        goto fail;
+      }
+      if (r == 0)
+      {
+        end = 1;
+        if (i != io->n_otu - 1)
+        {
+          rc = Wrong_Length(data[i], len);
+          goto fail;
+        }
+        break;
+      }
+    }
+  }
+
+  for (i = 0; i < io->n_otu; i++)
+  {
+    data[i]->state[data[i]->len] = '\0';
+    if (data[i]->len != len)
+    {
+      rc = Wrong_Length(data[i], len);
+      goto fail;
+    }
+  }
+
+  Restrict_To_Coding_Position(data, io);
+  Free(line);
+  *out = data;
+  return PHYML_OK;
+
+fail:
+  Free(line);
+  Free_Partial_Seq(data, io->n_otu);
+  return rc;
+}
+
+align **Read_Seq_Sequential(option *io)
+{
+  align **data = NULL;
+  if (Read_Seq_Sequential_Checked(io, &data) != PHYML_OK)
+    PhyML_Error_Raise_Last();
+  return data;
+}
+
+align **Read_Seq_Interleaved(option *io)
+{
+  align **data = NULL;
+  if (Read_Seq_Interleaved_Checked(io, &data) != PHYML_OK)
+    PhyML_Error_Raise_Last();
+  return data;
+}
+
+//////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////
+
+int Get_Seq_Phylip_Checked(option *io, align ***out)
+{
+  int rc;
+
+  *out = NULL;
+  if ((rc = Read_Header_Phylip(io->fp_in_align, &io->n_otu, &io->init_len)) !=
+      PHYML_OK)
+    return rc;
+
+  if (io->n_otu > N_MAX_OTU)
+    return ALIGN_ERR("\n. Err.: the alignment has %d sequences, more than the "
+                     "%d PhyML can analyse.\n",
+                     io->n_otu, N_MAX_OTU);
+
+  if (io->interleaved == YES)
+    return Read_Seq_Interleaved_Checked(io, out);
+  return Read_Seq_Sequential_Checked(io, out);
+}
+
+align **Get_Seq_Phylip(option *io)
+{
+  if (Get_Seq_Phylip_Checked(io, &io->data) != PHYML_OK) PhyML_Error_Raise_Last();
   return io->data;
 }
 
@@ -1728,23 +2147,24 @@ align **Get_Seq_Phylip(option *io)
    characters are ignored; '.' is a gap, as in most FASTA alignments. A
    FASTA file holds a single data set. */
 
-align **Get_Seq_Fasta(option *io)
+int Get_Seq_Fasta_Checked(option *io, align ***out)
 {
   align **data;
-  int     n, cap, c, i, len;
+  int     n, cap, c, i, len, rc;
   size_t  name_len;
 
+  *out = NULL;
   if (io->n_data_sets > 1)
-    Exit("\n. A FASTA file holds a single alignment: '-n' cannot be used with "
-         "it.\n");
+    return ALIGN_ERR("\n. Err.: a FASTA file holds a single alignment: '-n' "
+                     "cannot be used with it.\n");
+
+  c = fgetc(io->fp_in_align);
+  while (c != EOF && isspace(c)) c = fgetc(io->fp_in_align);
+  if (c != '>') return ALIGN_ERR("\n. Err.: a FASTA file must start with a '>' line.\n");
 
   n    = 0;
   cap  = 16;
   data = (align **)mCalloc(cap, sizeof(align *));
-
-  c = fgetc(io->fp_in_align);
-  while (c != EOF && isspace(c)) c = fgetc(io->fp_in_align);
-  if (c != '>') Exit("\n. A FASTA file must start with a '>' line.\n");
 
   while (c == '>')
   {
@@ -1760,10 +2180,9 @@ align **Get_Seq_Fasta(option *io)
       cap *= 2;
     }
 
-    a            = (align *)mCalloc(1, sizeof(align));
-    a->name      = (char *)mCalloc(T_MAX_NAME, sizeof(char));
-    a->is_ambigu = NULL;
-    data[n++]    = a;
+    state_cap = 1024;
+    a         = New_Seq(state_cap);
+    data[n++] = a;
 
     // Name: first word after '>'; the rest of the line is a description
     c = fgetc(io->fp_in_align);
@@ -1773,28 +2192,23 @@ align **Get_Seq_Fasta(option *io)
     {
       if (name_len == T_MAX_NAME - 1)
       {
-        PhyML_Fprintf(stderr,
-                      "\n. Err.: the name of sequence %d in the FASTA file is "
-                      "longer than %d characters.\n",
-                      n, T_MAX_NAME - 1);
-        Exit("");
+        rc = ALIGN_ERR("\n. Err.: the name of sequence %d in the FASTA file is "
+                       "longer than %d characters.\n",
+                       n, T_MAX_NAME - 1);
+        goto fail;
       }
       a->name[name_len++] = (char)c;
       c                   = fgetc(io->fp_in_align);
     }
     if (name_len == 0)
     {
-      PhyML_Fprintf(stderr,
-                    "\n. Err.: sequence %d of the FASTA file has no name.\n", n);
-      Exit("");
+      rc = ALIGN_ERR("\n. Err.: sequence %d of the FASTA file has no name.\n", n);
+      goto fail;
     }
-    Check_Sequence_Name(a->name);
+    if ((rc = Check_Name(a->name)) != PHYML_OK) goto fail;
     while (c != EOF && c != '\n' && c != '\r') c = fgetc(io->fp_in_align);
 
     // Sequence: every line up to the next line starting with '>'
-    state_cap = 1024;
-    a->state  = (char *)mCalloc(state_cap + 1, sizeof(char));
-    a->len    = 0;
     while (c != EOF)
     {
       if (c == '\n' || c == '\r')
@@ -1828,392 +2242,49 @@ align **Get_Seq_Fasta(option *io)
   {
     if (data[i]->len == 0)
     {
-      PhyML_Fprintf(stderr, "\n. Err.: sequence '%s' is empty.\n",
-                    data[i]->name);
-      Exit("");
+      rc = ALIGN_ERR("\n. Err.: sequence '%s' is empty.\n", data[i]->name);
+      goto fail;
     }
     if (data[i]->len != len)
     {
-      PhyML_Fprintf(stderr,
-                    "\n. Err.: the sequences of the FASTA file are not aligned: "
-                    "'%s' has %d characters, '%s' has %d.\n",
-                    data[0]->name, len, data[i]->name, data[i]->len);
-      Exit("");
+      rc = ALIGN_ERR("\n. Err.: the sequences of the FASTA file are not aligned: "
+                     "'%s' has %d characters, '%s' has %d.\n",
+                     data[0]->name, len, data[i]->name, data[i]->len);
+      goto fail;
     }
   }
   if (len % io->state_len != 0)
   {
-    PhyML_Fprintf(stderr,
-                  "\n. Err.: the sequence length (%d) is not a multiple of the "
-                  "state length (%d).\n",
-                  len, io->state_len);
-    Exit("");
+    rc = ALIGN_ERR("\n. Err.: the sequence length (%d) is not a multiple of the "
+                   "state length (%d).\n",
+                   len, io->state_len);
+    goto fail;
   }
   if (n > N_MAX_OTU)
   {
-    PhyML_Fprintf(stderr, "\n. The number of taxa should not exceed %d",
-                  N_MAX_OTU);
-    Exit("\n");
+    rc = ALIGN_ERR("\n. Err.: the alignment has %d sequences, more than the %d "
+                   "PhyML can analyse.\n",
+                   n, N_MAX_OTU);
+    goto fail;
   }
 
   io->n_otu    = n;
   io->init_len = len / io->state_len;
 
   Restrict_To_Coding_Position(data, io);
+  *out = data;
+  return PHYML_OK;
 
+fail:
+  Free_Partial_Seq(data, n);
+  return rc;
+}
+
+align **Get_Seq_Fasta(option *io)
+{
+  align **data = NULL;
+  if (Get_Seq_Fasta_Checked(io, &data) != PHYML_OK) PhyML_Error_Raise_Last();
   return data;
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-void Read_Ntax_Len_Phylip(FILE *fp, int *n_otu, int *n_tax)
-{
-  char *line;
-  int   readok;
-
-  line = (char *)mCalloc(T_MAX_LINE, sizeof(char));
-
-  readok = 0;
-  do
-  {
-    if (fscanf(fp, "%s", line) == EOF)
-    {
-      Free(line);
-      PhyML_Fprintf(stderr, "\n. PhyML can't read in this alignment.");
-      PhyML_Fprintf(stderr, "\n. Could it be that sequence file is empty?");
-      PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__,
-                    __LINE__);
-      Exit("\n");
-    }
-    else
-    {
-      if (strcmp(line, "\n") && strcmp(line, "\r") && strcmp(line, "\t"))
-      {
-        sscanf(line, "%d", n_otu);
-        if (*n_otu <= 0)
-          Warn_And_Exit("\n. The number of taxa cannot be negative.\n");
-
-        if (!fscanf(fp, "%s", line)) Exit("\n");
-        sscanf(line, "%d", n_tax);
-        if (*n_tax <= 0)
-          Warn_And_Exit("\n. The sequence length cannot be negative.\n");
-        else
-          readok = 1;
-      }
-    }
-  } while (!readok);
-
-  Free(line);
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-/* The file ends before the n_otu sequences announced in the header. */
-
-static void Missing_Sequences(int found, int n_otu)
-{
-  PhyML_Fprintf(stderr,
-                "\n. Err.: the header announces %d sequences but the file ends "
-                "after %d.\n",
-                n_otu, found);
-  Exit("");
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-/* Taxon name of sequence i into a T_MAX_NAME buffer: at most T_MAX_NAME - 1
-   characters, so that the name stays terminated. */
-
-static void Read_Taxon_Name(FILE *fp, char *name, int i, int n_otu)
-{
-  char format[32];
-  int  c;
-
-  snprintf(format, sizeof(format), "%%%ds", T_MAX_NAME - 1);
-  if (fscanf(fp, format, name) != 1) Missing_Sequences(i, n_otu);
-  c = fgetc(fp);
-  if (c != EOF && !isspace(c))
-  {
-    PhyML_Fprintf(stderr,
-                  "\n. Err.: the name of sequence %d is longer than %d "
-                  "characters.\n",
-                  i + 1, T_MAX_NAME - 1);
-    Exit("");
-  }
-  if (c != EOF) ungetc(c, fp);
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-align **Read_Seq_Sequential(option *io)
-{
-  int     i;
-  char   *line;
-  align **data;
-  /*   char c; */
-  char *format;
-
-  format = (char *)mCalloc(T_MAX_NAME, sizeof(char));
-  line   = (char *)mCalloc(T_MAX_LINE, sizeof(char));
-  data   = (align **)mCalloc(io->n_otu, sizeof(align *));
-
-  /*   while((c=fgetc(in))!='\n'); */
-  /*  while(((c=fgetc(io->fp_in_align))!='\n') && (c != ' ') && (c != '\r') &&
-   * (c != '\t')); */
-
-  sprintf(format, "%%%ds", T_MAX_NAME - 1);
-
-  for (i = 0; i < io->n_otu; i++)
-  {
-    data[i]       = (align *)mCalloc(1, sizeof(align));
-    data[i]->name = (char *)mCalloc(T_MAX_NAME, sizeof(char));
-    data[i]->state =
-        (char *)mCalloc(io->init_len * io->state_len + 1, sizeof(char));
-
-    data[i]->is_ambigu = NULL;
-    data[i]->len       = 0;
-
-    Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu);
-
-    Check_Sequence_Name(data[i]->name);
-
-    // Not inside assert(): -DNDEBUG builds would skip the read
-    while (data[i]->len < io->init_len * io->state_len)
-      if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len,
-                             io->fp_in_align))
-        break; // end of file: the length is checked below
-
-    if (data[i]->len != io->init_len * io->state_len)
-    {
-      PhyML_Fprintf(
-          stderr,
-          "\n. Err. Problem with species %s's sequence (check the format).\n",
-          data[i]->name);
-      PhyML_Fprintf(stderr,
-                    "\n. Observed sequence length: %d, expected length: %d\n",
-                    data[i]->len, io->init_len * io->state_len);
-      Warn_And_Exit("");
-    }
-  }
-
-  for (i = 0; i < io->n_otu; i++) data[i]->state[data[i]->len] = '\0';
-
-  Restrict_To_Coding_Position(data, io);
-
-  Free(format);
-  Free(line);
-
-  return data;
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-align **Read_Seq_Interleaved(option *io)
-{
-  int     i, end, num_block;
-  char   *line;
-  align **data;
-  /*   char c; */
-  char  *format;
-  fpos_t curr_pos;
-
-  line   = (char *)mCalloc(T_MAX_LINE, sizeof(char));
-  format = (char *)mCalloc(T_MAX_NAME, sizeof(char));
-  data   = (align **)mCalloc(io->n_otu, sizeof(align *));
-
-  /*   while(((c=fgetc(io->fp_in_align))!='\n') && (c != ' ') && (c != '\r') &&
-   * (c != '\t')); */
-
-  sprintf(format, "%%%ds", T_MAX_NAME - 1);
-
-  end = 0;
-  for (i = 0; i < io->n_otu; i++)
-  {
-    data[i]       = (align *)mCalloc(1, sizeof(align));
-    data[i]->name = (char *)mCalloc(T_MAX_NAME, sizeof(char));
-    data[i]->state =
-        (char *)mCalloc(io->init_len * io->state_len + 1, sizeof(char));
-
-    data[i]->len       = 0;
-    data[i]->is_ambigu = NULL;
-
-    Read_Taxon_Name(io->fp_in_align, data[i]->name, i, io->n_otu);
-
-    Check_Sequence_Name(data[i]->name);
-
-    if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align))
-    {
-      end = 1;
-      if ((i != io->n_otu) && (i != io->n_otu - 1))
-      {
-        PhyML_Fprintf(stderr, "\n. Err.: problem with species %s's sequence.\n",
-                      data[i]->name);
-        PhyML_Fprintf(stderr,
-                      "\n. Observed sequence length: %d, expected length: %d\n",
-                      data[i]->len, io->init_len * io->state_len);
-        Exit("");
-      }
-      break;
-    }
-  }
-
-  if (data[0]->len == io->init_len * io->state_len) end = 1;
-
-  /*   if(end) printf("\n. finished yet '%c'\n",fgetc(io->fp_in_align)); */
-  if (!end)
-  {
-    end       = 0;
-    num_block = 1;
-    do
-    {
-      num_block++;
-
-      /* interblock */
-      if (!fgets(line, T_MAX_LINE, io->fp_in_align)) break;
-
-      if (line[0] != 13 && line[0] != 10)
-      {
-        PhyML_Fprintf(stderr,
-                      "\n. Err.: one or more missing sequences in block %d.\n",
-                      num_block - 1);
-        Exit("");
-      }
-
-      for (i = 0; i < io->n_otu; i++)
-        if (data[i]->len != io->init_len * io->state_len) break;
-
-      if (i == io->n_otu) break;
-
-      for (i = 0; i < io->n_otu; i++)
-      {
-        /* Skip the taxon name, if any, in this interleaved block */
-        fgetpos(io->fp_in_align, &curr_pos);
-        if (!fscanf(io->fp_in_align, format, line))
-        {
-          PhyML_Fprintf(stderr, "\n. Err. in file %s at line %d\n", __FILE__,
-                        __LINE__);
-          Warn_And_Exit("");
-        }
-        if (line && strcmp(line, data[i]->name))
-          fsetpos(io->fp_in_align, &curr_pos);
-
-        if (data[i]->len > io->init_len * io->state_len)
-        {
-          PhyML_Fprintf(stderr,
-                        "\n. Observed sequence length=%d expected length=%d.\n",
-                        data[i]->len, io->init_len * io->state_len);
-          PhyML_Fprintf(stderr,
-                        "\n. Err.: Problem with species %s's sequence.\n",
-                        data[i]->name);
-          Exit("");
-        }
-        else if (!Read_One_Line_Seq(&data, i, io->init_len * io->state_len, io->fp_in_align))
-        {
-          end = 1;
-          if ((i != io->n_otu) && (i != io->n_otu - 1))
-          {
-            PhyML_Fprintf(stderr,
-                          "\n. Err.: Problem with species %s's sequence.\n",
-                          data[i]->name);
-            PhyML_Fprintf(
-                stderr,
-                "\n. Observed sequence length: %d, expected length: %d.\n",
-                data[i]->len, io->init_len * io->state_len);
-            Exit("");
-          }
-          break;
-        }
-      }
-    } while (!end);
-  }
-
-  for (i = 0; i < io->n_otu; i++) data[i]->state[data[i]->len] = '\0';
-
-  for (i = 0; i < io->n_otu; i++)
-  {
-    if (data[i]->len != io->init_len * io->state_len)
-    {
-      PhyML_Fprintf(stderr,
-                    "\n. Check sequence '%s' length (expected length: %d, "
-                    "observed length: %d) [OTU %d].\n",
-                    data[i]->name, io->init_len, data[i]->len, i + 1);
-      Exit("");
-    }
-  }
-
-  Restrict_To_Coding_Position(data, io);
-
-  Free(format);
-  Free(line);
-
-  return data;
-}
-
-//////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////
-
-int Read_One_Line_Seq(align ***data, int num_otu, int max_len, FILE *in)
-{
-  int  c     = ' '; // int, not char: EOF must stay distinct from any character
-  char ch;
-  int  nchar = 0;
-
-  while (1)
-  {
-    if ((c == 13) || (c == 10))
-    {
-      if (!nchar)
-      {
-        c = fgetc(in);
-        continue;
-      }
-      else
-        break;
-    }
-    else if (c == EOF)
-      break;
-    else if ((c == ' ') || (c == '\t'))
-    {
-      c = fgetc(in);
-      continue;
-    }
-
-    // The sequence buffer holds the length given in the header
-    if ((*data)[num_otu]->len >= max_len)
-    {
-      PhyML_Fprintf(stderr,
-                    "\n. Err.: the sequence of '%s' is longer than the %d "
-                    "characters given in the header.\n",
-                    (*data)[num_otu]->name, max_len);
-      Exit("");
-    }
-
-    nchar++;
-    ch = (char)c;
-    Uppercase(&ch);
-
-    if (ch == '.')
-    {
-      if (!num_otu)
-        Warn_And_Exit(
-            "\n. Err: Symbol \".\" should not appear in the first sequence\n");
-      ch = (*data)[0]->state[(*data)[num_otu]->len];
-    }
-    (*data)[num_otu]->state[(*data)[num_otu]->len] = ch;
-    (*data)[num_otu]->len++;
-    c = fgetc(in);
-    if (c == ';') break;
-  }
-
-  if (c == EOF)
-    return 0;
-  else
-    return 1;
 }
 
 //////////////////////////////////////////////////////////////
@@ -3039,7 +3110,13 @@ void Print_Fp_Out(FILE *fp_out, time_t t_beg, time_t t_end, t_tree *tree,
 
   /* was after Sequence file ; moved here FLT */
   s = (char *)mCalloc(T_MAX_LINE, sizeof(char));
-  if (io->in_tree == 2)
+  if (io->fp_in_constraint_tree != NULL)
+  {
+    strcat(strcat(strcat(s, "constraint tree ("),
+                  Basename(io->in_constraint_tree_file)),
+           ")");
+  }
+  else if (io->in_tree == 2)
   {
     strcat(strcat(strcat(s, "user tree ("), io->in_tree_file), ")");
   }

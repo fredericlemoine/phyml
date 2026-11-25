@@ -10,6 +10,9 @@
 #include "io.h"
 #include "error.h"
 #include "phyml.h"
+#include "make.h"
+#include "init.h"
+#include "free.h"
 
 static char lib_dir[256];
 
@@ -450,3 +453,186 @@ TEST(lib, error_in_an_inactive_region_comes_back_after_it)
   CHECK_EQ_INT(omp_get_level(), 0);
 }
 #endif
+
+/* ---------------------------------------- alignment reader return codes */
+
+/* Read_Alignment on a file holding 'text', with default options (DNA,
+   interleaved PHYLIP unless sequential). No recovery point: a reader that
+   ended the process would fail the test. */
+static int Read_Text(const char *text, int datatype, int interleaved,
+                     option **io_out)
+{
+  option *io  = Make_Input();
+  t_mod  *mod = Make_Model_Basic();
+  int     rc;
+
+  Set_Defaults_Input(io);
+  Set_Defaults_Model(mod);
+  io->mod         = mod;
+  mod->io         = io;
+  io->datatype    = datatype;
+  io->interleaved = interleaved;
+  io->fp_in_align = tmpfile();
+  fputs(text, io->fp_in_align);
+  rewind(io->fp_in_align);
+  rc = Read_Alignment(io);
+  if (io_out) *io_out = io;
+  return rc;
+}
+
+static const struct
+{
+  const char *text, *why;
+  int         datatype, interleaved;
+} bad_alignments[] = {
+    {"", "file is empty", NT, YES},
+    {"x 10\n", "number of sequences", NT, YES},
+    {"3 -1\n", "positive integer", NT, YES},
+    {"3\n", "no sequence length", NT, YES},
+    {"3 4\na ACGT\nb ACGT", "ends after sequence 'b', 2 of the 3", NT, YES},
+    {"3 4\na ACGT\nb ACGT\n", "header announces 3 sequences but the file ends after 2", NT, NO},
+    {"3 4\na ACGT\nb ACGT\nc ACG\n", "sequence 'c' has 3 characters", NT, NO},
+    {"3 4\na ACGT\nb ACGTA\nc ACGT\n", "longer than the 4 characters", NT, NO},
+    {"3 4\na ACGT\nb AC@T\nc ACGT\n", "unknown character state '@'", NT, YES},
+    {"3 4\na ACGT\nb ACJT\nc ACGT\n", "not a nucleotide state", NT, YES},
+    {"3 4\na ACGT\nb ACJT\nc ACGT\n", "not an amino-acid state", AA, YES},
+    {"3 4\na ACGT\na ACGT\nc ACGT\n", "'a' appears more than once", NT, YES},
+    {"2 4\na ACGT\nb ACGT\n", "at least three sequences", NT, YES},
+    {"3 4\na:x ACGT\nb ACGT\nc ACGT\n", "':' is not permitted", NT, YES},
+    {"3 4\na ..GT\nb ACGT\nc ACGT\n", "'.' (same as the first sequence)", NT, YES},
+    {"3 8\na ACGT\nb ACGT\nc ACGT\nACGT\nACGT\n", "missing sequences in block", NT, YES},
+    {">a\nACGT\n>b\nACG\n>c\nACGT\n", "not aligned", NT, YES},
+    {">a\nACGT\n>\nACGT\n>c\nACGT\n", "has no name", NT, YES},
+    {">a\nACGT\n>b\n\n>c\nACGT\n", "'b' is empty", NT, YES},
+};
+
+TEST(lib, read_alignment_returns_input_errors)
+{
+  for (size_t i = 0; i < sizeof(bad_alignments) / sizeof(bad_alignments[0]); i++)
+  {
+    option *io = NULL;
+    int     rc;
+
+    rc = Read_Text(bad_alignments[i].text, bad_alignments[i].datatype,
+                   bad_alignments[i].interleaved, &io);
+    if (rc != PHYML_ERR_INPUT || io->data != NULL ||
+        !strstr(PhyML_Error_Message(), bad_alignments[i].why))
+      tt_fail(__FILE__, __LINE__, "case %d: code %d, expected '%s' in: %s", (int)i,
+              rc, bad_alignments[i].why, PhyML_Error_Message());
+  }
+}
+
+TEST(lib, read_alignment_reads_valid_files)
+{
+  static const struct
+  {
+    const char *text;
+    int         interleaved, n_otu, len;
+  } good[] = {
+      {"3 4\na ACGT\nb ACGA\nc ACGG\n", YES, 3, 4},
+      {"3 8\na ACGT\nb ACGA\nc ACGG\n\nACGT\nACGT\nACGT\n", YES, 3, 8},
+      {"3 8\na ACGT\nb ACGA\nc ACGG\n\na ACGT\nb ACGT\nc ACGT\n", YES, 3, 8},
+      {"3 8\na ACGT\nACGT\nb ACGAACGT\nc AC GG AC GT\n", NO, 3, 8},
+      {">a desc\nACGT\nAC\n>b\nACGTAC\n>c\nAC.TAC\n", YES, 3, 6},
+      {"  \n\n>a\nACGT\n>b\nNNNN\n>c\n----\n", YES, 3, 4},
+  };
+  for (size_t i = 0; i < sizeof(good) / sizeof(good[0]); i++)
+  {
+    option *io = NULL;
+    int     rc = Read_Text(good[i].text, NT, good[i].interleaved, &io);
+    if (rc != PHYML_OK)
+      tt_fail(__FILE__, __LINE__, "case %d refused: %s", (int)i, PhyML_Error_Message());
+    CHECK_EQ_INT(io->n_otu, good[i].n_otu);
+    CHECK_EQ_INT(io->data[0]->len, good[i].len);
+  }
+}
+
+/* NEXUS files are read through PhyML_Try: their errors come back too. */
+TEST(lib, read_alignment_nexus_errors_come_back)
+{
+  option *io = NULL;
+  int     rc;
+
+  Silence();
+  rc = Read_Text("#NEXUS\nBEGIN DATA;\nDIMENSIONS NTAX=3 NCHAR=4;\n"
+                 "FORMAT DATATYPE=DNA;\nMATRIX\na ACGT\nb ACGT\n;\nEND;\n",
+                 NT, YES, &io);
+  CHECK(rc != PHYML_OK);
+  CHECK(io->data == NULL);
+  CHECK(PhyML_Error_Message()[0] != '\0');
+
+  rc = Read_Text("#NEXUS\nBEGIN DATA;\nDIMENSIONS NTAX=3 NCHAR=4;\n"
+                 "FORMAT DATATYPE=DNA;\nMATRIX\na ACGT\nb ACGA\nc ACGG\n;\nEND;\n",
+                 NT, YES, &io);
+  if (rc != PHYML_OK)
+    tt_fail(__FILE__, __LINE__, "valid NEXUS refused: %s", PhyML_Error_Message());
+  CHECK_EQ_INT(io->n_otu, 3);
+}
+
+/* Random edits of valid alignments: each one is refused with an input
+   error or read; a recovery point catches an error raised instead of
+   returned (PHYLIP and FASTA must not raise). */
+TEST(lib, edited_alignments_are_refused_or_read_cleanly)
+{
+  static const char *base[] = {
+      "4 12\nt1 ACGTACGTACGT\nt2 ACGAACGTACGA\nt3 ACGGACGTACGG\nt4 ACGCACGTACGC\n",
+      "4 12\nt1 ACGTAC\nt2 ACGAAC\nt3 ACGGAC\nt4 ACGCAC\n\nGTACGT\nGTACGA\nGTACGG\nGTACGC\n",
+      ">t1\nACGTAC\nGTACGT\n>t2 x\nACGAACGTACGA\n>t3\nACGGACGTACGG\n>t4\nACGCACGTACGC\n",
+  };
+  const char   ins[] = "ACGT.-?N@>: \n\t0123x";
+  char         s[512];
+  jmp_buf      env;
+  volatile int n_ok = 0, n_bad = 0;
+  int          k;
+
+  Silence();
+  srand(11);
+  for (k = 0; k < 6000; k++)
+  {
+    int     b = k % 3, len, n_edits = 1 + rand() % 3, e, pos, rc;
+    option *volatile io = NULL;
+
+    strcpy(s, base[b]);
+    for (e = 0; e < n_edits; e++)
+    {
+      len = (int)strlen(s);
+      pos = len ? rand() % len : 0;
+      switch (rand() % 4)
+      {
+      case 0: memmove(s + pos, s + pos + 1, len - pos); break;
+      case 1:
+        if (len < 500)
+        {
+          memmove(s + pos + 1, s + pos, len - pos + 1);
+          s[pos] = ins[rand() % (sizeof(ins) - 1)];
+        }
+        break;
+      case 2: s[pos] = ins[rand() % (sizeof(ins) - 1)]; break;
+      case 3: s[pos] = '\0'; break;
+      }
+    }
+
+    if (setjmp(env) != 0)
+    {
+      PhyML_Error_Set_Recovery(NULL);
+      tt_fail(__FILE__, __LINE__, "'%s' raised instead of returning: %s", s,
+              PhyML_Error_Message());
+    }
+    PhyML_Error_Set_Recovery(&env);
+    rc = Read_Text(s, NT, b == 1 ? YES : (rand() % 2 ? YES : NO), (option **)&io);
+    PhyML_Error_Set_Recovery(NULL);
+    if (rc == PHYML_OK)
+    {
+      CHECK(io->data != NULL && io->n_otu >= 3);
+      n_ok++;
+    }
+    else
+    {
+      CHECK_EQ_INT(rc, PHYML_ERR_INPUT);
+      CHECK(io->data == NULL);
+      n_bad++;
+    }
+    fclose(io->fp_in_align);
+  }
+  CHECK(n_ok > 500 && n_bad > 500);
+}

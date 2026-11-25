@@ -9,12 +9,16 @@ make -C test check-unit       # C unit tests only
 make -C test check-functional # Python tests only (TESTS='test_cli*' to filter)
 make -C test check-asan       # whole functional suite on the sanitizer build (slow)
 make -C test check-mpi        # MPI bootstrap tests (needs mpicc and mpirun)
+make -C test check-install PREFIX=dir  # lib/use_libphyml.c against the libphyml
+                                       # that `make install` put in dir
 ```
 
 In CI, GitHub Actions (`../.github/workflows/tests.yaml`) runs `check` on Linux
-x86-64, Linux ARM64 and macOS ARM64 and `check-mpi` on every push and pull
-request, and `check-asan` weekly or on demand. GitLab CI (`../.gitlab-ci.yml`)
-runs `check` and `check-mpi` on Debian x86-64, `check` on ARM64 when the
+x86-64, Linux ARM64 and macOS ARM64, `check-mpi`, and the autotools build with
+`make install` and `check-install` on every push and pull request, and
+`check-asan` weekly or on demand. GitLab CI (`../.gitlab-ci.yml`) runs the
+autotools build with `check-install`, and `check` and `check-mpi` on Debian
+x86-64, `check` on ARM64 when the
 `ARM64_RUNNER_TAG` variable names a runner tag, and `check-asan` on scheduled
 or manual pipelines.
 

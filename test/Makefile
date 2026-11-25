@@ -3,6 +3,8 @@
 #   make -C test            build the binaries used by the tests
 #   make -C test check      build, then run the unit and functional tests
 #   make -C test check-unit / check-functional / check-asan
+#   make -C test check-install PREFIX=dir   link a program to the libphyml
+#                                           installed in dir (make install)
 #
 # The suite builds its own copies of PhyML from ../src (it does not need
 # autotools), so it always tests the sources in the working tree:
@@ -73,7 +75,7 @@ UNIT_BIN  := $(BUILD)/unit_tests
 # The same tests on the OpenMP build: errors raised in threads (test_lib.c)
 UNIT_BIN_OMP := $(BUILD)/unit_tests_omp
 
-.PHONY: all check check-unit check-functional check-asan check-mpi clean data
+.PHONY: all check check-unit check-functional check-asan check-mpi check-install clean data
 .SECONDARY:
 
 BINS := $(BUILD)/phyml $(BUILD)/phyml-generic $(BUILD)/phyml-ndebug
@@ -176,6 +178,23 @@ $(BUILD)/phyml-mpi: $(addprefix $(BUILD)/obj-mpi/,$(addsuffix .o,$(MPI_SRCS)))
 check-mpi: $(BUILD)/phyml $(BUILD)/phyml-mpi
 	cd functional && PHYML=$(abspath $(BUILD)/phyml) PHYML_MPI=$(abspath $(BUILD)/phyml-mpi) \
 	  MPIRUN="$(MPIRUN)" $(PYTHON) -m unittest test_mpi -v
+
+# The installed library (sh ./autogen.sh && ./configure --prefix=dir &&
+# make && make install): a program that includes <phyml.h> and links
+# -lphyml, built from the installed files only, gets error codes back and
+# runs an analysis. OPENMP_LIBS is added in case the library was built with
+# OpenMP (configure enables it when the compiler supports it).
+PREFIX ?= /usr/local
+check-install: | $(BUILD)
+	$(CC) -I$(PREFIX)/include lib/use_libphyml.c -L$(PREFIX)/lib -lphyml -lm \
+	  $(if $(filter 1,$(OPENMP)),$(OPENMP_LIBS)) -o $(BUILD)/use_libphyml
+	rm -rf $(BUILD)/install-data && mkdir -p $(BUILD)/install-data
+	cp data/dna_small.phy data/bad_short_seq.phy $(BUILD)/install-data/
+	cd $(BUILD)/install-data && ../use_libphyml dna_small.phy bad_short_seq.phy > use_libphyml.log 2>&1; \
+	  status=$$?; grep -E '^(ok|FAIL|OK|FAILED)' use_libphyml.log; exit $$status
+
+$(BUILD):
+	mkdir -p $@
 
 data:
 	$(PYTHON) tools/make_data.py

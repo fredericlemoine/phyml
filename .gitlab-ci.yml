@@ -1,6 +1,8 @@
 # GitLab CI: build PhyML and run the test suite (test/README.md).
 #
-#   build:autotools     the distributed build (autogen.sh, configure, make)
+#   build:autotools     the distributed build (autogen.sh, configure, make,
+#                       make install), then a program linked to the installed
+#                       libphyml (make -C test check-install)
 #   test:linux-x86_64   make -C test check: C unit tests and Python functional
 #                       tests, with the scalar, sanitizer, -DNDEBUG and OpenMP
 #                       builds
@@ -53,8 +55,9 @@ build:autotools:
     - ./configure --prefix=/tmp/phyml --disable-dependency-tracking --enable-phyml
     - make -j"$(nproc)"
     - make install
-    - /tmp/phyml/bin/phyml --version || test $? -eq 1   # --version exits with 1 (known bug)
+    - /tmp/phyml/bin/phyml --version
     - file /tmp/phyml/bin/phyml
+    - make -C test check-install PREFIX=/tmp/phyml
 
 test:linux-x86_64:
   extends: .test-suite
